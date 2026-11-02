@@ -37,6 +37,12 @@ make dev-web
 
 Open http://localhost:5173. Vite proxies `/api`, `/ws` and `/healthz` to the Go server on `:8080`.
 
+To play on your LAN, build once and serve everything from the Go server, then share `http://<your-ip>:8080`:
+
+```bash
+make run
+```
+
 ## Checks
 
 ```bash
@@ -44,6 +50,12 @@ make ci
 ```
 
 This runs the linters, all tests (Go with `-race`) and a production build. `make help` lists the other targets.
+
+End-to-end tests drive real browsers against the built server (first run: `cd web && npx playwright install chromium`):
+
+```bash
+make e2e
+```
 
 ### Engine stress test
 
@@ -64,3 +76,4 @@ cd server && go run ./cmd/replay sim-failure.json
 | `PORT` | `8080` | HTTP listen port |
 | `STATIC_DIR` | *(empty)* | Serve the built web app from this directory |
 | `LOG_LEVEL` | `info` | Set to `debug` to log every request |
+| `ALLOWED_ORIGINS` | *(empty)* | Extra browser origins allowed to open WebSockets, comma-separated host patterns (e.g. `localhost:5173`). Same-origin is always allowed. |

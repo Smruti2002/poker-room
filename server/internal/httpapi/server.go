@@ -3,8 +3,10 @@
 package httpapi
 
 import (
+	"bufio"
 	"encoding/json"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -16,6 +18,8 @@ type Config struct {
 	// StaticDir is the directory of the built web app. Empty disables static serving.
 	StaticDir string
 	Version   string
+	// Routes registers extra handlers, such as the room API.
+	Routes func(*http.ServeMux)
 }
 
 // NewHandler returns the root handler for the server.
@@ -30,6 +34,10 @@ func NewHandler(cfg Config, log *slog.Logger) http.Handler {
 			"uptimeS": int(time.Since(started).Seconds()),
 		})
 	})
+
+	if cfg.Routes != nil {
+		cfg.Routes(mux)
+	}
 
 	if cfg.StaticDir != "" {
 		mux.Handle("GET /", spaHandler(cfg.StaticDir))
@@ -67,6 +75,15 @@ func (s *statusRecorder) WriteHeader(code int) {
 	s.status = code
 	s.ResponseWriter.WriteHeader(code)
 }
+
+// Hijack lets WebSocket upgrades through the logging wrapper.
+func (s *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	s.status = http.StatusSwitchingProtocols
+	return http.NewResponseController(s.ResponseWriter).Hijack()
+}
+
+// Unwrap exposes the underlying writer to http.ResponseController.
+func (s *statusRecorder) Unwrap() http.ResponseWriter { return s.ResponseWriter }
 
 func logRequests(log *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

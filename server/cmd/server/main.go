@@ -8,10 +8,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"pokerroom/internal/httpapi"
+	"pokerroom/internal/room"
+	"pokerroom/internal/ws"
 )
 
 // version is set at build time with -ldflags "-X main.version=...".
@@ -32,11 +35,17 @@ func main() {
 
 func run(log *slog.Logger) error {
 	addr := ":" + envOr("PORT", "8080")
+	rooms := &ws.Server{
+		Rooms:          room.NewManager(room.Options{}, log),
+		OriginPatterns: splitList(os.Getenv("ALLOWED_ORIGINS")),
+		Log:            log,
+	}
 	srv := &http.Server{
 		Addr: addr,
 		Handler: httpapi.NewHandler(httpapi.Config{
 			StaticDir: os.Getenv("STATIC_DIR"),
 			Version:   version,
+			Routes:    rooms.Register,
 		}, log),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
@@ -70,4 +79,15 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// splitList parses a comma-separated env var.
+func splitList(s string) []string {
+	var out []string
+	for _, part := range strings.Split(s, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }

@@ -2,4 +2,7 @@ module pokerroom
 
 go 1.27.3
 
-require pgregory.net/rapid v1.3.0
+require (
+	github.com/coder/websocket v1.8.15
+	pgregory.net/rapid v1.3.0
+)

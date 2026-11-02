@@ -39,6 +39,10 @@ test-server: ## Go tests with the race detector
 test-web: ## Web unit tests
 	cd $(WEB) && npm test
 
+.PHONY: e2e
+e2e: ## Playwright end-to-end tests against the built server
+	cd $(WEB) && npm run e2e
+
 .PHONY: lint
 lint: lint-server lint-web ## Run all linters
 
@@ -55,6 +59,10 @@ lint-web: ## Typecheck + oxlint
 .PHONY: sim
 sim: ## Play 100k bot hands and check engine invariants
 	cd $(SERVER) && go run ./cmd/sim -hands 100000
+
+.PHONY: protocol
+protocol: ## Regenerate web/src/protocol/types.ts from the Go protocol types
+	cd $(SERVER) && go run github.com/gzuidhof/tygo@v0.2.21 generate
 
 .PHONY: fmt
 fmt: ## Format Go code

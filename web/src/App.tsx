@@ -1,31 +1,23 @@
 import { useEffect, useState } from 'react'
+import { Home } from './pages/Home.tsx'
+import { RoomPage } from './pages/RoomPage.tsx'
 
-type ServerStatus = 'checking' | 'online' | 'offline'
-
+/** Tiny router: "/" is the home page, "/r/CODE" is a room. */
 export default function App() {
-  const [status, setStatus] = useState<ServerStatus>('checking')
+  const [path, setPath] = useState(() => window.location.pathname)
 
   useEffect(() => {
-    let cancelled = false
-    fetch('/healthz')
-      .then((res) => {
-        if (!cancelled) setStatus(res.ok ? 'online' : 'offline')
-      })
-      .catch(() => {
-        if (!cancelled) setStatus('offline')
-      })
-    return () => {
-      cancelled = true
-    }
+    const onPop = () => setPath(window.location.pathname)
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
   }, [])
 
-  return (
-    <main className="home">
-      <h1>Poker Room</h1>
-      <p>Play-money poker with friends. Create a room, share the link, deal.</p>
-      <p className={`status status-${status}`} role="status">
-        Server: {status}
-      </p>
-    </main>
-  )
+  const navigate = (to: string) => {
+    window.history.pushState(null, '', to)
+    setPath(to)
+  }
+
+  const match = /^\/r\/([A-Za-z0-9]+)\/?$/.exec(path)
+  if (match) return <RoomPage key={match[1]} code={match[1].toUpperCase()} />
+  return <Home navigate={navigate} />
 }

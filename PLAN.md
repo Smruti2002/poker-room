@@ -222,7 +222,7 @@ Each milestone ends with a **demo** and a **green test gate**. Don't start the n
 - **Tests:** golden scenarios (≥ 30 tricky betting situations), rapid property tests for chip conservation, 100k-hand simulation.
 - **Gate:** a CLI plays a full Hold'em game between bots with zero invariant violations.
 
-### M3 — Rooms, lobby, WebSocket, loans → *first playable* (≈1.5 weeks)
+### M3 — Rooms, lobby, WebSocket, loans → *first playable* (≈1.5 weeks) ✅
 - REST: `POST /api/rooms` and `GET /api/rooms/{code}`. WebSocket at `/ws/{code}`.
 - Room actor: seats, host role (passed on if the host leaves), settings validation, start, dealer rotation, variant picker with timer, turn timers, sit-out, **loan flow + debt tracking**, leaderboard.
 - Session tokens + reconnect with a full snapshot.

@@ -1,0 +1,7 @@
+# Generates web/src/protocol/types.ts from the Go protocol package.
+# Run with: make protocol
+packages:
+  - path: "pokerroom/internal/protocol"
+    output_path: "../web/src/protocol/types.ts"
+    frontmatter: |
+      // Regenerate with: make protocol

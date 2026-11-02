@@ -36,9 +36,17 @@ type Event struct {
 
 func (h *Hand) emit(e Event) { h.Events = append(h.Events, e) }
 
-// Narrate renders the events as human-readable lines, for logs and the
-// replay tool.
-func (h *Hand) Narrate() []string {
+// Narrate renders every event, including all hole cards, as human-readable
+// lines. It is for logs and the replay tool, never for players.
+func (h *Hand) Narrate() []string { return h.narrate(func(Event) bool { return true }) }
+
+// NarrateFor renders the events player `viewer` may see: their own hole
+// cards but nobody else's. Use -1 for a spectator.
+func (h *Hand) NarrateFor(viewer int) []string {
+	return h.narrate(func(e Event) bool { return e.Kind != EvHole || e.Player == viewer })
+}
+
+func (h *Hand) narrate(visible func(Event) bool) []string {
 	name := func(i int) string {
 		if id := h.Players[i].ID; id != "" {
 			return id
@@ -55,6 +63,9 @@ func (h *Hand) Narrate() []string {
 	board := 0
 	var out []string
 	for _, e := range h.Events {
+		if !visible(e) {
+			continue
+		}
 		switch e.Kind {
 		case EvBlind:
 			out = append(out, fmt.Sprintf("%s posts %d", name(e.Player), e.Chips))

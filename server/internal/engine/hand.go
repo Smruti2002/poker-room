@@ -234,6 +234,9 @@ func (h *Hand) mayRaise(i int) bool {
 	return others && (!p.acted || h.CurrentBet-p.faced >= h.MinRaise)
 }
 
+// PotChips is the total chips committed this hand, including current bets.
+func (h *Hand) PotChips() int64 { return h.potChips() }
+
 func (h *Hand) potChips() int64 {
 	var sum int64
 	for _, p := range h.Players {

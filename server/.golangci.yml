@@ -11,9 +11,9 @@ linters:
     - usestdlibvars
   exclusions:
     rules:
-      # Unchecked Close() on response bodies is fine in tests.
+      # Unchecked Close() calls are fine in tests; WebSocket dial responses have no body.
       - path: _test\.go
-        linters: [errcheck]
+        linters: [errcheck, bodyclose]
 
 formatters:
   enable:

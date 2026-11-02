@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"maps"
 
 	"pokerroom/internal/cards"
 	"pokerroom/internal/eval"
@@ -31,6 +32,9 @@ func register(v Variant) Variant {
 	variants[v.Name()] = v
 	return v
 }
+
+// AllVariants returns every registered variant.
+func AllVariants() map[string]Variant { return maps.Clone(variants) }
 
 // VariantByName looks up a registered variant.
 func VariantByName(name string) (Variant, error) {
