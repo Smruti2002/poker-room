@@ -1,0 +1,41 @@
+:root {
+  --felt: #0f5132;
+  --bg: #0b1410;
+  --fg: #e8f0eb;
+  --muted: #9bb0a3;
+  --ok: #3ddc84;
+  --bad: #ff6b6b;
+
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+.home {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 4rem 1rem;
+}
+
+.home h1 {
+  margin: 0 0 0.5rem;
+  font-size: 2.5rem;
+}
+
+.home p {
+  color: var(--muted);
+}
+
+.status-online {
+  color: var(--ok);
+}
+
+.status-offline {
+  color: var(--bad);
+}

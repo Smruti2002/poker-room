@@ -1,0 +1,15 @@
+# Build output
+/bin/
+coverage.out
+*.test
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Env
+.env
+.env.*
+!.env.example
