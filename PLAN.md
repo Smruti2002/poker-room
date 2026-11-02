@@ -11,7 +11,7 @@ A browser-based, multiplayer, **play-money** poker room in the style of richup.i
 2. Friends open the link, enter nickname, take a seat (or watch as spectators).
 3. Host edits **room settings** in the lobby, then hits **Start**.
 4. Each hand, the dealer button moves one seat clockwise. The **dealer picks the variant** (30 s timer; on timeout the previous variant is reused).
-5. Hands run until the host ends the game; a final **leaderboard** shows net result (chips − debt).
+5. Hands run until the host ends the game; a final **leaderboard** shows each player's profit (stack − starting stack − debt).
 
 ### 1.2 Host settings (lobby, locked once the game starts)
 
@@ -31,7 +31,7 @@ A browser-based, multiplayer, **play-money** poker room in the style of richup.i
 ### 1.3 Loan rules
 - A player whose stack hits **0 after a hand** is offered a loan (they can also choose to sit out).
 - Taking loan *k*: `stack += loanAmount`; `debt += loanAmount + (k ≤ penalizedLoans ? loanPenalty : 0)`.
-- **Net worth = stack − debt** is what the leaderboard ranks on.
+- **Profit = stack − starting stack − debt** is what the leaderboard shows and ranks on. 0 means the player broke even.
 - Loans are only taken **between hands**, never during a hand.
 - With defaults: loans 1–3 each add 3000 to debt, loan 4 onward adds 2000.
 
@@ -87,7 +87,7 @@ Variants that don't fit the current number of seated players are greyed out in t
 1. **Dacoit:** players choose 4 or 6 **before** seeing any cards. Blinds **double** for 6-card players.
 2. **Double/Triple Texas:** each board awards 1 point. A tie on a board gives **each tied player a full point**. Most points wins the whole pot, and players tied on points split it equally (§2.4).
 3. **Triple Texas:** single deck only, **max 6 players**. Two decks may come later.
-4. **Loans:** no repayment. Final score = stack − debt. Repayment may come later (§7).
+4. **Loans:** no repayment. Final score = profit = stack − starting stack − debt. Repayment may come later (§7).
 5. **Show 2 Play 2:** cards are revealed **in seat order**, starting left of the dealer.
 
 ---
@@ -203,12 +203,12 @@ Every message carries `seq`. A client that misses one asks for a fresh snapshot.
 
 Each milestone ends with a **demo** and a **green test gate**. Don't start the next one until the gate passes.
 
-### M0 — Spec freeze & skeleton (≈2 days)
+### M0 — Spec freeze & skeleton (≈2 days) ✅
 - Write the final rules (§2, decisions in §2.8) into `docs/rules.md`, with one worked example per variant.
 - Set up the monorepo, Go module, Vite app, Makefile, linters, and the GitHub Actions CI skeleton.
 - **Gate:** CI is green on an empty project. Rules doc approved.
 
-### M1 — Cards & hand evaluator (≈3 days)
+### M1 — Cards & hand evaluator (≈3 days) ✅
 - `cards`: Card type, Deck, seeded shuffle.
 - `eval`: fast 5-card ranker plus the `Best(hole, board, rule)` search covering all rule types.
 - **Tests:** evaluator unit tests, brute-force comparison, category frequency check (e.g. 4 royal flushes, 40 straight flushes out of 2,598,960 hands), Omaha and S2P2 rule traps. A benchmark showing Best() under ~5 µs for Dacoit (150 combos).
@@ -226,7 +226,7 @@ Each milestone ends with a **demo** and a **green test gate**. Don't start the n
 - Room actor: seats, host role (passed on if the host leaves), settings validation, start, dealer rotation, variant picker with timer, turn timers, sit-out, **loan flow + debt tracking**, leaderboard.
 - Session tokens + reconnect with a full snapshot.
 - Minimal React UI: home, lobby with settings form, plain table view (text cards are fine), action bar, leaderboard.
-- **Tests:** WebSocket integration tests (scripted hands, hidden-card leak check, reconnect mid-hand), loan math tests (penalty applies to loans 1..N only), fuzz test on message decoding, first Playwright test (create → join → play one Hold'em hand).
+- **Tests:** WebSocket integration tests (scripted hands, hidden-card leak check, reconnect mid-hand), loan math tests (penalty applies to loans 1..N only; profits sum to minus total penalties), fuzz test on message decoding, first Playwright test (create → join → play one Hold'em hand).
 - **Gate:** 3 people on different machines (via ngrok or a LAN IP) can play Hold'em with loans from start to finish.
 
 ### M4 — Omaha + Show 2 Play 2 (≈4 days)

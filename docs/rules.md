@@ -15,7 +15,7 @@ All chips are virtual. Chip amounts are always whole numbers.
    2. The **dealer picks the variant** from the host's allowed list (30 s timer; on timeout the previous variant is reused, or Texas Hold'em on the first hand). Variants the current table can't support (§4.7) can't be picked.
    3. The hand runs according to the chosen variant.
 4. Between hands, broke players may take a [loan](#3-loans).
-5. The host ends the game whenever they want. The leaderboard ranks players by **net worth = stack − debt**.
+5. The host ends the game whenever they want. The leaderboard ranks players by **profit = stack − starting stack − debt**. 0 means the player broke even, a positive number means they are up, and a negative one means they are down.
 
 ## 2. Room settings
 
@@ -38,8 +38,9 @@ All chips are virtual. Chip amounts are always whole numbers.
   - `stack += loanAmount`
   - `debt += loanAmount + (k ≤ penalizedLoans ? loanPenalty : 0)`
 - Loans are never repaid. (Repayment may be added later.)
+- Chips only enter the game through starting stacks and loan principal, so the players' profits always sum to **minus the total penalties paid**. The engine checks this at the end of every game.
 
-**Example (defaults):** a player takes 5 loans. Their debt grows 3000 → 6000 → 9000 → 11000 → 13000. If they finish with 4500 chips, their net worth is 4500 − 13000 = **−8500**.
+**Example (defaults):** a player takes 5 loans. Their debt grows 3000 → 6000 → 9000 → 11000 → 13000. If they finish with 4500 chips, their profit is 4500 − 2000 − 13000 = **−10500**.
 
 ---
 
