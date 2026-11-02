@@ -3,8 +3,11 @@ package cards
 import (
 	crand "crypto/rand"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"math/rand/v2"
+	"slices"
 )
 
 // ErrDeckEmpty is returned when dealing more cards than remain.
@@ -28,6 +31,24 @@ func SeedFromUint64(n uint64) Seed {
 	return s
 }
 
+// MarshalText encodes the seed as hex.
+func (s Seed) MarshalText() ([]byte, error) {
+	return []byte(hex.EncodeToString(s[:])), nil
+}
+
+// UnmarshalText decodes a hex seed.
+func (s *Seed) UnmarshalText(b []byte) error {
+	var out Seed
+	if len(b) != hex.EncodedLen(len(out)) {
+		return fmt.Errorf("invalid seed %q: want %d hex characters", b, hex.EncodedLen(len(out)))
+	}
+	if _, err := hex.Decode(out[:], b); err != nil {
+		return fmt.Errorf("invalid seed %q: %w", b, err)
+	}
+	*s = out
+	return nil
+}
+
 // Rand returns a ChaCha8-backed generator for the seed. ChaCha8 is a
 // cryptographically strong PRNG, so seeded shuffles are unpredictable as long
 // as the seed stays secret.
@@ -48,6 +69,11 @@ func NewDeck() *Deck {
 		d.cards[i] = Card(i)
 	}
 	return d
+}
+
+// NewDeckOf returns a deck that deals exactly these cards in order.
+func NewDeckOf(cs []Card) *Deck {
+	return &Deck{cards: slices.Clone(cs)}
 }
 
 // NewShuffledDeck returns a full deck shuffled with the given seed.

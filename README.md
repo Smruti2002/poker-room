@@ -45,6 +45,18 @@ make ci
 
 This runs the linters, all tests (Go with `-race`) and a production build. `make help` lists the other targets.
 
+### Engine stress test
+
+```bash
+make sim
+```
+
+Bots play 100,000 hands with invariants checked after every action. If one breaks, the hand log is written to `server/sim-failure.json`; replay it with:
+
+```bash
+cd server && go run ./cmd/replay sim-failure.json
+```
+
 ## Configuration (server)
 
 | Env var | Default | Purpose |

@@ -123,11 +123,12 @@ Variants that don't fit the current number of seated players are greyed out in t
 ### Repo layout
 ```
 server/
-  cmd/server/main.go
+  cmd/server/             # HTTP + WebSocket server
+  cmd/sim/                # bot stress test (make sim)
+  cmd/replay/             # replay a hand log JSON
   internal/cards/        # Card, Deck, shuffle
   internal/eval/         # 5-card evaluator + "choose k from hand, m from board" search
-  internal/engine/       # Hand state machine, betting, pots (unit-based), showdown
-  internal/variants/     # holdem, omaha, dacoit, multitexas (2 & 3 boards), show2play2
+  internal/engine/       # Hand state machine, betting, pots (unit-based), showdown, and every variant
   internal/room/         # Room actor, settings, seats, loans, dealer rotation
   internal/ws/           # WebSocket gateway, session tokens, rate limit
   internal/protocol/     # Message types (source of truth for TS generation)
@@ -214,7 +215,7 @@ Each milestone ends with a **demo** and a **green test gate**. Don't start the n
 - **Tests:** evaluator unit tests, brute-force comparison, category frequency check (e.g. 4 royal flushes, 40 straight flushes out of 2,598,960 hands), Omaha and S2P2 rule traps. A benchmark showing Best() under ~5 µs for Dacoit (150 combos).
 - **Gate:** 100% of evaluator tests pass. Coverage ≥ 95% on `eval`.
 
-### M2 — Headless engine + Texas Hold'em (≈1 week)
+### M2 — Headless engine + Texas Hold'em (≈1 week) ✅
 - Hand state machine: blinds, action order (heads-up special case), legal actions, min-raise, all-in, side pots, showdown, odd chips, everyone-folds early win.
 - Pots are computed in **units with per-player multipliers** from day one, so Dacoit needs no rework later.
 - `sim` package with random bots, plus `cmd/replay`.

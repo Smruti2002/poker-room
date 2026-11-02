@@ -93,3 +93,30 @@ func TestShuffleIsRoughlyUniform(t *testing.T) {
 		t.Fatalf("chi-square %.1f suggests a biased shuffle", chi2)
 	}
 }
+
+func TestNewDeckOf(t *testing.T) {
+	in := MustParseList("As Kd 2c")
+	d := NewDeckOf(in)
+	in[0] = New(Two, Hearts) // the deck keeps its own copy
+	got, _ := d.Deal(3)
+	if !slices.Equal(got, MustParseList("As Kd 2c")) {
+		t.Fatalf("dealt %v", got)
+	}
+}
+
+func TestSeedText(t *testing.T) {
+	s := SeedFromUint64(0xabcdef)
+	b, err := s.MarshalText()
+	if err != nil || len(b) != 64 {
+		t.Fatalf("MarshalText = %s, %v", b, err)
+	}
+	var back Seed
+	if err := back.UnmarshalText(b); err != nil || back != s {
+		t.Fatalf("round trip = %x, %v", back, err)
+	}
+	for _, bad := range []string{"", "zz", "abcd", string(b) + "00"} {
+		if err := back.UnmarshalText([]byte(bad)); err == nil {
+			t.Errorf("UnmarshalText(%q) should fail", bad)
+		}
+	}
+}

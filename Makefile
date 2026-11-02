@@ -52,6 +52,10 @@ lint-server: ## go vet + golangci-lint
 lint-web: ## Typecheck + oxlint
 	cd $(WEB) && npm run typecheck && npm run lint
 
+.PHONY: sim
+sim: ## Play 100k bot hands and check engine invariants
+	cd $(SERVER) && go run ./cmd/sim -hands 100000
+
 .PHONY: fmt
 fmt: ## Format Go code
 	cd $(SERVER) && gofmt -w .

@@ -13,3 +13,4 @@ coverage.out
 .env
 .env.*
 !.env.example
+sim-failure.json

@@ -1,0 +1,38 @@
+name: Nightly
+
+# Long-running checks that are too slow for every push: big bot
+# simulations, many more property-test cases, and fuzzing.
+on:
+  schedule:
+    - cron: "30 21 * * *" # 03:00 IST
+  workflow_dispatch:
+
+jobs:
+  stress:
+    name: Simulation, property tests, fuzz
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - name: Simulation (500k hands per config)
+        run: SIM_HANDS=500000 go test -count=1 -run TestSimulation -timeout 30m ./internal/sim/
+      - name: Simulation CLI with a fresh random seed
+        run: go run ./cmd/sim -players 8 -hands 1000000 -double 0.3 -stack 500 -failure-log ../sim-failure.json
+      - name: Property tests (200k cases)
+        run: go test -count=1 -run Property ./internal/engine/ -rapid.checks=200000 -timeout 20m
+      - name: Fuzz card parsing
+        run: go test -run '^$' -fuzz FuzzParse -fuzztime 2m ./internal/cards/
+      - name: Upload failing hand log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sim-failure
+          path: sim-failure.json
+          if-no-files-found: ignore
