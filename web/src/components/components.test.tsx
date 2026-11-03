@@ -396,3 +396,104 @@ describe('ResultBanner', () => {
     expect(within(banner).getAllByLabelText('Winning hand')).toHaveLength(2)
   })
 })
+
+describe('Drawer', () => {
+  const base = {
+    onTab: vi.fn(),
+    onClose: vi.fn(),
+    history: [] as never[],
+    loadHistory: vi.fn(),
+    chat: vi.fn(),
+    react: vi.fn(),
+    prefs: { sound: true, vibrate: true, fourColor: false },
+    setPrefs: vi.fn(),
+  }
+
+  it('sends chat messages and reactions', async () => {
+    const { Drawer } = await import('./Drawer.tsx')
+    const s = state({
+      chat: [
+        { id: 1, playerId: 'p2', name: 'Bob', text: 'nice hand', at: 0 },
+        { id: 2, playerId: 'p1', name: 'Ann', text: 'thanks', at: 0 },
+      ],
+    })
+    const chat = vi.fn()
+    const react = vi.fn()
+    render(<Drawer {...base} tab="chat" state={s} chat={chat} react={react} />)
+    const lines = screen.getByLabelText('Messages')
+    expect(lines).toHaveTextContent('Bob nice hand')
+    expect(lines).toHaveTextContent('You thanks')
+
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: '  gg  ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    expect(chat).toHaveBeenCalledWith('gg')
+    expect(screen.getByLabelText('Message')).toHaveValue('')
+
+    fireEvent.click(screen.getByRole('button', { name: 'React 🔥' }))
+    expect(react).toHaveBeenCalledWith('🔥')
+  })
+
+  it('loads and shows the hand history', async () => {
+    const { Drawer } = await import('./Drawer.tsx')
+    const loadHistory = vi.fn()
+    const history = [
+      { number: 7, variant: 'omaha', boards: [['As', 'Kd', '7c', '2h', '9s']], winners: [{ playerId: 'p2', chips: 120 }], log: ['Bob wins 120'] },
+    ]
+    render(<Drawer {...base} tab="history" state={state()} history={history} loadHistory={loadHistory} />)
+    expect(loadHistory).toHaveBeenCalled()
+    expect(screen.getByText(/#7/).closest('summary')).toHaveTextContent('#7 Omaha · Bob +120')
+  })
+
+  it('toggles options', async () => {
+    const { Drawer } = await import('./Drawer.tsx')
+    const setPrefs = vi.fn()
+    render(<Drawer {...base} tab="options" state={state()} setPrefs={setPrefs} />)
+    fireEvent.click(screen.getByRole('checkbox', { name: /Four-colour deck/ }))
+    expect(setPrefs).toHaveBeenCalledWith({ fourColor: true })
+  })
+})
+
+describe('Table polish', () => {
+  it('shows reactions over seats, the hand hint and a timer ring', () => {
+    const now = Date.now()
+    const s = state({
+      phase: 'playing',
+      stage: 'hand',
+      now,
+      reactions: [
+        { id: 1, playerId: 'p2', emoji: '😂', at: now - 500 },
+        { id: 2, playerId: 'p1', emoji: '🔥', at: now - 10_000 }, // expired
+      ],
+      players: [
+        player({ id: 'p1', name: 'Ann', inHand: true, holeCount: 2, hole: ['As', 'Ad'] }),
+        player({ id: 'p2', name: 'Bob', inHand: true, holeCount: 2 }),
+      ],
+      hand: {
+        number: 1, variant: 'holdem', street: 'Flop', boards: [['Ac', '7d', '2s']], pot: 40, toAct: 'p2', currentBet: 0,
+        deadline: now + 20_000, done: false, hint: 'Three of a kind, Aces',
+      },
+    })
+    render(<Table state={s} clockOffset={0} onAct={vi.fn()} send={vi.fn()} />)
+    expect(screen.getByLabelText('Bob reacts 😂')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Ann reacts 🔥')).toBeNull()
+    expect(screen.getByText('Three of a kind, Aces')).toBeInTheDocument()
+    expect(within(screen.getByLabelText('Seat Bob')).getByLabelText(/seconds left/)).toBeInTheDocument()
+  })
+})
+
+describe('ActionBar shortcuts', () => {
+  it('F folds, C calls, R focuses the raise box, but not while typing', () => {
+    const onAct = vi.fn()
+    const legal: Legal = { fold: true, check: false, call: true, callUnits: 20, bet: false, raise: true, minTo: 40, maxTo: 1000 }
+    render(<ActionBar legal={legal} bet={0} mult={1} pot={30} onAct={onAct} />)
+    fireEvent.keyDown(window, { key: 'c' })
+    fireEvent.keyDown(window, { key: 'F' })
+    expect(onAct.mock.calls).toEqual([[{ type: 'call' }], [{ type: 'fold' }]])
+
+    fireEvent.keyDown(window, { key: 'r' })
+    const box = screen.getByLabelText('raise to')
+    expect(box).toHaveFocus()
+    fireEvent.keyDown(box, { key: 'c' }) // typing in the box is not a shortcut
+    expect(onAct).toHaveBeenCalledTimes(2)
+  })
+})

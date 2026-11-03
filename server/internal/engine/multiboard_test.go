@@ -206,3 +206,39 @@ func TestMultiBoardRankNeedsSplit(t *testing.T) {
 		t.Fatal("ranking without a split should fail")
 	}
 }
+
+func TestHints(t *testing.T) {
+	// Hold'em: nothing before the flop, a hand name after it, nothing once folded.
+	h := scenario{stacks: thousand3}.newHand(t)
+	if h.Hint(0) != "" {
+		t.Fatal("pre-flop hint")
+	}
+	for _, a := range []string{"0 call", "1 call", "2 check"} {
+		p, act := parseAction(t, a)
+		if err := h.Apply(p, act); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := h.Hint(0); got != "Pair of Aces" {
+		t.Fatalf("hint = %q", got)
+	}
+
+	// Show 2 Play 2 needs the reveal; multi-board hands need the split.
+	s2 := scenario{variant: ShowTwo, stacks: []int64{1000, 1000}, holes: []string{"As Ad Kc 5h", "Qh Qd 9h 3c"}, board: "Ac Kd Kh 9s 2c"}.newHand(t)
+	if s2.Hint(0) != "" {
+		t.Fatal("hint before the reveal")
+	}
+	mb := allocatingHand(t)
+	if mb.Hint(1) != "" {
+		t.Fatal("multi-board hint before the split")
+	}
+	if err := mb.Apply(1, Action{Type: Allocate, Cards: cards.MustParseList("5c 6d Kd Kh")}); err != nil {
+		t.Fatal(err)
+	}
+	if got := mb.Hint(1); got != "King high | Two pair, Kings and Fours" {
+		t.Fatalf("multi-board hint = %q", got)
+	}
+	if mb.Hint(0) != "" {
+		t.Fatal("folded players get no hint")
+	}
+}

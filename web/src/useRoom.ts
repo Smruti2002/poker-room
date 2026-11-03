@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { clearToken, getRoom, loadToken, saveToken } from './api.ts'
-import type { Action, ClientMsg, ServerMsg, Settings, State } from './protocol/types.ts'
+import type { Action, ClientMsg, HistoryHand, ServerMsg, Settings, State } from './protocol/types.ts'
 
 export type ConnStatus = 'idle' | 'connecting' | 'open' | 'reconnecting'
 
@@ -21,6 +21,11 @@ export interface RoomConn {
   act: (action: Action) => void
   updateSettings: (settings: Settings) => void
   dismissError: () => void
+  /** Recent hands, once requested with loadHistory. */
+  history: HistoryHand[] | null
+  loadHistory: () => void
+  chat: (text: string) => void
+  react: (emoji: string) => void
 }
 
 function wsURL(code: string) {
@@ -42,6 +47,7 @@ export function useRoom(code: string): RoomConn {
   const [clockOffset, setClockOffset] = useState(0)
   const [pendingName, setPendingName] = useState<string | null>(null)
   const [gone, setGone] = useState(false)
+  const [history, setHistory] = useState<HistoryHand[] | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
@@ -78,6 +84,9 @@ export function useRoom(code: string): RoomConn {
               setState(msg.state)
               setClockOffset(msg.state.now - Date.now())
             }
+            break
+          case 'history':
+            setHistory(msg.history ?? [])
             break
           case 'error':
             if (!welcomed) {
@@ -148,5 +157,9 @@ export function useRoom(code: string): RoomConn {
     act: (action: Action) => send({ type: 'action', action }),
     updateSettings: (settings: Settings) => send({ type: 'updateSettings', settings }),
     dismissError: () => setError(null),
+    history,
+    loadHistory: () => send({ type: 'history' }),
+    chat: (text: string) => send({ type: 'chat', text }),
+    react: (emoji: string) => send({ type: 'react', emoji }),
   }
 }

@@ -857,7 +857,7 @@ func TestViewListsAreNeverNull(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, field := range []string{`"log":null`, `"leaderboard":null`, `"players":null`, `"variants":null`, `"boards":null`} {
+		for _, field := range []string{`"log":null`, `"leaderboard":null`, `"players":null`, `"variants":null`, `"boards":null`, `"chat":null`, `"reactions":null`} {
 			if strings.Contains(string(b), field) {
 				t.Fatalf("%s in %s", field, b)
 			}

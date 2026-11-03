@@ -85,7 +85,7 @@ async function totalChips(page: Page): Promise<number> {
   return stacks.reduce((sum, s) => sum + Number(s.replace(/\D/g, '')), 0)
 }
 
-test('three friends create a room, join by link and play a hand', async ({ browser }) => {
+test('three friends create a room, join by link and play a hand @phone', async ({ browser }) => {
   const { page: ann, link } = await createRoom(browser, 'Ann')
   const bob = await joinByLink(browser, link, 'Bob')
   const cy = await joinByLink(browser, link, 'Cy')
@@ -120,7 +120,7 @@ test('three friends create a room, join by link and play a hand', async ({ brows
   await expect(bob.locator('.seat-me .card:not(.card-back)')).toHaveCount(4)
 })
 
-test('Show 2 Play 2: everyone reveals two cards before betting', async ({ browser }) => {
+test('Show 2 Play 2: everyone reveals two cards before betting @phone', async ({ browser }) => {
   const { page: ann, link } = await createRoom(browser, 'Ann')
   const bob = await joinByLink(browser, link, 'Bob')
   const cy = await joinByLink(browser, link, 'Cy')
@@ -166,7 +166,7 @@ test('Show 2 Play 2: everyone reveals two cards before betting', async ({ browse
   }
 })
 
-test('Dacoit: players choose 4 or 6 cards, and 6 costs double', async ({ browser }) => {
+test('Dacoit: players choose 4 or 6 cards, and 6 costs double @phone', async ({ browser }) => {
   const { page: ann, link } = await createRoom(browser, 'Ann')
   const bob = await joinByLink(browser, link, 'Bob')
   const cy = await joinByLink(browser, link, 'Cy')
@@ -209,7 +209,7 @@ test('Dacoit: players choose 4 or 6 cards, and 6 costs double', async ({ browser
   for (const page of players) expect(await totalChips(page)).toBe(6000)
 })
 
-test('Double Texas: everyone splits their cards, hidden until the showdown', async ({ browser }) => {
+test('Double Texas: everyone splits their cards, hidden until the showdown @phone', async ({ browser }) => {
   const { page: ann, link } = await createRoom(browser, 'Ann')
   const bob = await joinByLink(browser, link, 'Bob')
   const cy = await joinByLink(browser, link, 'Cy')
@@ -258,6 +258,37 @@ test('Double Texas: everyone splits their cards, hidden until the showdown', asy
     await expect(page.locator('.board-winner')).toHaveCount(2)
     await expect(page.locator('.result')).toContainText(/Board [12]: /)
   }
+})
+
+test('chat, reactions and hand history @phone', async ({ browser }) => {
+  const { page: ann, link } = await createRoom(browser, 'Ann')
+  const bob = await joinByLink(browser, link, 'Bob')
+
+  // Chat works in the lobby; Bob sees an unread badge until he opens it.
+  await ann.getByRole('button', { name: 'Chat' }).click()
+  await ann.getByLabel('Message', { exact: true }).fill('good luck!')
+  await ann.getByRole('button', { name: 'Send' }).click()
+  await expect(ann.getByLabel('Messages')).toContainText('You good luck!')
+  await expect(bob.getByRole('button', { name: 'Chat (1 unread)' })).toBeVisible()
+  await bob.getByRole('button', { name: 'Chat (1 unread)' }).click()
+  await expect(bob.getByLabel('Messages')).toContainText('Ann good luck!')
+  await bob.getByRole('button', { name: 'Close' }).click()
+  await ann.getByRole('button', { name: 'Close' }).click()
+  await expect(bob.getByRole('button', { name: 'Chat', exact: true })).toBeVisible()
+
+  // A reaction floats over the sender's seat for everyone.
+  await onlyVariants(ann, ["Texas Hold'em"])
+  await ann.getByRole('button', { name: 'Start game' }).click()
+  await bob.getByRole('button', { name: 'Chat', exact: true }).click()
+  await bob.getByRole('button', { name: 'React 😂' }).click()
+  await bob.getByRole('button', { name: 'Close' }).click()
+  await expect(ann.getByLabel('Bob reacts 😂')).toBeVisible()
+  await expect(ann.getByLabel('Bob reacts 😂')).toBeHidden({ timeout: 8_000 })
+
+  // After a hand, it appears in the history.
+  await playOutHand([ann, bob])
+  await ann.getByRole('button', { name: 'Hand history' }).click()
+  await expect(ann.locator('.history summary').first()).toContainText(/#1 Texas Hold'em · .+ \+\d+/)
 })
 
 test('a player who refreshes keeps their seat and cards', async ({ browser }) => {

@@ -15,6 +15,9 @@ const (
 	MsgSitOut         = "sitOut"
 	MsgSitIn          = "sitIn"
 	MsgEndGame        = "endGame" // host only
+	MsgChat           = "chat"    // Text: a chat message to the table
+	MsgReact          = "react"   // Emoji: a quick reaction shown over your seat
+	MsgHistory        = "history" // ask for the recent hand history (sent only to you)
 )
 
 // ClientMsg is sent by the browser. The first message on a connection must
@@ -26,6 +29,8 @@ type ClientMsg struct {
 	Settings *Settings `json:"settings,omitempty"`
 	Variant  string    `json:"variant,omitempty"`
 	Action   *Action   `json:"action,omitempty"`
+	Text     string    `json:"text,omitempty"`
+	Emoji    string    `json:"emoji,omitempty"`
 }
 
 // Action is a betting action. To is the street total for bet/raise, in units.
@@ -40,18 +45,20 @@ type Action struct {
 
 // Server message types.
 const (
-	MsgWelcome = "welcome" // Token and PlayerID for this connection
-	MsgState   = "state"   // full room snapshot for this viewer
-	MsgError   = "error"   // a request failed; Error says why
+	MsgWelcome      = "welcome" // Token and PlayerID for this connection
+	MsgState        = "state"   // full room snapshot for this viewer
+	MsgError        = "error"   // a request failed; Error says why
+	MsgHistoryReply = "history" // History: recent hands, as this viewer may see them
 )
 
 // ServerMsg is sent to the browser.
 type ServerMsg struct {
-	Type     string `json:"type"`
-	Token    string `json:"token,omitempty"`
-	PlayerID string `json:"playerId,omitempty"`
-	State    *State `json:"state,omitempty"`
-	Error    string `json:"error,omitempty"`
+	Type     string        `json:"type"`
+	Token    string        `json:"token,omitempty"`
+	PlayerID string        `json:"playerId,omitempty"`
+	State    *State        `json:"state,omitempty"`
+	History  []HistoryHand `json:"history,omitempty"`
+	Error    string        `json:"error,omitempty"`
 }
 
 // Settings are the host's room options (docs/rules.md §2).
@@ -66,6 +73,8 @@ type Settings struct {
 	TurnSeconds    int      `json:"turnSeconds"`
 	Variants       []string `json:"variants"`
 	MaxPlayers     int      `json:"maxPlayers"`
+	// Hints shows each player the name of their current best hand.
+	Hints bool `json:"hints"`
 }
 
 // Room phases.
@@ -97,8 +106,36 @@ type State struct {
 	Choosing    *ChoosingView `json:"choosing,omitempty"`
 	Log         []string      `json:"log"`
 	Leaderboard []Standing    `json:"leaderboard"`
-	Variants    []string      `json:"variants"` // every variant the server knows
-	Now         int64         `json:"now"`      // server time, unix ms
+	Variants    []string      `json:"variants"`  // every variant the server knows
+	Chat        []ChatLine    `json:"chat"`      // the last messages, oldest first
+	Reactions   []Reaction    `json:"reactions"` // reactions from the last few seconds
+	Now         int64         `json:"now"`       // server time, unix ms
+}
+
+// ChatLine is one chat message.
+type ChatLine struct {
+	ID       int    `json:"id"`
+	PlayerID string `json:"playerId"`
+	Name     string `json:"name"`
+	Text     string `json:"text"`
+	At       int64  `json:"at"` // unix ms
+}
+
+// Reaction is a quick emoji shown over a player's seat for a moment.
+type Reaction struct {
+	ID       int    `json:"id"`
+	PlayerID string `json:"playerId"`
+	Emoji    string `json:"emoji"`
+	At       int64  `json:"at"` // unix ms
+}
+
+// HistoryHand is a finished hand as one viewer may see it.
+type HistoryHand struct {
+	Number  int          `json:"number"`
+	Variant string       `json:"variant"`
+	Boards  [][]string   `json:"boards"`
+	Winners []WinnerView `json:"winners"`
+	Log     []string     `json:"log"`
 }
 
 // PlayerView is one seat.
@@ -163,6 +200,9 @@ type HandView struct {
 	Deadline int64  `json:"deadline,omitempty"`
 	Legal    *Legal `json:"legal,omitempty"` // only for the player to act
 	Done     bool   `json:"done"`
+	// Hint names the viewer's current best hand, when the host allows hints
+	// and there are enough cards to make one.
+	Hint string `json:"hint,omitempty"`
 	// Winners is filled in when the hand is done.
 	Winners []WinnerView `json:"winners,omitempty"`
 }

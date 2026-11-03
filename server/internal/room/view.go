@@ -3,6 +3,7 @@ package room
 import (
 	"cmp"
 	"slices"
+	"time"
 
 	"pokerroom/internal/cards"
 	"pokerroom/internal/engine"
@@ -22,9 +23,17 @@ func (r *Room) View(viewer string) protocol.State {
 		Settings: r.settings,
 		Variants: r.variantNames,
 		Log:      []string{},
+		Chat:     append([]protocol.ChatLine{}, r.chat...),
 		Now:      r.opts.Now().UnixMilli(),
 	}
 	s.Settings.Variants = slices.Clone(r.settings.Variants)
+	now := r.opts.Now()
+	s.Reactions = []protocol.Reaction{}
+	for _, x := range r.reactions {
+		if now.Sub(time.UnixMilli(x.At)) < reactionTTL {
+			s.Reactions = append(s.Reactions, x)
+		}
+	}
 
 	h := r.hand
 	live := h != nil && !h.Done
@@ -118,6 +127,7 @@ func (r *Room) handView(viewer string) *protocol.HandView {
 		Reveal:     h.Variant.Reveal(),
 		Pot:        h.PotChips(),
 		CurrentBet: h.CurrentBet,
+		Hint:       r.hint(h, viewer),
 		Done:       h.Done,
 	}
 	for _, b := range h.Boards {
@@ -181,14 +191,16 @@ func cardStrings(cs []cards.Card) []string {
 }
 
 // winners totals each winner's chips across pots, with their shown hand.
-func (r *Room) winners() []protocol.WinnerView {
-	h := r.hand
+func (r *Room) winners() []protocol.WinnerView { return winnersOf(r.hand, r.handIDs) }
+
+// winnersOf totals each winner's chips across pots in a finished hand.
+func winnersOf(h *engine.Hand, handIDs []string) []protocol.WinnerView {
 	var out []protocol.WinnerView
 	for _, e := range h.Events {
 		if e.Kind != engine.EvWin {
 			continue
 		}
-		id := r.handIDs[e.Player]
+		id := handIDs[e.Player]
 		i := slices.IndexFunc(out, func(w protocol.WinnerView) bool { return w.PlayerID == id })
 		if i < 0 {
 			out = append(out, protocol.WinnerView{PlayerID: id, Desc: e.Desc})
@@ -198,7 +210,7 @@ func (r *Room) winners() []protocol.WinnerView {
 	}
 	for i := range out {
 		for _, e := range h.Events {
-			if e.Kind == engine.EvShow && r.handIDs[e.Player] == out[i].PlayerID {
+			if e.Kind == engine.EvShow && handIDs[e.Player] == out[i].PlayerID {
 				for _, b := range e.Best {
 					out[i].Cards = append(out[i].Cards, cardStrings(b))
 				}

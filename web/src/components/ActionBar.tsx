@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Action, Legal } from '../protocol/types.ts'
 
 interface Props {
@@ -29,6 +29,27 @@ export function ActionBar({ legal, bet, mult, pot, onAct }: Props) {
   // chips and the raise in units, as in pot-limit Dacoit (§4.3).
   const called = bet + legal.callUnits
   const potAfterCall = pot + legal.callUnits * mult
+  // Desktop shortcuts: F fold, C check/call, R jump to the raise box.
+  const box = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const typing = e.target instanceof Element && e.target.closest('input, textarea, select')
+      if (e.metaKey || e.ctrlKey || e.altKey || typing) return
+      const key = e.key.toLowerCase()
+      if (key === 'f' && legal.fold) onAct({ type: 'fold' })
+      else if (key === 'c' && legal.check) onAct({ type: 'check' })
+      else if (key === 'c' && legal.call) onAct({ type: 'call' })
+      else if (key === 'r' && box.current) {
+        e.preventDefault()
+        box.current.focus()
+        box.current.select()
+      } else return
+      e.preventDefault()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [legal, onAct])
+
   const presets: [string, number][] = [
     ['Min', legal.minTo],
     ['½ pot', called + Math.floor(potAfterCall / 2)],
@@ -89,6 +110,7 @@ export function ActionBar({ legal, bet, mult, pot, onAct }: Props) {
               aria-label={`${raiseType} amount`}
             />
             <input
+              ref={box}
               type="text"
               inputMode="numeric"
               className={`amount${valid ? '' : ' amount-invalid'}`}
@@ -103,6 +125,9 @@ export function ActionBar({ legal, bet, mult, pot, onAct }: Props) {
               aria-label={`${raiseType} to`}
               aria-invalid={!valid}
             />
+          </div>
+          <div className="shortcuts" aria-hidden="true">
+            Keys: F fold · C {legal.check ? 'check' : 'call'} · R raise · Enter confirm
           </div>
           {!valid && (
             <div className="amount-hint" role="note">

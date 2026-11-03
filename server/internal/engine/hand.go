@@ -826,3 +826,24 @@ func (h *Hand) BoardWinners() [][]int {
 	}
 	return out
 }
+
+// Hint describes player i's best hand with the cards out so far, e.g.
+// "Pair of Kings", or "" when it can't be judged yet: before the flop, before
+// a Show 2 Play 2 reveal, or a multi-board hand before the split.
+func (h *Hand) Hint(i int) string {
+	p := h.Players[i]
+	if p.Folded || len(p.Hole) == 0 || len(h.Boards[0]) < 3 {
+		return ""
+	}
+	if h.Variant.Reveal() > 0 && p.Shown == nil {
+		return ""
+	}
+	if h.Variant.Boards() > 1 && p.Split == nil {
+		return ""
+	}
+	r, err := h.Variant.Rank(p, h.Boards)
+	if err != nil {
+		return ""
+	}
+	return describe(r)
+}

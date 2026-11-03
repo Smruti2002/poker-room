@@ -1,12 +1,28 @@
 import { useEffect, useState } from 'react'
 import { getRoom } from '../api.ts'
+import { Drawer, type DrawerTab } from '../components/Drawer.tsx'
 import { Lobby } from '../components/Lobby.tsx'
 import { Table } from '../components/Table.tsx'
+import { useGameSounds } from '../gameSounds.ts'
+import { usePrefs } from '../prefs.ts'
 import { useRoom } from '../useRoom.ts'
 
 export function RoomPage({ code }: { code: string }) {
   const room = useRoom(code)
   const [exists, setExists] = useState<boolean | null>(null)
+  const [prefs, setPrefs] = usePrefs()
+  const [drawer, setDrawer] = useState<DrawerTab | null>(null)
+  // Unread chat: messages from others newer than the last one seen. While
+  // the chat is open everything counts as seen.
+  const [seenChat, setSeenChat] = useState(0)
+  const lastChat = room.state?.chat.at(-1)?.id ?? 0
+  const seen = drawer === 'chat' ? lastChat : seenChat
+  const unread = (room.state?.chat ?? []).filter((l) => l.id > seen && l.playerId !== room.state?.you).length
+  const openDrawer = (next: DrawerTab | null) => {
+    if (drawer === 'chat') setSeenChat(lastChat)
+    setDrawer(next)
+  }
+  useGameSounds(room.state, prefs)
 
   useEffect(() => {
     getRoom(code)
@@ -39,6 +55,19 @@ export function RoomPage({ code }: { code: string }) {
         </a>
         <span className="room-code">Room {code.toUpperCase()}</span>
         {room.status !== 'open' && <span className="tag tag-muted">{room.status}…</span>}
+        {s && (
+          <span className="topbar-actions">
+            <button className="btn btn-small" onClick={() => openDrawer('chat')} aria-label={`Chat${unread ? ` (${unread} unread)` : ''}`}>
+              💬{unread > 0 && <span className="badge">{unread}</span>}
+            </button>
+            <button className="btn btn-small" onClick={() => openDrawer('history')} aria-label="Hand history">
+              🕘
+            </button>
+            <button className="btn btn-small" onClick={() => openDrawer('options')} aria-label="Options">
+              ⚙︎
+            </button>
+          </span>
+        )}
       </nav>
       {room.error && (
         <div className="toast" role="alert" onClick={room.dismissError}>
@@ -51,6 +80,20 @@ export function RoomPage({ code }: { code: string }) {
         <Lobby state={s} onSave={room.updateSettings} onStart={() => room.send({ type: 'start' })} />
       ) : (
         <Table state={s} clockOffset={room.clockOffset} onAct={room.act} send={room.send} />
+      )}
+      {s && drawer && (
+        <Drawer
+          tab={drawer}
+          onTab={openDrawer}
+          onClose={() => openDrawer(null)}
+          state={s}
+          history={room.history}
+          loadHistory={room.loadHistory}
+          chat={room.chat}
+          react={room.react}
+          prefs={prefs}
+          setPrefs={setPrefs}
+        />
       )}
     </div>
   )

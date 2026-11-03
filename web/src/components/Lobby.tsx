@@ -8,7 +8,7 @@ interface Props {
   onStart: () => void
 }
 
-type NumberField = Exclude<keyof Settings, 'variants' | 'potLimit'>
+type NumberField = Exclude<keyof Settings, 'variants' | 'potLimit' | 'hints'>
 
 const FIELDS: { key: NumberField; label: string; min: number; max: number; hint?: string }[] = [
   { key: 'startingStack', label: 'Starting stack', min: 100, max: 1_000_000 },
@@ -120,6 +120,14 @@ export function Lobby({ state, onSave, onStart }: Props) {
                 onChange={(e) => setDraft({ ...draft, potLimit: e.target.checked })}
               />
               Pot-limit for Omaha, Dacoit and Show 2 Play 2
+            </label>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={shown.hints}
+                onChange={(e) => setDraft({ ...draft, hints: e.target.checked })}
+              />
+              Show players the name of their current hand
             </label>
           </fieldset>
           {isHost && (

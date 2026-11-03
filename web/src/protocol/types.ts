@@ -50,6 +50,18 @@ export const MsgSitIn = "sitIn";
  */
 export const MsgEndGame = "endGame"; // host only
 /**
+ * Client message types.
+ */
+export const MsgChat = "chat"; // Text: a chat message to the table
+/**
+ * Client message types.
+ */
+export const MsgReact = "react"; // Emoji: a quick reaction shown over your seat
+/**
+ * Client message types.
+ */
+export const MsgHistory = "history"; // ask for the recent hand history (sent only to you)
+/**
  * ClientMsg is sent by the browser. The first message on a connection must
  * be join or resume.
  */
@@ -60,6 +72,8 @@ export interface ClientMsg {
   settings?: Settings;
   variant?: string;
   action?: Action;
+  text?: string;
+  emoji?: string;
 }
 /**
  * Action is a betting action. To is the street total for bet/raise, in units.
@@ -89,6 +103,10 @@ export const MsgState = "state"; // full room snapshot for this viewer
  */
 export const MsgError = "error"; // a request failed; Error says why
 /**
+ * Server message types.
+ */
+export const MsgHistoryReply = "history"; // History: recent hands, as this viewer may see them
+/**
  * ServerMsg is sent to the browser.
  */
 export interface ServerMsg {
@@ -96,6 +114,7 @@ export interface ServerMsg {
   token?: string;
   playerId?: string;
   state?: State;
+  history?: HistoryHand[];
   error?: string;
 }
 /**
@@ -112,6 +131,10 @@ export interface Settings {
   turnSeconds: number /* int */;
   variants: string[];
   maxPlayers: number /* int */;
+  /**
+   * Hints shows each player the name of their current best hand.
+   */
+  hints: boolean;
 }
 /**
  * Room phases.
@@ -158,7 +181,38 @@ export interface State {
   log: string[];
   leaderboard: Standing[];
   variants: string[]; // every variant the server knows
+  chat: ChatLine[]; // the last messages, oldest first
+  reactions: Reaction[]; // reactions from the last few seconds
   now: number /* int64 */; // server time, unix ms
+}
+/**
+ * ChatLine is one chat message.
+ */
+export interface ChatLine {
+  id: number /* int */;
+  playerId: string;
+  name: string;
+  text: string;
+  at: number /* int64 */; // unix ms
+}
+/**
+ * Reaction is a quick emoji shown over a player's seat for a moment.
+ */
+export interface Reaction {
+  id: number /* int */;
+  playerId: string;
+  emoji: string;
+  at: number /* int64 */; // unix ms
+}
+/**
+ * HistoryHand is a finished hand as one viewer may see it.
+ */
+export interface HistoryHand {
+  number: number /* int */;
+  variant: string;
+  boards: string[][];
+  winners: WinnerView[];
+  log: string[];
 }
 /**
  * PlayerView is one seat.
@@ -249,6 +303,11 @@ export interface HandView {
   deadline?: number /* int64 */;
   legal?: Legal; // only for the player to act
   done: boolean;
+  /**
+   * Hint names the viewer's current best hand, when the host allows hints
+   * and there are enough cards to make one.
+   */
+  hint?: string;
   /**
    * Winners is filled in when the hand is done.
    */

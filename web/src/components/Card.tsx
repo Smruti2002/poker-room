@@ -28,7 +28,7 @@ export function Card({
   if (!suit || !RANK_NAMES[rank]) return <span className="card card-bad">?</span>
   return (
     <span
-      className={`card${suit.red ? ' card-red' : ''}${small ? ' card-small' : ''}${highlight ? ` card-${highlight}` : ''}`}
+      className={`card suit-${code[1]}${suit.red ? ' card-red' : ''}${small ? ' card-small' : ''}${highlight ? ` card-${highlight}` : ''}`}
       aria-label={`${RANK_NAMES[rank]} of ${suit.name}`}
       title={`${RANK_NAMES[rank]} of ${suit.name}`}
     >

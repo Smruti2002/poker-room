@@ -19,6 +19,7 @@ func DefaultSettings(variants []string) protocol.Settings {
 		TurnSeconds:    30,
 		Variants:       slices.Clone(variants),
 		MaxPlayers:     8,
+		Hints:          true,
 	}
 }
 

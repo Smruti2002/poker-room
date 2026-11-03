@@ -3,12 +3,15 @@ import type { Action, ClientMsg, PlayerView, State } from '../protocol/types.ts'
 import { variantName } from '../variants.ts'
 import { ActionBar } from './ActionBar.tsx'
 import { Card, CardBack } from './Card.tsx'
-import { Countdown } from './Countdown.tsx'
+import { Countdown, TimerRing, useNow } from './Countdown.tsx'
 import { ResultBanner } from './ResultBanner.tsx'
 import { ChoosePicker } from './ChoosePicker.tsx'
 import { ShowPicker } from './ShowPicker.tsx'
 import { SplitPicker } from './SplitPicker.tsx'
 import { winningCards } from './winning.ts'
+
+/** How long a reaction floats over a seat. */
+const REACTION_MS = 3500
 
 interface Props {
   state: State
@@ -23,6 +26,10 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
   const isHost = state.you === state.hostId
   const name = (id?: string) => state.players.find((p) => p.id === id)?.name ?? '?'
   const winning = winningCards(hand)
+  // Re-render while reactions are showing so they disappear on time.
+  const now = useNow(state.reactions.length > 0 ? 500 : 0) + clockOffset
+  const reactionOf = (id: string) =>
+    state.reactions.findLast((r) => r.playerId === id && now - r.at < REACTION_MS)?.emoji
 
   return (
     <div className="table-layout">
@@ -49,7 +56,9 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
                 ))}
               </div>
             ))}
-            <div className="pot">Pot {hand.pot}</div>
+            <div className="pot" key={hand.pot}>
+              Pot {hand.pot}
+            </div>
           </div>
         )}
 
@@ -57,7 +66,7 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
 
         <ul className="seats">
           {state.players.map((p) => (
-            <Seat key={p.id} p={p} state={state} clockOffset={clockOffset} winning={winning} />
+            <Seat key={p.id} p={p} state={state} clockOffset={clockOffset} winning={winning} reaction={reactionOf(p.id)} />
           ))}
         </ul>
 
@@ -93,6 +102,11 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
                   me.folded && <span className="muted">Folded</span>
                 )}
               </div>
+            )}
+            {hand?.hint && !hand.legal?.allocate && (
+              <p className="hint">
+                You have: <strong>{hand.hint}</strong>
+              </p>
             )}
             {me.mult > 1 && !me.folded && (
               <p className="double-note">You took 6 cards: every bet costs you double.</p>
@@ -255,11 +269,13 @@ function Seat({
   state,
   clockOffset,
   winning,
+  reaction,
 }: {
   p: PlayerView
   state: State
   clockOffset: number
   winning: Set<string>
+  reaction?: string
 }) {
   const hand = state.hand
   const acting = hand && !hand.done && hand.toAct === p.id
@@ -277,6 +293,11 @@ function Seat({
 
   return (
     <li className={classes} aria-label={`Seat ${p.name}`}>
+      {reaction && (
+        <span className="reaction" key={reaction} aria-label={`${p.name} reacts ${reaction}`}>
+          {reaction}
+        </span>
+      )}
       <div className="seat-name">
         {p.name}
         {p.dealer && <span className="tag tag-dealer" title="Dealer">D</span>}
@@ -307,10 +328,16 @@ function Seat({
         </div>
       )}
       <div className="seat-status">
-        {acting && hand?.deadline ? <Countdown deadline={hand.deadline} clockOffset={clockOffset} /> : null}
+        {acting && hand?.deadline ? (
+          <TimerRing deadline={hand.deadline} total={state.settings.turnSeconds * 1000} clockOffset={clockOffset} />
+        ) : null}
         {p.folded && 'Folded'}
         {p.allIn && !hand?.done && 'All-in'}
-        {p.bet > 0 && !hand?.done && `Bet ${p.bet * p.mult}`}
+        {p.bet > 0 && !hand?.done && (
+          <span className="bet-chip" key={p.bet}>
+            Bet {p.bet * p.mult}
+          </span>
+        )}
         {p.handDesc && <HandDesc desc={p.handDesc} />}
         {(p.won ?? 0) > 0 && hand?.done && <span className="won">Won {p.won}</span>}
         {p.sittingOut && 'Sitting out'}

@@ -123,6 +123,11 @@ func (a *Actor) Submit(c *Client, m protocol.ClientMsg) {
 		if !a.clients[c] {
 			return
 		}
+		if m.Type == protocol.MsgHistory {
+			// Only for the asker; nothing in the room changes.
+			a.sendTo(c, protocol.ServerMsg{Type: protocol.MsgHistoryReply, History: a.room.History(c.playerID)})
+			return
+		}
 		if err := a.room.Handle(c.playerID, m); err != nil {
 			a.sendTo(c, protocol.ServerMsg{Type: protocol.MsgError, Error: err.Error()})
 		}

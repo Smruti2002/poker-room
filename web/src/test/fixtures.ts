@@ -11,6 +11,7 @@ export const settings: Settings = {
   turnSeconds: 30,
   variants: ['holdem'],
   maxPlayers: 8,
+  hints: true,
 }
 
 export function player(over: Partial<PlayerView> & { id: string; name: string }): PlayerView {
@@ -43,6 +44,8 @@ export function state(over: Partial<State> = {}): State {
     log: [],
     leaderboard: [],
     variants: ['holdem'],
+    chat: [],
+    reactions: [],
     now: Date.now(),
     ...over,
   }

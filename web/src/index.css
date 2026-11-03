@@ -820,3 +820,304 @@ details[open] > summary {
   margin: 0;
   font-size: 0.9rem;
 }
+
+/* --- M7: chrome, drawer, chat, history -------------------------------- */
+
+.topbar-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 0.35rem;
+}
+.topbar-actions .btn {
+  position: relative;
+  min-width: 2.4rem;
+}
+.badge {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.35rem;
+  min-width: 1.1rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: var(--bad);
+  color: #fff;
+  font-size: 0.7rem;
+  line-height: 1.1rem;
+}
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgb(0 0 0 / 0.45);
+}
+.drawer {
+  position: fixed;
+  z-index: 21;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(24rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+  animation: drawer-in 0.2s ease-out;
+}
+@keyframes drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+@media (max-width: 600px) {
+  /* A bottom sheet on phones. */
+  .drawer {
+    top: auto;
+    left: 0;
+    width: 100%;
+    height: 80vh;
+    border-left: none;
+    border-top: 1px solid var(--line);
+    border-radius: 16px 16px 0 0;
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+    animation-name: sheet-in;
+  }
+  @keyframes sheet-in {
+    from {
+      transform: translateY(100%);
+    }
+  }
+}
+.drawer-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--line);
+}
+.drawer-tab {
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.drawer-tab-on {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+}
+.drawer-close {
+  margin-left: auto;
+}
+.chat {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.emoji-bar {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 0.25rem;
+}
+.emoji-btn {
+  padding: 0.35rem 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #1c3127;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+.emoji-btn:active {
+  transform: scale(0.9);
+}
+.chat-lines {
+  flex: 1;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  align-content: start;
+  gap: 0.35rem;
+  overflow-wrap: anywhere;
+}
+.chat-name {
+  font-weight: 700;
+  color: var(--accent);
+}
+.chat-mine .chat-name {
+  color: var(--ok);
+}
+.chat-form {
+  display: flex;
+  gap: 0.5rem;
+}
+.history {
+  flex: 1;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+}
+.history summary {
+  cursor: pointer;
+}
+.history-num {
+  color: var(--accent);
+  font-weight: 700;
+}
+.history-boards {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.5rem 0;
+}
+.history-board {
+  display: flex;
+  gap: 0.2rem;
+}
+.options {
+  display: grid;
+  gap: 0.9rem;
+}
+.option {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+}
+.option input {
+  margin-top: 0.25rem;
+}
+
+/* --- M7: table polish -------------------------------------------------- */
+
+.seat {
+  position: relative;
+}
+.reaction {
+  position: absolute;
+  top: -0.9rem;
+  right: 0.4rem;
+  font-size: 1.9rem;
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.5));
+  animation: react-pop 3.5s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes react-pop {
+  0% {
+    transform: scale(0.3) translateY(10px);
+    opacity: 0;
+  }
+  10% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  20% {
+    transform: scale(1);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-14px);
+    opacity: 0;
+  }
+}
+.timer-ring {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+}
+.timer-ring svg {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+.timer-track {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 3;
+}
+.timer-fill {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.25s linear;
+}
+.timer-ring.countdown-low .timer-fill {
+  stroke: var(--bad);
+}
+.timer-num {
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.hint strong {
+  color: var(--fg);
+}
+.bet-chip {
+  display: inline-block;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: #3b2a1a;
+  color: var(--accent);
+  font-weight: 700;
+  animation: pop 0.3s ease-out;
+}
+.pot {
+  animation: pop 0.3s ease-out;
+}
+@keyframes pop {
+  from {
+    transform: scale(1.35);
+  }
+}
+.card:not(.card-empty):not(.card-slot) {
+  animation: deal 0.28s ease-out;
+}
+@keyframes deal {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.92);
+  }
+}
+.shortcuts {
+  display: none;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+@media (hover: hover) and (pointer: fine) {
+  .shortcuts {
+    display: block;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Four-colour deck (Options): clubs green, diamonds blue. */
+.four-color .card.suit-c {
+  color: #1b7a34;
+}
+.four-color .card.suit-d {
+  color: #1f5fbf;
+}

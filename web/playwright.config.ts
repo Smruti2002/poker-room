@@ -15,7 +15,12 @@ export default defineConfig({
     baseURL: `http://localhost:${port}`,
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    // Most people play on phones: rerun the key flows on a phone-sized,
+    // touch screen.
+    { name: 'phone', use: { ...devices['Pixel 7'] }, grep: /@phone/ },
+  ],
   webServer: {
     command: `cd .. && make build >/dev/null && PORT=${port} STATIC_DIR=web/dist ./bin/server`,
     url: `http://localhost:${port}/healthz`,

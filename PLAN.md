@@ -249,12 +249,14 @@ Each milestone ends with a **demo** and a **green test gate**. Don't start the n
 - **Tests:** all splits enumerated (6 for Double, 15 for Triple), scoring tables (clean win, 1–1 split, tie on a board gives every tied player a full point, the 4-way A/B-C-D Triple example, a tie on one board + a win on another), timeout auto-allocation, Triple Texas refused with 7+ players.
 - **Gate:** all 6 variants are playable in one room. A 100k-hand mixed-variant simulation is clean.
 
-### M7 — UI/UX polish (≈1.5 weeks)
+### M7 — UI/UX polish (≈1.5 weeks) ✅
 - Oval table layout, chip stacks, dealer button, deal/flip/chip animations, sounds (toggleable), timer rings, hand-strength hint (optional setting), hand history panel, chat, emoji reactions.
 - Mobile layout (portrait), dark mode.
 - Accessibility: keyboard shortcuts for fold/check/raise, colour-blind 4-colour deck option.
 - **Tests:** Vitest component tests, Playwright visual snapshots of key screens, manual cross-browser pass (Chrome, Safari iOS, Firefox).
 - **Gate:** playtest session with 5+ friends. Fix everything ranked "confusing" or worse.
+- **Done:** chat and emoji reactions, hand history (last 20 hands), timer rings, deal/bet/pot/reaction animations, sounds and vibration (toggleable, per device), four-colour deck, keyboard shortcuts, current-hand hints (host setting), phone layout with a bottom dock and a phone E2E project.
+- **Deferred:** oval seat layout (the grid reads better on phones with up to 10 players) and screenshot-diff tests (baselines differ between macOS and CI Linux). The 5+ friends playtest is still to do.
 
 ### M8 — Hardening (≈1 week)
 - Disconnect grace period (60 s, then auto-fold/sit-out), host transfer, room cleanup after inactivity, per-connection rate limits, message size limits, origin check.

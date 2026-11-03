@@ -126,3 +126,19 @@ func TestActorRecoversFromPanic(t *testing.T) {
 		t.Fatal("actor stopped after a panic")
 	}
 }
+
+func TestActorHistoryGoesOnlyToTheAsker(t *testing.T) {
+	m := newTestManager()
+	code, token, _ := m.Create("Ann")
+	a := m.Get(code)
+	ann := NewClient()
+	if err := a.Connect(ann, protocol.ClientMsg{Type: protocol.MsgResume, Token: token}); err != nil {
+		t.Fatal(err)
+	}
+	recv(t, ann) // welcome
+	recv(t, ann) // state
+	a.Submit(ann, protocol.ClientMsg{Type: protocol.MsgHistory})
+	if msg := recv(t, ann); msg.Type != protocol.MsgHistoryReply || msg.State != nil {
+		t.Fatalf("got %+v", msg)
+	}
+}

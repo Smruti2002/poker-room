@@ -81,6 +81,20 @@ type Room struct {
 	// allocTimer is set once the split timer for this hand is running, so
 	// each player's lock-in doesn't restart everyone's clock.
 	allocTimer bool
+
+	chat      []protocol.ChatLine
+	chatID    int
+	chatTimes map[string][]time.Time // recent messages per player, for rate limiting
+	reactions []protocol.Reaction
+	past      []pastHand // the last finished hands, newest last
+}
+
+// pastHand is a finished hand kept for the history panel.
+type pastHand struct {
+	number  int
+	variant string
+	hand    *engine.Hand
+	ids     []string
 }
 
 // User-facing errors.
@@ -227,6 +241,10 @@ func (r *Room) Handle(pid string, m protocol.ClientMsg) error {
 		return nil
 	case protocol.MsgEndGame:
 		return r.endGame(p)
+	case protocol.MsgChat:
+		return r.say(p, m.Text)
+	case protocol.MsgReact:
+		return r.react(p, m.Emoji)
 	}
 	return ErrUnknownMsg
 }
@@ -415,6 +433,10 @@ func (r *Room) afterHandChange() {
 	}
 	for i, id := range r.handIDs {
 		r.player(id).Stack = r.hand.Players[i].Stack
+	}
+	r.past = append(r.past, pastHand{number: r.handNo, variant: r.variant, hand: r.hand, ids: r.handIDs})
+	if len(r.past) > historySize {
+		r.past = r.past[len(r.past)-historySize:]
 	}
 	r.stage = protocol.StageResult
 	delay := r.opts.ResultDelay

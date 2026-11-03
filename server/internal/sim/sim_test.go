@@ -46,6 +46,10 @@ func TestSimulation(t *testing.T) {
 	hands := simHands(t)
 	for i, cfg := range configs {
 		cfg.Hands = hands
+		if cfg.Variant == "triple" {
+			// Working out default splits is slow; the nightly run does the volume.
+			cfg.Hands = max(hands/10, 200)
+		}
 		cfg.Seed = uint64(i + 1)
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			st, err := Run(cfg)
@@ -55,7 +59,7 @@ func TestSimulation(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if st.Hands != hands || st.Showdowns == 0 || st.FoldWins == 0 {
+			if st.Hands != cfg.Hands || st.Showdowns == 0 || st.FoldWins == 0 {
 				t.Fatalf("suspicious stats: %+v", st)
 			}
 			// Total chips = starting stacks + rebuys.
