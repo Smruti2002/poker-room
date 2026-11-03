@@ -67,7 +67,14 @@ func (h *Hand) CheckInvariants() error {
 			fail("paid out %d but pots held %d", won, potChips)
 		}
 	} else {
-		if h.Showing {
+		if h.Picking {
+			if h.ToAct < 0 || h.ToAct >= len(h.Players) || h.ToAct == h.Dealer || h.Players[h.ToAct].Picked != 0 {
+				fail("ToAct %d is not a player who still has to choose", h.ToAct)
+			}
+			if pot != 0 {
+				fail("%d chips in the pot before the deal", pot)
+			}
+		} else if h.Showing {
 			if h.ToAct < 0 || h.ToAct >= len(h.Players) || h.Players[h.ToAct].Shown != nil {
 				fail("ToAct %d is not a player who still has to show", h.ToAct)
 			}

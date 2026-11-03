@@ -32,7 +32,7 @@ const status = (page: Page) => page.locator('.table-header .status')
 
 /** Host leaves only the given variants enabled and saves. */
 async function onlyVariants(host: Page, keep: string[]) {
-  for (const label of ["Texas Hold'em", 'Omaha', 'Show 2 Play 2']) {
+  for (const label of ["Texas Hold'em", 'Omaha', 'Show 2 Play 2', 'Dacoit']) {
     const box = host.getByRole('checkbox', { name: label, exact: true })
     if ((await box.isChecked()) !== keep.includes(label)) await box.click()
   }
@@ -76,6 +76,8 @@ async function playOutHand(pages: Page[]) {
       { timeout: 30_000, intervals: [100] },
     )
     .toBe(true)
+  // Every page must have the final state before anyone checks stacks.
+  for (const page of pages) await expect(status(page)).toContainText('Hand over')
 }
 
 async function totalChips(page: Page): Promise<number> {
@@ -108,7 +110,7 @@ test('three friends create a room, join by link and play a hand', async ({ brows
     expect(await totalChips(page)).toBe(6000)
     await expect(page.locator('.leaderboard li')).toHaveCount(3)
     // Everyone sees who won and with what, and when the next hand starts.
-    await expect(page.locator('.result')).toContainText(/wins? \d+ with /)
+    await expect(page.locator('.result')).toContainText(/wins? \d+( \(split pot\))? with /)
     await expect(page.locator('.result')).toContainText('Next hand in')
   }
 
@@ -164,6 +166,49 @@ test('Show 2 Play 2: everyone reveals two cards before betting', async ({ browse
   }
 })
 
+test('Dacoit: players choose 4 or 6 cards, and 6 costs double', async ({ browser }) => {
+  const { page: ann, link } = await createRoom(browser, 'Ann')
+  const bob = await joinByLink(browser, link, 'Bob')
+  const cy = await joinByLink(browser, link, 'Cy')
+  const players = [ann, bob, cy]
+  await onlyVariants(ann, ['Dacoit'])
+  await ann.getByRole('button', { name: 'Start game' }).click()
+
+  // The two non-dealers choose in turn: the first takes 6, the second 4.
+  const picks: Page[] = []
+  await expect
+    .poll(
+      async () => {
+        for (const page of players) {
+          const picker = page.locator('.choose-picker')
+          if (!picks.includes(page) && (await picker.isVisible())) {
+            await picker.getByRole('button', { name: picks.length === 0 ? /6 cards/ : /4 cards/ }).click()
+            await expect(picker).toBeHidden()
+            picks.push(page)
+          }
+        }
+        return picks.length
+      },
+      { timeout: 15_000, intervals: [100] },
+    )
+    .toBe(2)
+
+  const [six, four] = picks
+  const dealer = players.find((p) => !picks.includes(p))!
+  await expect(six.locator('.dock .card')).toHaveCount(6)
+  await expect(six.getByText('every bet costs you double', { exact: false })).toBeVisible()
+  await expect(four.locator('.dock .card')).toHaveCount(4)
+  await expect(dealer.locator('.dock .card')).toHaveCount(4)
+  // Everyone sees who took 6.
+  for (const page of [four, dealer]) {
+    await expect(page.locator('.tag-double')).toHaveCount(1)
+    await expect(page.locator('.tag-double')).toHaveText('6 cards · 2×')
+  }
+
+  await playOutHand(players)
+  for (const page of players) expect(await totalChips(page)).toBe(6000)
+})
+
 test('a player who refreshes keeps their seat and cards', async ({ browser }) => {
   const { page: ann, link } = await createRoom(browser, 'Ann')
   const bob = await joinByLink(browser, link, 'Bob')
@@ -187,9 +232,15 @@ test('the raise box can be cleared and retyped', async ({ browser }) => {
   await onlyVariants(ann, ["Texas Hold'em"])
   await ann.getByRole('button', { name: 'Start game' }).click()
 
-  // Heads-up: the dealer acts first; find whoever has the action bar.
-  const actor = (await ann.locator('.action-bar').isVisible()) ? ann : bob
-  await expect(actor.locator('.action-bar')).toBeVisible()
+  // Heads-up: the dealer acts first; wait for whoever gets the action bar.
+  let actor: Page | undefined
+  await expect
+    .poll(async () => {
+      for (const page of [ann, bob]) if (await page.locator('.action-bar').isVisible()) actor = page
+      return actor !== undefined
+    })
+    .toBe(true)
+  if (!actor) throw new Error('no player to act')
   const box = actor.getByLabel('raise to')
   await box.fill('')
   await expect(box).toHaveValue('')

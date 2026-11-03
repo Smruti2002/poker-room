@@ -5,6 +5,7 @@ import { ActionBar } from './ActionBar.tsx'
 import { Card, CardBack } from './Card.tsx'
 import { Countdown } from './Countdown.tsx'
 import { ResultBanner } from './ResultBanner.tsx'
+import { ChoosePicker } from './ChoosePicker.tsx'
 import { ShowPicker } from './ShowPicker.tsx'
 import { winningCards } from './winning.ts'
 
@@ -64,11 +65,11 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
           </div>
         )}
 
-        {me?.inHand && me.hole && !hand?.done && (
+        {me?.inHand && (me.hole || hand?.legal) && !hand?.done && (
           // Pinned to the bottom of the screen so your cards and actions are
           // always in reach on a phone.
           <div className={`dock${hand?.legal ? ' dock-active' : ''}`}>
-            {!hand?.legal?.show && (
+            {me.hole && !hand?.legal?.show && (
               <div className="dock-cards" aria-label="Your cards">
                 {me.hole.map((c) => (
                   <span key={c} className={me.shown?.includes(c) ? 'shown-card' : undefined}>
@@ -82,8 +83,12 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
                 )}
               </div>
             )}
-            {hand?.legal?.show && <ShowPicker hole={me.hole} count={hand.reveal ?? 2} onAct={onAct} />}
-            {hand?.legal && !hand.legal.show && (
+            {me.mult > 1 && !me.folded && (
+              <p className="double-note">You took 6 cards: every bet costs you double.</p>
+            )}
+            {hand?.legal?.choose && <ChoosePicker max={hand.legal.chooseMax ?? 4} onAct={onAct} />}
+            {hand?.legal?.show && me.hole && <ShowPicker hole={me.hole} count={hand.reveal ?? 2} onAct={onAct} />}
+            {hand?.legal && !hand.legal.show && !hand.legal.choose && (
               <ActionBar
                 key={`${hand.number}-${hand.street}-${hand.currentBet}`}
                 legal={hand.legal}
@@ -156,7 +161,7 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
             <h3>Hand log</h3>
           </summary>
           <ol className="log">
-            {state.log.map((line, i) => (
+            {(state.log ?? []).map((line, i) => (
               <li key={i}>{line}</li>
             ))}
           </ol>
@@ -191,7 +196,11 @@ function TableHeader({
   } else if (hand && !hand.done && hand.toAct) {
     status = (
       <>
-        {hand.showing
+        {hand.picking
+          ? hand.toAct === state.you
+            ? 'Choose 4 or 6 cards'
+            : `${name(hand.toAct)} is choosing 4 or 6 cards`
+          : hand.showing
           ? hand.toAct === state.you
             ? 'Pick cards to show'
             : `${name(hand.toAct)} is picking cards to show`
@@ -231,7 +240,7 @@ function Seat({
 }) {
   const hand = state.hand
   const acting = hand && !hand.done && hand.toAct === p.id
-  const holeCount = p.holeCount ?? 2
+  const holeCount = p.holeCount ?? 0 // 0 before the deal (Dacoit choices)
   const shown = p.shown ?? []
   const classes = [
     'seat',
@@ -248,6 +257,11 @@ function Seat({
       <div className="seat-name">
         {p.name}
         {p.dealer && <span className="tag tag-dealer" title="Dealer">D</span>}
+        {(p.picked ?? 0) > 0 && p.inHand && (
+          <span className={`tag${p.mult > 1 ? ' tag-double' : ''}`} title={p.mult > 1 ? 'Pays double for every bet' : undefined}>
+            {p.picked} cards{p.mult > 1 ? ' · 2×' : ''}
+          </span>
+        )}
         {p.id === state.hostId && <span className="tag">host</span>}
         {!p.connected && <span className="tag tag-muted">offline</span>}
       </div>

@@ -34,6 +34,8 @@ type Action struct {
 	To   int64  `json:"to,omitempty"`
 	// Cards are the hole cards to reveal, for show (Show 2 Play 2).
 	Cards []string `json:"cards,omitempty"`
+	// Count is how many hole cards to take, for choose (Dacoit: 4 or 6).
+	Count int `json:"count,omitempty"`
 }
 
 // Server message types.
@@ -122,9 +124,11 @@ type PlayerView struct {
 	HoleCount int      `json:"holeCount,omitempty"`
 	Hole      []string `json:"hole,omitempty"`
 	// Shown are hole cards revealed to everyone before betting (Show 2 Play 2).
-	Shown    []string `json:"shown,omitempty"`
-	HandDesc string   `json:"handDesc,omitempty"`
-	Won      int64    `json:"won,omitempty"`
+	Shown []string `json:"shown,omitempty"`
+	// Picked is how many hole cards the player chose (Dacoit), public.
+	Picked   int    `json:"picked,omitempty"`
+	HandDesc string `json:"handDesc,omitempty"`
+	Won      int64  `json:"won,omitempty"`
 }
 
 // HandView is the current (or just finished) hand.
@@ -134,6 +138,8 @@ type HandView struct {
 	Street  string `json:"street"`
 	// Showing is true while players reveal cards before betting (Show 2 Play 2).
 	Showing bool `json:"showing,omitempty"`
+	// Picking is true while players choose 4 or 6 cards, before the deal (Dacoit).
+	Picking bool `json:"picking,omitempty"`
 	// Reveal is how many cards each player shows in this variant.
 	Reveal     int        `json:"reveal,omitempty"`
 	Boards     [][]string `json:"boards"`
@@ -169,7 +175,11 @@ type PotView struct {
 // Legal lists what the player to act may do; amounts are in units.
 type Legal struct {
 	// Show: reveal cards (Show 2 Play 2). It is then the only legal action.
-	Show      bool  `json:"show,omitempty"`
+	Show bool `json:"show,omitempty"`
+	// Choose: take 4 cards, or up to ChooseMax (Dacoit). It is then the only
+	// legal action.
+	Choose    bool  `json:"choose,omitempty"`
+	ChooseMax int   `json:"chooseMax,omitempty"`
 	Fold      bool  `json:"fold"`
 	Check     bool  `json:"check"`
 	Call      bool  `json:"call"`

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { clearToken, loadToken, saveToken } from './api.ts'
+import { clearToken, getRoom, loadToken, saveToken } from './api.ts'
 import type { Action, ClientMsg, ServerMsg, Settings, State } from './protocol/types.ts'
 
 export type ConnStatus = 'idle' | 'connecting' | 'open' | 'reconnecting'
@@ -10,6 +10,8 @@ export interface RoomConn {
   error: string | null
   /** Set when joining failed (e.g. name taken); the join form shows it. */
   joinError: string | null
+  /** True when the room no longer exists, e.g. after a server restart. */
+  gone: boolean
   /** True once we hold a session token for this room. */
   hasSession: boolean
   /** Server clock minus local clock, for countdowns. */
@@ -39,6 +41,7 @@ export function useRoom(code: string): RoomConn {
   const [token, setToken] = useState<string | null>(() => loadToken(code))
   const [clockOffset, setClockOffset] = useState(0)
   const [pendingName, setPendingName] = useState<string | null>(null)
+  const [gone, setGone] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
@@ -97,10 +100,19 @@ export function useRoom(code: string): RoomConn {
       ws.onclose = () => {
         if (wsRef.current === ws) wsRef.current = null
         if (stopped) return
-        // Lost connection: retry with backoff, resuming by token.
+        // Lost connection: retry with backoff, resuming by token. If the
+        // room itself is gone (e.g. the server restarted), stop retrying.
         attempt++
         setStatus('reconnecting')
-        retry = setTimeout(connect, Math.min(500 * 2 ** attempt, 8000))
+        retry = setTimeout(async () => {
+          if (attempt >= 2 && (await getRoom(code).catch(() => undefined)) === null) {
+            stopped = true
+            setStatus('idle')
+            setGone(true)
+            return
+          }
+          if (!stopped) connect()
+        }, Math.min(500 * 2 ** attempt, 8000))
       }
     }
     connect()
@@ -125,6 +137,7 @@ export function useRoom(code: string): RoomConn {
     status,
     error,
     joinError,
+    gone,
     hasSession: token !== null,
     clockOffset,
     join: (name: string) => {

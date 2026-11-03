@@ -237,7 +237,7 @@ Each milestone ends with a **demo** and a **green test gate**. Don't start the n
 - **Tests:** variant table tests, pot-limit max-bet tests, simulation across both variants, Playwright for the S2P2 show flow.
 - **Gate:** the dealer can switch between Hold'em, Omaha, and S2P2 hand by hand in a live room.
 
-### M5 — Dacoit (≈4 days)
+### M5 — Dacoit (≈4 days) ✅
 - Choice phase in seat order (dealer fixed at 4) with the deck-capacity guard.
 - 2× multiplier applied to blinds, calls, raises, all-ins, and side pots. The UI shows both the "units to call" and the "chips you pay".
 - **Tests:** hand-calculated multiplier scenarios (6-card all-in vs 4-card big stack, mixed side pots), chip conservation under the multiplier, simulation.

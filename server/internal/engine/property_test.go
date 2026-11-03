@@ -34,7 +34,7 @@ func genHand(t *rapid.T) *Hand {
 	dealer := rapid.IntRange(0, n-1).Draw(t, "dealer")
 	seed := cards.SeedFromUint64(rapid.Uint64().Draw(t, "seed"))
 
-	v := rapid.SampledFrom([]Variant{Holdem, Omaha, ShowTwo}).Draw(t, "variant")
+	v := rapid.SampledFrom([]Variant{Holdem, Omaha, ShowTwo, Dacoit}).Draw(t, "variant")
 	h, err := NewHand(cfg, v, seats, dealer, Options{Seed: seed})
 	if err != nil {
 		t.Fatalf("NewHand: %v", err)
@@ -45,6 +45,9 @@ func genHand(t *rapid.T) *Hand {
 // drawAction picks a random legal action for the player to act.
 func drawAction(t *rapid.T, h *Hand) Action {
 	l := h.Legal(h.ToAct)
+	if l.Choose {
+		return Action{Type: Choose, Count: rapid.SampledFrom([]int{4, l.ChooseMax}).Draw(t, "cards")}
+	}
 	if l.Show {
 		// Reveal a random pair of hole cards.
 		hole := h.Players[h.ToAct].Hole

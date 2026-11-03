@@ -427,7 +427,7 @@ func (r *Room) act(p *Player, a *protocol.Action) error {
 	if err := typ.UnmarshalText([]byte(a.Type)); err != nil {
 		return err
 	}
-	ea := engine.Action{Type: typ, To: a.To}
+	ea := engine.Action{Type: typ, To: a.To, Count: a.Count}
 	for _, s := range a.Cards {
 		c, err := cards.Parse(s)
 		if err != nil {
@@ -494,10 +494,12 @@ func (r *Room) onTimer(gen int) {
 		}
 		r.deal(v)
 	case protocol.StageHand:
-		// Timeout: show the lowest cards during a reveal; otherwise check
-		// if possible, else fold.
+		// Timeout: take 4 cards in a Dacoit choice, show the lowest cards
+		// during a reveal; otherwise check if possible, else fold.
 		a := engine.Action{Type: engine.Fold}
 		switch l := r.hand.Legal(r.hand.ToAct); {
+		case l.Choose:
+			a = r.hand.DefaultChoose()
 		case l.Show:
 			a = r.hand.DefaultShow(r.hand.ToAct)
 		case l.Check:

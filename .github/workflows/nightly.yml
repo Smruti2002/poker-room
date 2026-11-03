@@ -25,10 +25,11 @@ jobs:
         run: SIM_HANDS=500000 go test -count=1 -run TestSimulation -timeout 30m ./internal/sim/
       - name: Simulation CLI with a fresh random seed
         run: go run ./cmd/sim -players 8 -hands 1000000 -double 0.3 -stack 500 -failure-log ../sim-failure.json
-      - name: Simulation CLI, Omaha and Show 2 Play 2
+      - name: Simulation CLI, Omaha, Show 2 Play 2 and Dacoit
         run: |
           go run ./cmd/sim -variant omaha -players 10 -hands 500000 -double 0.3 -stack 500 -pl -failure-log ../sim-failure.json
           go run ./cmd/sim -variant show2 -players 10 -hands 500000 -stack 500 -failure-log ../sim-failure.json
+          go run ./cmd/sim -variant dacoit -players 10 -hands 500000 -stack 500 -pl -failure-log ../sim-failure.json
       - name: Property tests (200k cases)
         run: go test -count=1 -run Property ./internal/engine/ -rapid.checks=200000 -timeout 20m
       - name: Fuzz card parsing

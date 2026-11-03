@@ -9,8 +9,7 @@ import (
 )
 
 // Variant is a poker game played on the shared betting engine. Variants with
-// extra phases (Dacoit's choice, multi-board allocation) will add hooks here
-// as they are implemented.
+// extra phases add hooks here; multi-board allocation is still to come.
 type Variant interface {
 	Name() string
 	// HoleCards is how many cards each player is dealt.
@@ -20,6 +19,10 @@ type Variant interface {
 	// Reveal is how many hole cards each player shows, in seat order, before
 	// the pre-flop betting (Show 2 Play 2). Zero for most variants.
 	Reveal() int
+	// Choices are the hole-card counts players pick from before the deal
+	// (Dacoit), each with the chips per unit it costs. The first is the
+	// default and the dealer's fixed choice. Nil for most variants.
+	Choices() []Choice
 	// Rank returns the player's best hand on each board.
 	Rank(p *Player, boards [][]cards.Card) ([]eval.Hand, error)
 }
@@ -53,10 +56,11 @@ var Holdem = register(holdem{})
 
 type holdem struct{}
 
-func (holdem) Name() string   { return "holdem" }
-func (holdem) HoleCards() int { return 2 }
-func (holdem) Boards() int    { return 1 }
-func (holdem) Reveal() int    { return 0 }
+func (holdem) Name() string      { return "holdem" }
+func (holdem) HoleCards() int    { return 2 }
+func (holdem) Boards() int       { return 1 }
+func (holdem) Reveal() int       { return 0 }
+func (holdem) Choices() []Choice { return nil }
 
 func (holdem) Rank(p *Player, boards [][]cards.Card) ([]eval.Hand, error) {
 	h, err := eval.Holdem(p.Hole, boards[0])
@@ -69,10 +73,11 @@ var Omaha = register(omaha{})
 
 type omaha struct{}
 
-func (omaha) Name() string   { return "omaha" }
-func (omaha) HoleCards() int { return 4 }
-func (omaha) Boards() int    { return 1 }
-func (omaha) Reveal() int    { return 0 }
+func (omaha) Name() string      { return "omaha" }
+func (omaha) HoleCards() int    { return 4 }
+func (omaha) Boards() int       { return 1 }
+func (omaha) Reveal() int       { return 0 }
+func (omaha) Choices() []Choice { return nil }
 
 func (omaha) Rank(p *Player, boards [][]cards.Card) ([]eval.Hand, error) {
 	h, err := eval.Omaha(p.Hole, boards[0])
@@ -86,12 +91,40 @@ var ShowTwo = register(showTwo{})
 
 type showTwo struct{}
 
-func (showTwo) Name() string   { return "show2" }
-func (showTwo) HoleCards() int { return 4 }
-func (showTwo) Boards() int    { return 1 }
-func (showTwo) Reveal() int    { return 2 }
+func (showTwo) Name() string      { return "show2" }
+func (showTwo) HoleCards() int    { return 4 }
+func (showTwo) Boards() int       { return 1 }
+func (showTwo) Reveal() int       { return 2 }
+func (showTwo) Choices() []Choice { return nil }
 
 func (showTwo) Rank(p *Player, boards [][]cards.Card) ([]eval.Hand, error) {
 	h, err := eval.ShowTwo(p.Shown, p.Hidden(), boards[0])
+	return []eval.Hand{h}, err
+}
+
+// Choice is a hole-card count a player may pick and what it costs: Mult
+// chips per unit of every bet.
+type Choice struct {
+	Cards int
+	Mult  int64
+}
+
+// Dacoit: before the deal, each player but the dealer takes 4 or 6 cards;
+// 6-card players pay double for everything. Showdown is Omaha's exactly two
+// hole cards plus three from the board (docs/rules.md §4.3).
+var Dacoit = register(dacoit{})
+
+type dacoit struct{}
+
+func (dacoit) Name() string { return "dacoit" }
+
+// HoleCards is the minimum; each player's actual count is their choice.
+func (dacoit) HoleCards() int    { return 4 }
+func (dacoit) Boards() int       { return 1 }
+func (dacoit) Reveal() int       { return 0 }
+func (dacoit) Choices() []Choice { return []Choice{{Cards: 4, Mult: 1}, {Cards: 6, Mult: 2}} }
+
+func (dacoit) Rank(p *Player, boards [][]cards.Card) ([]eval.Hand, error) {
+	h, err := eval.Omaha(p.Hole, boards[0])
 	return []eval.Hand{h}, err
 }

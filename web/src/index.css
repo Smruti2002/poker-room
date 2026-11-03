@@ -679,3 +679,40 @@ details[open] > summary {
   font-size: 0.6rem;
   font-weight: 700;
 }
+
+/* Dacoit: choosing 4 or 6 cards */
+.choose-picker {
+  display: grid;
+  gap: 0.6rem;
+}
+.choose-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+.choose-btn {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.75rem 0.5rem;
+  min-height: 4rem;
+}
+.choose-count {
+  font-size: 1.15rem;
+}
+.choose-note {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+.choose-six:not(:disabled) {
+  border-color: var(--accent);
+}
+.tag-double {
+  background: #5a3a12;
+  color: var(--accent);
+}
+.double-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--accent);
+}

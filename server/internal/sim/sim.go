@@ -159,6 +159,12 @@ type RandomBot struct{}
 // Act chooses an action for player i, which must be the player to act.
 func (RandomBot) Act(h *engine.Hand, i int, r *rand.Rand) engine.Action {
 	l := h.Legal(i)
+	if l.Choose {
+		if l.ChooseMax > 4 && r.IntN(2) == 0 {
+			return engine.Action{Type: engine.Choose, Count: l.ChooseMax}
+		}
+		return h.DefaultChoose()
+	}
 	if l.Show {
 		// Reveal a random pair, or the default when time runs out.
 		if r.IntN(4) == 0 {

@@ -26,7 +26,7 @@ func main() {
 		verbose  bool
 		out      string
 	)
-	flag.StringVar(&cfg.Variant, "variant", "holdem", "game to play: holdem, omaha, show2")
+	flag.StringVar(&cfg.Variant, "variant", "holdem", "game to play: holdem, omaha, show2, dacoit")
 	flag.IntVar(&cfg.Players, "players", 6, "players at the table (2-10)")
 	flag.IntVar(&cfg.Hands, "hands", 10_000, "hands to play")
 	flag.Int64Var(&cfg.StartStack, "stack", 2000, "starting stack and rebuy amount")

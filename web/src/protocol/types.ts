@@ -71,6 +71,10 @@ export interface Action {
    * Cards are the hole cards to reveal, for show (Show 2 Play 2).
    */
   cards?: string[];
+  /**
+   * Count is how many hole cards to take, for choose (Dacoit: 4 or 6).
+   */
+  count?: number /* int */;
 }
 /**
  * Server message types.
@@ -188,6 +192,10 @@ export interface PlayerView {
    * Shown are hole cards revealed to everyone before betting (Show 2 Play 2).
    */
   shown?: string[];
+  /**
+   * Picked is how many hole cards the player chose (Dacoit), public.
+   */
+  picked?: number /* int */;
   handDesc?: string;
   won?: number /* int64 */;
 }
@@ -202,6 +210,10 @@ export interface HandView {
    * Showing is true while players reveal cards before betting (Show 2 Play 2).
    */
   showing?: boolean;
+  /**
+   * Picking is true while players choose 4 or 6 cards, before the deal (Dacoit).
+   */
+  picking?: boolean;
   /**
    * Reveal is how many cards each player shows in this variant.
    */
@@ -253,6 +265,12 @@ export interface Legal {
    * Show: reveal cards (Show 2 Play 2). It is then the only legal action.
    */
   show?: boolean;
+  /**
+   * Choose: take 4 cards, or up to ChooseMax (Dacoit). It is then the only
+   * legal action.
+   */
+  choose?: boolean;
+  chooseMax?: number /* int */;
   fold: boolean;
   check: boolean;
   call: boolean;

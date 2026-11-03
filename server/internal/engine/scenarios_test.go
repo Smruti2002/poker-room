@@ -95,6 +95,8 @@ func parseAction(t *testing.T, s string) (int, Action) {
 	switch {
 	case a.Type == Show:
 		a.Cards = cards.MustParseList(strings.Join(f[2:], " "))
+	case a.Type == Choose:
+		a.Count, _ = strconv.Atoi(f[2])
 	case len(f) == 3:
 		a.To, _ = strconv.ParseInt(f[2], 10, 64)
 	}

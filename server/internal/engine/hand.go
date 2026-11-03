@@ -26,6 +26,8 @@ type Player struct {
 	Hole  []cards.Card `json:"hole"`
 	// Shown are hole cards revealed to everyone (Show 2 Play 2).
 	Shown []cards.Card `json:"shown,omitempty"`
+	// Picked is how many hole cards the player chose (Dacoit); 0 until then.
+	Picked int `json:"picked,omitempty"`
 
 	Folded bool  `json:"folded"`
 	AllIn  bool  `json:"allIn"`
@@ -84,6 +86,9 @@ type Hand struct {
 	// Showing is true during Show 2 Play 2's reveal phase, before the
 	// pre-flop betting: each player in turn shows Variant.Reveal() cards.
 	Showing bool
+	// Picking is true during Dacoit's choice phase, before blinds and the
+	// deal: each player but the dealer picks one of Variant.Choices().
+	Picking bool
 	// ToAct is the index of the player to act, or -1.
 	ToAct int
 	// CurrentBet is the street total (units) players must match.
@@ -103,7 +108,9 @@ type Hand struct {
 }
 
 // NewHand validates the seats, posts blinds and deals hole cards. Players
-// are listed clockwise; dealer is the index of the dealer button.
+// are listed clockwise; dealer is the index of the dealer button. In a
+// variant with Choices (Dacoit), blinds and the deal wait until every player
+// has chosen.
 func NewHand(cfg Config, v Variant, seats []SeatSpec, dealer int, opts Options) (*Hand, error) {
 	n := len(seats)
 	switch {
@@ -166,29 +173,57 @@ func NewHand(cfg Config, v Variant, seats []SeatSpec, dealer int, opts Options) 
 		h.SmallBlind = h.next(dealer)
 		h.BigBlind = h.next(h.SmallBlind)
 	}
-	h.postBlind(h.SmallBlind, cfg.SmallBlind)
-	h.postBlind(h.BigBlind, cfg.BigBlind)
+	h.Street = Preflop
 
+	if v.Choices() != nil {
+		// Choices go in seat order from the dealer's left; the dealer's is
+		// fixed, so the first chooser is never the dealer.
+		h.Picking = true
+		h.ToAct = h.next(dealer)
+		return h, nil
+	}
+	if err := h.startDeal(); err != nil {
+		return nil, err
+	}
+	return h, nil
+}
+
+// startDeal posts the blinds, deals the hole cards and opens the pre-flop
+// (or Show 2 Play 2's reveal).
+func (h *Hand) startDeal() error {
+	need := 5 * h.Variant.Boards()
+	for _, p := range h.Players {
+		need += h.holeCount(p)
+	}
+	if need > h.deck.Remaining() {
+		return fmt.Errorf("deck has %d cards, need %d", h.deck.Remaining(), need)
+	}
+
+	h.postBlind(h.SmallBlind, h.Config.SmallBlind)
+	h.postBlind(h.BigBlind, h.Config.BigBlind)
 	for i, p := range h.Players {
-		p.Hole = h.deal(v.HoleCards())
+		p.Hole = h.deal(h.holeCount(p))
 		h.emit(Event{Kind: EvHole, Player: i, Cards: p.Hole})
 	}
 
 	// Players must match the full big blind even if the big blind is short.
-	h.Street = Preflop
-	h.CurrentBet = cfg.BigBlind
-	h.MinRaise = cfg.BigBlind
-	if v.Reveal() > 0 {
+	h.CurrentBet = h.Config.BigBlind
+	h.MinRaise = h.Config.BigBlind
+	if h.Variant.Reveal() > 0 {
 		// Everyone shows cards in seat order, starting left of the dealer,
 		// before anyone bets.
 		h.Showing = true
-		h.ToAct = h.next(dealer)
-		return h, nil
+		h.ToAct = h.next(h.Dealer)
+		return nil
 	}
-	if err := h.advance(h.BigBlind); err != nil {
-		return nil, err
+	return h.advance(h.BigBlind)
+}
+
+func (h *Hand) holeCount(p *Player) int {
+	if p.Picked > 0 {
+		return p.Picked
 	}
-	return h, nil
+	return h.Variant.HoleCards()
 }
 
 func (h *Hand) next(i int) int { return (i + 1) % len(h.Players) }
@@ -216,6 +251,15 @@ func (h *Hand) Legal(i int) Legal {
 	}
 	if h.Showing {
 		return Legal{Show: true}
+	}
+	if h.Picking {
+		l := Legal{Choose: true}
+		for _, c := range h.Variant.Choices() {
+			if h.canChoose(i, c) {
+				l.ChooseMax = max(l.ChooseMax, c.Cards)
+			}
+		}
+		return l
 	}
 	p := h.Players[i]
 	var l Legal
@@ -289,6 +333,12 @@ func (h *Hand) Apply(i int, a Action) error {
 		}
 		return h.reveal(i, a)
 	}
+	if h.Picking {
+		if a.Type != Choose {
+			return illegal("choose how many cards to take first")
+		}
+		return h.choose(i, a)
+	}
 
 	switch a.Type {
 	case Fold:
@@ -354,6 +404,60 @@ func (h *Hand) reveal(i int, a Action) error {
 	}
 	h.Showing = false
 	return h.advance(h.BigBlind)
+}
+
+// canChoose reports whether player i may pick c: they must afford one unit
+// at its price, and the deck must still cover everyone. Players after i
+// (including the dealer) are counted at the default, smallest choice
+// (docs/rules.md §4.3).
+func (h *Hand) canChoose(i int, c Choice) bool {
+	if h.Players[i].Stack < c.Mult {
+		return false
+	}
+	least := h.Variant.Choices()[0].Cards
+	need := c.Cards + 5*h.Variant.Boards()
+	for j, p := range h.Players {
+		switch {
+		case j == i:
+		case p.Picked > 0:
+			need += p.Picked
+		default:
+			need += least
+		}
+	}
+	return need <= h.deck.Remaining()
+}
+
+// choose handles a Choose during the choice phase. When everyone but the
+// dealer has chosen, the dealer takes the default and the hand is dealt.
+func (h *Hand) choose(i int, a Action) error {
+	idx := slices.IndexFunc(h.Variant.Choices(), func(c Choice) bool { return c.Cards == a.Count })
+	if idx < 0 || !h.canChoose(i, h.Variant.Choices()[idx]) {
+		return fmt.Errorf("%w: can't take %d cards", ErrIllegalAction, a.Count)
+	}
+	h.pick(i, h.Variant.Choices()[idx])
+	h.log.Actions = append(h.log.Actions, LoggedAction{Player: i, Action: a})
+
+	if next := h.next(i); next != h.Dealer {
+		h.ToAct = next
+		return nil
+	}
+	h.pick(h.Dealer, h.Variant.Choices()[0])
+	h.Picking = false
+	return h.startDeal()
+}
+
+func (h *Hand) pick(i int, c Choice) {
+	p := h.Players[i]
+	p.Picked = c.Cards
+	p.Mult = c.Mult
+	h.emit(Event{Kind: EvChoose, Player: i, Count: c.Cards, Mult: c.Mult})
+}
+
+// DefaultChoose is what a player who runs out of time picks: the first,
+// cheapest choice.
+func (h *Hand) DefaultChoose() Action {
+	return Action{Type: Choose, Count: h.Variant.Choices()[0].Cards}
 }
 
 // DefaultShow is what a player who runs out of time reveals: their lowest

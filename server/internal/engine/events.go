@@ -18,6 +18,7 @@ const (
 	EvRefund EventKind = "refund" // Player's uncalled Units/Chips came back
 	EvShow   EventKind = "show"   // Player showed Cards at showdown; Desc and Best are the hand
 	EvReveal EventKind = "reveal" // Player showed Cards before betting (Show 2 Play 2), to everyone
+	EvChoose EventKind = "choose" // Player took Count hole cards, paying Mult chips per unit (Dacoit)
 	EvWin    EventKind = "win"    // Player won Chips from Pot
 )
 
@@ -35,6 +36,9 @@ type Event struct {
 	Desc   string       `json:"desc,omitempty"`
 	// Best is, for a show event, the five cards that make the hand on each board.
 	Best [][]cards.Card `json:"best,omitempty"`
+	// Count and Mult are a choose event's hole cards and chips per unit.
+	Count int   `json:"count,omitempty"`
+	Mult  int64 `json:"mult,omitempty"`
 }
 
 func (h *Hand) emit(e Event) { h.Events = append(h.Events, e) }
@@ -92,6 +96,12 @@ func (h *Hand) narrate(visible func(Event) bool) []string {
 			out = append(out, fmt.Sprintf("%s: %s", label, pretty(e.Cards)))
 		case EvRefund:
 			out = append(out, fmt.Sprintf("%d uncalled returned to %s", e.Chips, name(e.Player)))
+		case EvChoose:
+			line := fmt.Sprintf("%s takes %d cards", name(e.Player), e.Count)
+			if e.Mult > 1 {
+				line += fmt.Sprintf(" (pays %dx)", e.Mult)
+			}
+			out = append(out, line)
 		case EvReveal:
 			out = append(out, fmt.Sprintf("%s shows %s", name(e.Player), pretty(e.Cards)))
 		case EvShow:

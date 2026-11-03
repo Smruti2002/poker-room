@@ -1,6 +1,7 @@
 package room
 
 import (
+	"encoding/json"
 	"errors"
 	mrand "math/rand/v2"
 	"slices"
@@ -575,6 +576,9 @@ func FuzzRoom(f *testing.F) {
 				m = protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "call"}}
 			case 2:
 				m = protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "check"}}
+				if h.r.hand != nil && h.r.hand.Picking {
+					m.Action = &protocol.Action{Type: "choose", Count: 4 + 2*int(op%2)}
+				}
 				if op%4 == 2 && h.r.hand != nil && h.r.hand.Showing {
 					// Reveal the first two hole cards of the player to act.
 					hole := cardStrings(h.r.hand.Players[h.r.hand.ToAct].Hole)
@@ -777,5 +781,73 @@ func TestSitOutWhileDealerChooses(t *testing.T) {
 	h.sched.fire(t)
 	if h.r.dealerID == dealer.ID || h.r.stage != protocol.StageChoosing {
 		t.Fatalf("dealer %s stage %q", h.r.dealerID, h.r.stage)
+	}
+}
+
+func TestDacoitInARoom(t *testing.T) {
+	h := newHarnessOpts(t, Options{Variants: map[string]engine.Variant{"dacoit": engine.Dacoit}}, "Ann", "Bob", "Cy")
+	h.r.settings.PotLimit = true
+	h.start()
+	if !h.r.hand.Picking || h.r.hand.Config.Structure != engine.PotLimit {
+		t.Fatal("dacoit should start with the choice, pot-limit when enabled")
+	}
+	first := h.toAct()
+	v := h.r.View(first.ID)
+	if l := v.Hand.Legal; l == nil || !l.Choose || l.ChooseMax != 6 || !v.Hand.Picking {
+		t.Fatalf("hand %+v legal %+v", v.Hand, v.Hand.Legal)
+	}
+	h.must(first, protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "choose", Count: 6}})
+
+	// Everyone sees the choice; nobody has cards yet.
+	for _, viewer := range h.ps {
+		for _, pv := range h.r.View(viewer.ID).Players {
+			if pv.ID == first.ID && (pv.Picked != 6 || pv.Mult != 2) {
+				t.Fatalf("%s sees %s picked %d mult %d", viewer.Name, pv.Name, pv.Picked, pv.Mult)
+			}
+			if pv.Hole != nil || pv.HoleCount != 0 {
+				t.Fatalf("cards before the deal: %+v", pv)
+			}
+		}
+	}
+
+	// The next player times out and takes 4; the dealer is fixed at 4, so
+	// the hand is dealt.
+	h.sched.fire(t)
+	if h.r.hand.Picking {
+		t.Fatal("still picking after the last choice")
+	}
+	counts := map[string]int{}
+	for _, pv := range h.r.View(first.ID).Players {
+		counts[pv.ID] = pv.HoleCount
+	}
+	if counts[first.ID] != 6 {
+		t.Fatalf("hole counts %v", counts)
+	}
+	for id, n := range counts {
+		if id != first.ID && n != 4 {
+			t.Fatalf("hole counts %v", counts)
+		}
+	}
+	h.playPassively()
+	if got := h.totalStacks(); got != 6000 {
+		t.Fatalf("chips = %d", got)
+	}
+}
+
+// Regression: before any event (Dacoit's choice phase) the log must still be
+// an empty JSON array, not null; null crashed the web client.
+func TestViewListsAreNeverNull(t *testing.T) {
+	h := newHarnessOpts(t, Options{Variants: map[string]engine.Variant{"dacoit": engine.Dacoit}}, "Ann", "Bob")
+	h.start()
+	for _, viewer := range h.ps {
+		b, err := json.Marshal(h.r.View(viewer.ID))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, field := range []string{`"log":null`, `"leaderboard":null`, `"players":null`, `"variants":null`, `"boards":null`} {
+			if strings.Contains(string(b), field) {
+				t.Fatalf("%s in %s", field, b)
+			}
+		}
 	}
 }

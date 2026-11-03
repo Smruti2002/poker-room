@@ -59,13 +59,14 @@ func (r *Room) View(viewer string) protocol.State {
 			v.Mult = hp.Mult
 			v.Won = hp.Won
 			v.HoleCount = len(hp.Hole)
+			v.Picked = hp.Picked
 			if hp.Shown != nil {
 				v.Shown = cardStrings(hp.Shown) // public once revealed
 			}
 			if live {
 				v.Stack = hp.Stack
 			}
-			if p.ID == viewer || shown[i] {
+			if len(hp.Hole) > 0 && (p.ID == viewer || shown[i]) {
 				v.Hole = cardStrings(hp.Hole)
 			}
 			if shown[i] {
@@ -81,7 +82,11 @@ func (r *Room) View(viewer string) protocol.State {
 
 	if h != nil {
 		s.Hand = r.handView(viewer)
-		s.Log = h.NarrateFor(slices.Index(r.handIDs, viewer))
+		// Keep Log a JSON array even before anything has happened (a Dacoit
+		// hand has no events until everyone has chosen).
+		if lines := h.NarrateFor(slices.Index(r.handIDs, viewer)); lines != nil {
+			s.Log = lines
+		}
 	}
 	if r.stage == protocol.StageChoosing {
 		s.Choosing = &protocol.ChoosingView{
@@ -100,6 +105,7 @@ func (r *Room) handView(viewer string) *protocol.HandView {
 		Variant:    r.variant,
 		Street:     h.Street.String(),
 		Showing:    h.Showing,
+		Picking:    h.Picking,
 		Reveal:     h.Variant.Reveal(),
 		Pot:        h.PotChips(),
 		CurrentBet: h.CurrentBet,
@@ -127,7 +133,8 @@ func (r *Room) handView(viewer string) *protocol.HandView {
 	if hv.ToAct == viewer {
 		l := h.Legal(h.ToAct)
 		hv.Legal = &protocol.Legal{
-			Show: l.Show,
+			Show:   l.Show,
+			Choose: l.Choose, ChooseMax: l.ChooseMax,
 			Fold: l.Fold, Check: l.Check, Call: l.Call, CallUnits: l.CallUnits,
 			Bet: l.Bet, Raise: l.Raise, MinTo: l.MinTo, MaxTo: l.MaxTo,
 		}

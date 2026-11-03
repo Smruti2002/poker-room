@@ -21,12 +21,13 @@ const (
 	Fold ActionType = iota + 1
 	Check
 	Call
-	Bet   // open the betting on a street; To is the street total
-	Raise // raise an existing bet; To is the street total
-	Show  // Show 2 Play 2: reveal Cards before betting
+	Bet    // open the betting on a street; To is the street total
+	Raise  // raise an existing bet; To is the street total
+	Show   // Show 2 Play 2: reveal Cards before betting
+	Choose // Dacoit: take Count hole cards before the deal
 )
 
-var actionNames = map[ActionType]string{Fold: "fold", Check: "check", Call: "call", Bet: "bet", Raise: "raise", Show: "show"}
+var actionNames = map[ActionType]string{Fold: "fold", Check: "check", Call: "call", Bet: "bet", Raise: "raise", Show: "show", Choose: "choose"}
 
 func (a ActionType) String() string {
 	if s, ok := actionNames[a]; ok {
@@ -61,6 +62,8 @@ type Action struct {
 	Type  ActionType   `json:"type"`
 	To    int64        `json:"to,omitempty"`
 	Cards []cards.Card `json:"cards,omitempty"`
+	// Count is how many hole cards to take, for Choose.
+	Count int `json:"count,omitempty"`
 }
 
 func (a Action) String() string {
@@ -69,6 +72,9 @@ func (a Action) String() string {
 	}
 	if a.Type == Show {
 		return fmt.Sprintf("show %v", a.Cards)
+	}
+	if a.Type == Choose {
+		return fmt.Sprintf("choose %d", a.Count)
 	}
 	return a.Type.String()
 }
@@ -133,10 +139,15 @@ func (s Street) boardCards() int {
 type Legal struct {
 	// Show is set during Show 2 Play 2's reveal phase, when it is the only
 	// legal action.
-	Show  bool `json:"show,omitempty"`
-	Fold  bool `json:"fold"`
-	Check bool `json:"check"`
-	Call  bool `json:"call"`
+	Show bool `json:"show,omitempty"`
+	// Choose is set during Dacoit's choice phase, when it is the only legal
+	// action; ChooseMax is the most cards this player may take (4 when the
+	// deck or their stack can't support 6).
+	Choose    bool `json:"choose,omitempty"`
+	ChooseMax int  `json:"chooseMax,omitempty"`
+	Fold      bool `json:"fold"`
+	Check     bool `json:"check"`
+	Call      bool `json:"call"`
 	// CallUnits is what calling adds; less than the amount owed when it puts
 	// the player all-in.
 	CallUnits int64 `json:"callUnits,omitempty"`

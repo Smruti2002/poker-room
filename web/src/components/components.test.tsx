@@ -139,9 +139,9 @@ describe('Table', () => {
     phase: 'playing',
     stage: 'hand',
     players: [
-      player({ id: 'p1', name: 'Ann', inHand: true, hole: ['As', 'Kd'], bet: 10 }),
-      player({ id: 'p2', name: 'Bob', inHand: true, bet: 20, dealer: true }),
-      player({ id: 'p3', name: 'Cy', inHand: true, folded: true }),
+      player({ id: 'p1', name: 'Ann', inHand: true, holeCount: 2, hole: ['As', 'Kd'], bet: 10 }),
+      player({ id: 'p2', name: 'Bob', inHand: true, holeCount: 2, bet: 20, dealer: true }),
+      player({ id: 'p3', name: 'Cy', inHand: true, holeCount: 2, folded: true }),
     ],
     hand: {
       number: 3,
@@ -245,5 +245,57 @@ describe('Show 2 Play 2', () => {
     expect(within(bob).getAllByLabelText('Hidden card')).toHaveLength(2)
     expect(within(screen.getByLabelText('Seat Cy')).getAllByLabelText('Hidden card')).toHaveLength(4)
     expect(screen.getByRole('status')).toHaveTextContent('Cy is picking cards to show')
+  })
+})
+
+describe('Dacoit', () => {
+  it('chooses 4 or 6 cards, with 6 disabled when not allowed', async () => {
+    const { ChoosePicker } = await import('./ChoosePicker.tsx')
+    const onAct = vi.fn()
+    const { rerender } = render(<ChoosePicker max={6} onAct={onAct} />)
+    fireEvent.click(screen.getByRole('button', { name: /6 cards/ }))
+    fireEvent.click(screen.getByRole('button', { name: /4 cards/ }))
+    expect(onAct.mock.calls).toEqual([[{ type: 'choose', count: 6 }], [{ type: 'choose', count: 4 }]])
+
+    rerender(<ChoosePicker max={4} onAct={onAct} />)
+    expect(screen.getByRole('button', { name: /6 cards/ })).toBeDisabled()
+    expect(screen.getByText(/Not enough cards left/)).toBeInTheDocument()
+  })
+
+  it('marks 6-card players and shows who is choosing', () => {
+    const s = state({
+      phase: 'playing',
+      stage: 'hand',
+      players: [
+        player({ id: 'p1', name: 'Ann', inHand: true, dealer: true }),
+        player({ id: 'p2', name: 'Bob', inHand: true, picked: 6, mult: 2 }),
+        player({ id: 'p3', name: 'Cy', inHand: true }),
+      ],
+      hand: { number: 1, variant: 'dacoit', street: 'Pre-flop', picking: true, boards: [[]], pot: 0, toAct: 'p3', currentBet: 0, done: false },
+    })
+    render(<Table state={s} clockOffset={0} onAct={vi.fn()} send={vi.fn()} />)
+    expect(within(screen.getByLabelText('Seat Bob')).getByText('6 cards · 2×')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Cy is choosing 4 or 6 cards')
+    // Nobody has cards before the deal, so there's no dock for Ann yet.
+    expect(screen.queryByLabelText('Your cards')).toBeNull()
+  })
+
+  it('reminds a 6-card player that bets cost double, in chips', () => {
+    const s = state({
+      phase: 'playing',
+      stage: 'hand',
+      players: [
+        player({ id: 'p1', name: 'Ann', inHand: true, picked: 6, mult: 2, holeCount: 6, hole: ['As', 'Ad', 'Kc', 'Kd', '7h', '2s'], bet: 10 }),
+        player({ id: 'p2', name: 'Bob', inHand: true, picked: 4, holeCount: 4, bet: 20 }),
+      ],
+      hand: {
+        number: 1, variant: 'dacoit', street: 'Pre-flop', boards: [[]], pot: 40, toAct: 'p1', currentBet: 20, done: false,
+        legal: { fold: true, check: false, call: true, callUnits: 10, bet: false, raise: true, minTo: 40, maxTo: 990 },
+      },
+    })
+    render(<Table state={s} clockOffset={0} onAct={vi.fn()} send={vi.fn()} />)
+    expect(screen.getByText(/every bet costs you double/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Call 20' })).toBeInTheDocument() // 10 units x 2
+    expect(within(screen.getByLabelText('Seat Ann')).getByText('Bet 20')).toBeInTheDocument()
   })
 })

@@ -14,11 +14,11 @@ export function RoomPage({ code }: { code: string }) {
       .catch(() => setExists(true)) // let the WebSocket report real problems
   }, [code])
 
-  if (exists === false) {
+  if (exists === false || room.gone) {
     return (
       <main className="home">
         <h1>Room not found</h1>
-        <p className="muted">The room {code.toUpperCase()} doesn't exist. Check the link, or start a new room.</p>
+        <p className="muted">The room {code.toUpperCase()} doesn't exist — it may have ended, or the server restarted. Check the link, or start a new room.</p>
         <a className="btn btn-primary" href="/">
           New room
         </a>
