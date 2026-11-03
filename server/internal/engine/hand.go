@@ -24,6 +24,8 @@ type Player struct {
 	Stack int64        `json:"stack"` // chips behind
 	Mult  int64        `json:"mult"`  // chips per unit
 	Hole  []cards.Card `json:"hole"`
+	// Shown are hole cards revealed to everyone (Show 2 Play 2).
+	Shown []cards.Card `json:"shown,omitempty"`
 
 	Folded bool  `json:"folded"`
 	AllIn  bool  `json:"allIn"`
@@ -33,6 +35,17 @@ type Player struct {
 
 	acted bool  // has acted on the current street
 	faced int64 // the current bet when this player last acted
+}
+
+// Hidden returns the hole cards that have not been shown.
+func (p *Player) Hidden() []cards.Card {
+	var out []cards.Card
+	for _, c := range p.Hole {
+		if !slices.Contains(p.Shown, c) {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 func (p *Player) maxUnits() int64 { return p.Stack / p.Mult }
@@ -68,6 +81,9 @@ type Hand struct {
 
 	Boards [][]cards.Card
 	Street Street
+	// Showing is true during Show 2 Play 2's reveal phase, before the
+	// pre-flop betting: each player in turn shows Variant.Reveal() cards.
+	Showing bool
 	// ToAct is the index of the player to act, or -1.
 	ToAct int
 	// CurrentBet is the street total (units) players must match.
@@ -162,6 +178,13 @@ func NewHand(cfg Config, v Variant, seats []SeatSpec, dealer int, opts Options) 
 	h.Street = Preflop
 	h.CurrentBet = cfg.BigBlind
 	h.MinRaise = cfg.BigBlind
+	if v.Reveal() > 0 {
+		// Everyone shows cards in seat order, starting left of the dealer,
+		// before anyone bets.
+		h.Showing = true
+		h.ToAct = h.next(dealer)
+		return h, nil
+	}
 	if err := h.advance(h.BigBlind); err != nil {
 		return nil, err
 	}
@@ -190,6 +213,9 @@ func (h *Hand) postBlind(i int, units int64) {
 func (h *Hand) Legal(i int) Legal {
 	if h.Done || i != h.ToAct {
 		return Legal{}
+	}
+	if h.Showing {
+		return Legal{Show: true}
 	}
 	p := h.Players[i]
 	var l Legal
@@ -257,6 +283,13 @@ func (h *Hand) Apply(i int, a Action) error {
 	l := h.Legal(i)
 	illegal := func(why string) error { return fmt.Errorf("%w: %v: %s", ErrIllegalAction, a, why) }
 
+	if h.Showing {
+		if a.Type != Show {
+			return illegal(fmt.Sprintf("show %d cards first", h.Variant.Reveal()))
+		}
+		return h.reveal(i, a)
+	}
+
 	switch a.Type {
 	case Fold:
 		if !l.Fold {
@@ -293,6 +326,42 @@ func (h *Hand) Apply(i int, a Action) error {
 	h.log.Actions = append(h.log.Actions, LoggedAction{Player: i, Action: a})
 	h.emit(Event{Kind: EvAction, Player: i, Action: a, Units: p.Street, Chips: p.Street * p.Mult})
 	return h.advance(i)
+}
+
+// reveal handles a Show during the reveal phase. After the last player
+// shows, the pre-flop betting starts as usual.
+func (h *Hand) reveal(i int, a Action) error {
+	p := h.Players[i]
+	n := h.Variant.Reveal()
+	if len(a.Cards) != n {
+		return fmt.Errorf("%w: show exactly %d cards", ErrIllegalAction, n)
+	}
+	for j, c := range a.Cards {
+		if !slices.Contains(p.Hole, c) {
+			return fmt.Errorf("%w: %v is not in your hand", ErrIllegalAction, c)
+		}
+		if slices.Contains(a.Cards[:j], c) {
+			return fmt.Errorf("%w: %v listed twice", ErrIllegalAction, c)
+		}
+	}
+	p.Shown = slices.Clone(a.Cards)
+	h.log.Actions = append(h.log.Actions, LoggedAction{Player: i, Action: a})
+	h.emit(Event{Kind: EvReveal, Player: i, Cards: p.Shown})
+
+	if next := h.next(i); next != h.next(h.Dealer) {
+		h.ToAct = next
+		return nil
+	}
+	h.Showing = false
+	return h.advance(h.BigBlind)
+}
+
+// DefaultShow is what a player who runs out of time reveals: their lowest
+// cards (docs/rules.md §4.6).
+func (h *Hand) DefaultShow(i int) Action {
+	hole := slices.Clone(h.Players[i].Hole)
+	slices.Sort(hole) // cards order by rank, then suit
+	return Action{Type: Show, Cards: hole[:h.Variant.Reveal()]}
 }
 
 // advance moves play on after player `from` acted (or the blinds were posted).
@@ -434,7 +503,11 @@ func (h *Hand) finish() error {
 				return fmt.Errorf("engine: ranking player %d: %w", i, err)
 			}
 			h.ranks[i] = r
-			h.emit(Event{Kind: EvShow, Player: i, Cards: p.Hole, Desc: describe(r)})
+			best := make([][]cards.Card, len(r))
+			for b, hand := range r {
+				best[b] = hand.Cards[:]
+			}
+			h.emit(Event{Kind: EvShow, Player: i, Cards: p.Hole, Desc: describe(r), Best: best})
 		}
 	}
 
@@ -443,10 +516,11 @@ func (h *Hand) finish() error {
 		if showdown {
 			winners = h.potWinners(pot.Eligible)
 		}
-		for w, chips := range splitPot(pot.Chips, winners, h.Dealer, len(h.Players)) {
-			h.Players[w].Stack += chips
-			h.Players[w].Won += chips
-			h.emit(Event{Kind: EvWin, Player: w, Pot: pi, Chips: chips, Desc: h.handDesc(w)})
+		for _, pay := range splitPot(pot.Chips, winners, h.Dealer, len(h.Players)) {
+			w := pay.player
+			h.Players[w].Stack += pay.chips
+			h.Players[w].Won += pay.chips
+			h.emit(Event{Kind: EvWin, Player: w, Pot: pi, Chips: pay.chips, Desc: h.handDesc(w)})
 		}
 	}
 	for _, p := range h.Players {

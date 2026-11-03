@@ -33,6 +33,10 @@ func TestSimulation(t *testing.T) {
 		{Players: 6, StartStack: 2000, SmallBlind: 10, BigBlind: 20, Structure: engine.PotLimit},
 		{Players: 6, StartStack: 2000, SmallBlind: 10, BigBlind: 20, DoubleChance: 0.4},
 		{Players: 8, StartStack: 150, SmallBlind: 5, BigBlind: 10, DoubleChance: 0.3}, // short stacks: lots of all-ins
+		{Players: 6, StartStack: 2000, SmallBlind: 10, BigBlind: 20, Variant: "omaha", Structure: engine.PotLimit},
+		{Players: 10, StartStack: 500, SmallBlind: 5, BigBlind: 10, Variant: "omaha", DoubleChance: 0.3},
+		{Players: 6, StartStack: 2000, SmallBlind: 10, BigBlind: 20, Variant: "show2"},
+		{Players: 10, StartStack: 300, SmallBlind: 5, BigBlind: 10, Variant: "show2", Structure: engine.PotLimit},
 	}
 	hands := simHands(t)
 	for i, cfg := range configs {
@@ -85,5 +89,11 @@ func TestOnHandCallback(t *testing.T) {
 		}})
 	if err != nil || calls != 10 {
 		t.Fatalf("calls = %d, err = %v", calls, err)
+	}
+}
+
+func TestUnknownVariant(t *testing.T) {
+	if _, err := Run(Config{Players: 2, Hands: 1, StartStack: 100, SmallBlind: 1, BigBlind: 2, Variant: "go-fish"}); err == nil {
+		t.Fatal("expected an error for an unknown variant")
 	}
 }

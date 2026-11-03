@@ -34,7 +34,8 @@ func genHand(t *rapid.T) *Hand {
 	dealer := rapid.IntRange(0, n-1).Draw(t, "dealer")
 	seed := cards.SeedFromUint64(rapid.Uint64().Draw(t, "seed"))
 
-	h, err := NewHand(cfg, Holdem, seats, dealer, Options{Seed: seed})
+	v := rapid.SampledFrom([]Variant{Holdem, Omaha, ShowTwo}).Draw(t, "variant")
+	h, err := NewHand(cfg, v, seats, dealer, Options{Seed: seed})
 	if err != nil {
 		t.Fatalf("NewHand: %v", err)
 	}
@@ -44,6 +45,12 @@ func genHand(t *rapid.T) *Hand {
 // drawAction picks a random legal action for the player to act.
 func drawAction(t *rapid.T, h *Hand) Action {
 	l := h.Legal(h.ToAct)
+	if l.Show {
+		// Reveal a random pair of hole cards.
+		hole := h.Players[h.ToAct].Hole
+		perm := rapid.Permutation(hole).Draw(t, "reveal")
+		return Action{Type: Show, Cards: perm[:h.Variant.Reveal()]}
+	}
 	var choices []ActionType
 	if l.Fold {
 		choices = append(choices, Fold)
@@ -116,6 +123,9 @@ func TestPropertyRandomHands(t *testing.T) {
 		}
 		if !slices.Equal(stacksOf(r), stacksOf(h)) {
 			t.Fatalf("replay stacks %v != %v", stacksOf(r), stacksOf(h))
+		}
+		if !slices.Equal(r.Narrate(), h.Narrate()) {
+			t.Fatalf("replay events differ:\n%s\n---\n%s", strings.Join(r.Narrate(), "\n"), strings.Join(h.Narrate(), "\n"))
 		}
 	})
 }

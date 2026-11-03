@@ -40,15 +40,48 @@ describe('ActionBar', () => {
     expect(screen.queryByRole('button', { name: 'Check' })).toBeNull()
   })
 
-  it('pot preset and typed amounts are clamped to the legal range', () => {
+  it('pot preset is a pot-sized raise', () => {
     const onAct = vi.fn()
     render(<ActionBar legal={facingBet} bet={0} mult={1} pot={30} onAct={onAct} />)
     // Call 20 to make the pot 50, then raise by 50: to 70.
     fireEvent.click(screen.getByRole('button', { name: 'Pot' }))
     fireEvent.click(screen.getByRole('button', { name: 'Raise to 70' }))
-    fireEvent.change(screen.getByLabelText('raise to'), { target: { value: '99999' } })
+    expect(onAct).toHaveBeenCalledWith({ type: 'raise', to: 70 })
+  })
+
+  it('the amount box can be cleared and retyped freely', () => {
+    const onAct = vi.fn()
+    render(<ActionBar legal={facingBet} bet={0} mult={1} pot={30} onAct={onAct} />)
+    const box = screen.getByLabelText('raise to')
+
+    fireEvent.change(box, { target: { value: '' } })
+    expect(box).toHaveValue('') // stays empty instead of snapping back
+    expect(screen.getByRole('button', { name: 'Raise' })).toBeDisabled()
+
+    fireEvent.change(box, { target: { value: '1' } })
+    expect(box).toHaveValue('1')
+    expect(screen.getByRole('note')).toHaveTextContent('Enter 40–1000')
+    fireEvent.change(box, { target: { value: '15' } })
+    fireEvent.change(box, { target: { value: '150' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Raise to 150' }))
+
+    // Letters are ignored; Enter raises.
+    fireEvent.change(box, { target: { value: '2x00' } })
+    expect(box).toHaveValue('200')
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(onAct.mock.calls).toEqual([[{ type: 'raise', to: 150 }], [{ type: 'raise', to: 200 }]])
+  })
+
+  it('out-of-range amounts disable raising and snap into range on blur', () => {
+    const onAct = vi.fn()
+    render(<ActionBar legal={facingBet} bet={0} mult={1} pot={30} onAct={onAct} />)
+    const box = screen.getByLabelText('raise to')
+    fireEvent.change(box, { target: { value: '99999' } })
+    expect(screen.getByRole('button', { name: 'Raise' })).toBeDisabled()
+    fireEvent.blur(box)
+    expect(box).toHaveValue('1000')
     fireEvent.click(screen.getByRole('button', { name: 'Raise to 1000' }))
-    expect(onAct.mock.calls).toEqual([[{ type: 'raise', to: 70 }], [{ type: 'raise', to: 1000 }]])
+    expect(onAct).toHaveBeenCalledWith({ type: 'raise', to: 1000 })
   })
 
   it('offers check and bet when nobody has bet', () => {
@@ -162,5 +195,55 @@ describe('Table', () => {
     render(<Table state={s} clockOffset={0} onAct={vi.fn()} send={send} />)
     fireEvent.click(screen.getByRole('button', { name: 'Omaha' }))
     expect(send).toHaveBeenCalledWith({ type: 'chooseVariant', variant: 'omaha' })
+  })
+})
+
+describe('Show 2 Play 2', () => {
+  it('picks exactly two cards to show', async () => {
+    const { ShowPicker } = await import('./ShowPicker.tsx')
+    const onAct = vi.fn()
+    render(<ShowPicker hole={['As', 'Kd', '7c', '2h']} count={2} onAct={onAct} />)
+    const confirm = screen.getByRole('button', { name: 'Pick 2 more' })
+    expect(confirm).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ace of spades' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Seven of clubs' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Two of hearts' })) // a third is ignored
+    expect(screen.getByRole('button', { name: 'Two of hearts' })).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Seven of clubs' })) // unpick
+    fireEvent.click(screen.getByRole('button', { name: 'King of diamonds' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Show these 2' }))
+    expect(onAct).toHaveBeenCalledWith({ type: 'show', cards: ['As', 'Kd'] })
+  })
+
+  it("shows other players' revealed cards face up next to their hidden ones", () => {
+    const s = state({
+      phase: 'playing',
+      stage: 'hand',
+      players: [
+        player({ id: 'p1', name: 'Ann', inHand: true, holeCount: 4, hole: ['As', 'Kd', '7c', '2h'], shown: ['As', 'Kd'] }),
+        player({ id: 'p2', name: 'Bob', inHand: true, holeCount: 4, shown: ['Qh', 'Qd'] }),
+        player({ id: 'p3', name: 'Cy', inHand: true, holeCount: 4 }),
+      ],
+      hand: {
+        number: 1,
+        variant: 'show2',
+        street: 'Pre-flop',
+        showing: true,
+        reveal: 2,
+        boards: [[]],
+        pot: 30,
+        toAct: 'p3',
+        currentBet: 20,
+        done: false,
+      },
+    })
+    render(<Table state={s} clockOffset={0} onAct={vi.fn()} send={vi.fn()} />)
+    const bob = screen.getByLabelText('Seat Bob')
+    expect(within(bob).getByLabelText('Queen of hearts')).toBeInTheDocument()
+    expect(within(bob).getAllByLabelText('Hidden card')).toHaveLength(2)
+    expect(within(screen.getByLabelText('Seat Cy')).getAllByLabelText('Hidden card')).toHaveLength(4)
+    expect(screen.getByRole('status')).toHaveTextContent('Cy is picking cards to show')
   })
 })

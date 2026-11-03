@@ -14,10 +14,15 @@ interface Props {
 /** Fold / check / call / bet / raise controls for the player to act. */
 export function ActionBar({ legal, bet, mult, pot, onAct }: Props) {
   const canRaise = legal.bet || legal.raise
-  const [to, setTo] = useState(legal.minTo)
-  const amount = Math.min(Math.max(to, legal.minTo), legal.maxTo)
+  const clamp = (n: number) => Math.min(Math.max(n, legal.minTo), legal.maxTo)
+  // The typed text is kept as-is so it can be cleared and retyped; it is
+  // only validated when raising.
+  const [text, setText] = useState(String(legal.minTo))
+  const typed = /^\d+$/.test(text.trim()) ? Number(text.trim()) : NaN
+  const valid = typed >= legal.minTo && typed <= legal.maxTo
   const raiseType = legal.bet ? 'bet' : 'raise'
   const allInOnly = canRaise && legal.minTo === legal.maxTo
+  const amount = allInOnly ? legal.maxTo : typed
 
   // Quick sizes, all clamped to what's legal. A pot-sized raise first calls,
   // then raises by the pot after the call (docs/rules.md §4.0); the pot is in
@@ -33,59 +38,78 @@ export function ActionBar({ legal, bet, mult, pot, onAct }: Props) {
 
   return (
     <div className="action-bar" role="group" aria-label="Your action">
-      {legal.fold && (
-        <button className="btn btn-fold" onClick={() => onAct({ type: 'fold' })}>
-          Fold
-        </button>
-      )}
-      {legal.check && (
-        <button className="btn" onClick={() => onAct({ type: 'check' })}>
-          Check
-        </button>
-      )}
-      {legal.call && (
-        <button className="btn" onClick={() => onAct({ type: 'call' })}>
-          Call {legal.callUnits * mult}
-        </button>
-      )}
-      {canRaise && (
-        <div className="raise">
-          {!allInOnly && (
-            <>
-              <div className="presets">
-                {presets.map(([label, value]) => (
-                  <button
-                    key={label}
-                    type="button"
-                    className="btn btn-small"
-                    onClick={() => setTo(Math.min(Math.max(value, legal.minTo), legal.maxTo))}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <input
-                type="range"
-                min={legal.minTo}
-                max={legal.maxTo}
-                value={amount}
-                onChange={(e) => setTo(Number(e.target.value))}
-                aria-label={`${raiseType} amount`}
-              />
-              <input
-                type="number"
-                className="amount"
-                min={legal.minTo}
-                max={legal.maxTo}
-                value={amount}
-                onChange={(e) => setTo(Number(e.target.value))}
-                aria-label={`${raiseType} to`}
-              />
-            </>
-          )}
-          <button className="btn btn-raise" onClick={() => onAct({ type: raiseType, to: amount })}>
-            {allInOnly ? `All-in ${amount * mult}` : `${legal.bet ? 'Bet' : 'Raise to'} ${amount * mult}`}
+      <div className="action-main">
+        {legal.fold && (
+          <button className="btn btn-fold" onClick={() => onAct({ type: 'fold' })}>
+            Fold
           </button>
+        )}
+        {legal.check && (
+          <button className="btn" onClick={() => onAct({ type: 'check' })}>
+            Check
+          </button>
+        )}
+        {legal.call && (
+          <button className="btn" onClick={() => onAct({ type: 'call' })}>
+            Call {legal.callUnits * mult}
+          </button>
+        )}
+        {canRaise && (
+          <button
+            className="btn btn-raise"
+            disabled={!allInOnly && !valid}
+            onClick={() => onAct({ type: raiseType, to: amount })}
+          >
+            {allInOnly
+              ? `All-in ${amount * mult}`
+              : valid
+                ? `${legal.bet ? 'Bet' : 'Raise to'} ${amount * mult}`
+                : legal.bet
+                  ? 'Bet'
+                  : 'Raise'}
+          </button>
+        )}
+      </div>
+      {canRaise && !allInOnly && (
+        <div className="raise">
+          <div className="presets">
+            {presets.map(([label, value]) => (
+              <button key={label} type="button" className="btn btn-small" onClick={() => setText(String(clamp(value)))}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="raise-amount">
+            <input
+              type="range"
+              min={legal.minTo}
+              max={legal.maxTo}
+              value={valid ? typed : legal.minTo}
+              onChange={(e) => setText(e.target.value)}
+              aria-label={`${raiseType} amount`}
+            />
+            <input
+              type="text"
+              inputMode="numeric"
+              className={`amount${valid ? '' : ' amount-invalid'}`}
+              value={text}
+              onChange={(e) => setText(e.target.value.replace(/[^\d]/g, ''))}
+              onBlur={() => {
+                if (!valid && text.trim() !== '') setText(String(clamp(Number.isNaN(typed) ? legal.minTo : typed)))
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && valid) onAct({ type: raiseType, to: amount })
+              }}
+              aria-label={`${raiseType} to`}
+              aria-invalid={!valid}
+            />
+          </div>
+          {!valid && (
+            <div className="amount-hint" role="note">
+              Enter {legal.minTo}–{legal.maxTo}
+              {mult > 1 && ` (you pay ${mult}× in chips)`}
+            </div>
+          )}
         </div>
       )}
     </div>

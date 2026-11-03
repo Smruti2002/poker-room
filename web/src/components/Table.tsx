@@ -4,6 +4,9 @@ import { variantName } from '../variants.ts'
 import { ActionBar } from './ActionBar.tsx'
 import { Card, CardBack } from './Card.tsx'
 import { Countdown } from './Countdown.tsx'
+import { ResultBanner } from './ResultBanner.tsx'
+import { ShowPicker } from './ShowPicker.tsx'
+import { winningCards } from './winning.ts'
 
 interface Props {
   state: State
@@ -17,6 +20,7 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
   const hand = state.hand
   const isHost = state.you === state.hostId
   const name = (id?: string) => state.players.find((p) => p.id === id)?.name ?? '?'
+  const winning = winningCards(hand)
 
   return (
     <div className="table-layout">
@@ -28,7 +32,7 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
             {hand.boards.map((board, b) => (
               <div className="board-row" key={b}>
                 {board.map((c) => (
-                  <Card key={c} code={c} />
+                  <Card key={c} code={c} highlight={highlightOf(c, winning)} />
                 ))}
                 {Array.from({ length: 5 - board.length }, (_, i) => (
                   <span className="card card-empty" key={`e${i}`} />
@@ -39,9 +43,11 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
           </div>
         )}
 
+        {hand && <ResultBanner state={state} hand={hand} clockOffset={clockOffset} />}
+
         <ul className="seats">
           {state.players.map((p) => (
-            <Seat key={p.id} p={p} state={state} clockOffset={clockOffset} />
+            <Seat key={p.id} p={p} state={state} clockOffset={clockOffset} winning={winning} />
           ))}
         </ul>
 
@@ -58,15 +64,36 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
           </div>
         )}
 
-        {hand?.legal && me && (
-          <ActionBar
-            key={`${hand.number}-${hand.street}-${hand.currentBet}`}
-            legal={hand.legal}
-            bet={me.bet}
-            mult={me.mult}
-            pot={hand.pot}
-            onAct={onAct}
-          />
+        {me?.inHand && me.hole && !hand?.done && (
+          // Pinned to the bottom of the screen so your cards and actions are
+          // always in reach on a phone.
+          <div className={`dock${hand?.legal ? ' dock-active' : ''}`}>
+            {!hand?.legal?.show && (
+              <div className="dock-cards" aria-label="Your cards">
+                {me.hole.map((c) => (
+                  <span key={c} className={me.shown?.includes(c) ? 'shown-card' : undefined}>
+                    <Card code={c} />
+                  </span>
+                ))}
+                {hand?.legal ? (
+                  <span className="dock-turn">Your turn</span>
+                ) : (
+                  me.folded && <span className="muted">Folded</span>
+                )}
+              </div>
+            )}
+            {hand?.legal?.show && <ShowPicker hole={me.hole} count={hand.reveal ?? 2} onAct={onAct} />}
+            {hand?.legal && !hand.legal.show && (
+              <ActionBar
+                key={`${hand.number}-${hand.street}-${hand.currentBet}`}
+                legal={hand.legal}
+                bet={me.bet}
+                mult={me.mult}
+                pot={hand.pot}
+                onAct={onAct}
+              />
+            )}
+          </div>
         )}
 
         {me?.broke && state.phase === 'playing' && (
@@ -124,14 +151,16 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
             ))}
           </ol>
         </section>
-        <section className="panel">
-          <h3>Hand log</h3>
+        <details className="panel">
+          <summary>
+            <h3>Hand log</h3>
+          </summary>
           <ol className="log">
             {state.log.map((line, i) => (
               <li key={i}>{line}</li>
             ))}
           </ol>
-        </section>
+        </details>
       </aside>
     </div>
   )
@@ -162,7 +191,13 @@ function TableHeader({
   } else if (hand && !hand.done && hand.toAct) {
     status = (
       <>
-        {hand.toAct === state.you ? 'Your turn' : `${name(hand.toAct)} to act`}{' '}
+        {hand.showing
+          ? hand.toAct === state.you
+            ? 'Pick cards to show'
+            : `${name(hand.toAct)} is picking cards to show`
+          : hand.toAct === state.you
+            ? 'Your turn'
+            : `${name(hand.toAct)} to act`}{' '}
         {hand.deadline ? <Countdown deadline={hand.deadline} clockOffset={clockOffset} /> : null}
       </>
     )
@@ -183,10 +218,21 @@ function TableHeader({
   )
 }
 
-function Seat({ p, state, clockOffset }: { p: PlayerView; state: State; clockOffset: number }) {
+function Seat({
+  p,
+  state,
+  clockOffset,
+  winning,
+}: {
+  p: PlayerView
+  state: State
+  clockOffset: number
+  winning: Set<string>
+}) {
   const hand = state.hand
   const acting = hand && !hand.done && hand.toAct === p.id
-  const holeCount = p.mult === 2 ? 6 : hand?.variant === 'holdem' ? 2 : 4
+  const holeCount = p.holeCount ?? 2
+  const shown = p.shown ?? []
   const classes = [
     'seat',
     acting && 'seat-acting',
@@ -209,8 +255,17 @@ function Seat({ p, state, clockOffset }: { p: PlayerView; state: State; clockOff
       {p.inHand && (
         <div className="seat-cards">
           {p.hole
-            ? p.hole.map((c) => <Card key={c} code={c} small />)
-            : !p.folded && Array.from({ length: holeCount }, (_, i) => <CardBack key={i} small />)}
+            ? p.hole.map((c) => <Card key={c} code={c} small highlight={highlightOf(c, winning)} />)
+            : !p.folded && (
+                <>
+                  {shown.map((c) => (
+                    <Card key={c} code={c} small />
+                  ))}
+                  {Array.from({ length: holeCount - shown.length }, (_, i) => (
+                    <CardBack key={i} small />
+                  ))}
+                </>
+              )}
         </div>
       )}
       <div className="seat-status">
@@ -230,4 +285,10 @@ function Seat({ p, state, clockOffset }: { p: PlayerView; state: State; clockOff
       )}
     </li>
   )
+}
+
+/** After a showdown, light up cards in a winning hand and dim the rest. */
+function highlightOf(card: string, winning: Set<string>): 'win' | 'dim' | undefined {
+  if (winning.size === 0) return undefined
+  return winning.has(card) ? 'win' : 'dim'
 }

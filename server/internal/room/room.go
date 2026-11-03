@@ -37,7 +37,10 @@ type Options struct {
 	Rand        *mrand.Rand       // picks the first dealer
 	NewSeed     func() cards.Seed // shuffle seed per hand
 	ChooseDelay time.Duration     // dealer's time to pick a variant
-	ResultDelay time.Duration     // pause after a hand before the next
+	ResultDelay time.Duration     // pause after a hand won by folds
+	// ShowdownDelay is the longer pause after a showdown, so everyone can
+	// see who won and with what.
+	ShowdownDelay time.Duration
 }
 
 // Player is a person in the room, kept across hands.
@@ -107,7 +110,10 @@ func New(code string, opts Options) *Room {
 		opts.ChooseDelay = 30 * time.Second
 	}
 	if opts.ResultDelay == 0 {
-		opts.ResultDelay = 5 * time.Second
+		opts.ResultDelay = 4 * time.Second
+	}
+	if opts.ShowdownDelay == 0 {
+		opts.ShowdownDelay = 9 * time.Second
 	}
 	r := &Room{Code: code, opts: opts, phase: protocol.PhaseLobby}
 	for name := range opts.Variants {
@@ -355,6 +361,14 @@ func (r *Room) chooseVariant(p *Player, name string) error {
 
 func (r *Room) deal(variant string) {
 	eligible := r.eligible()
+	// Players may have sat out (or in) while the dealer was choosing. If the
+	// table no longer fits this hand, or the dealer left, start over.
+	v := r.opts.Variants[variant]
+	stillDealer := slices.ContainsFunc(eligible, func(p *Player) bool { return p.ID == r.dealerID })
+	if len(eligible) < 2 || len(eligible)*v.HoleCards()+5*v.Boards() > cards.NumCards || !stillDealer {
+		r.nextHand()
+		return
+	}
 	seats := make([]engine.SeatSpec, len(eligible))
 	r.handIDs = make([]string, len(eligible))
 	dealer := 0
@@ -369,7 +383,7 @@ func (r *Room) deal(variant string) {
 	if r.settings.PotLimit && slices.Contains(potLimitVariants, variant) {
 		cfg.Structure = engine.PotLimit
 	}
-	h, err := engine.NewHand(cfg, r.opts.Variants[variant], seats, dealer, engine.Options{Seed: r.opts.NewSeed()})
+	h, err := engine.NewHand(cfg, v, seats, dealer, engine.Options{Seed: r.opts.NewSeed()})
 	if err != nil {
 		// Settings and eligibility are validated, so this is a bug.
 		panic(fmt.Sprintf("room %s: dealing %s: %v", r.Code, variant, err))
@@ -391,7 +405,11 @@ func (r *Room) afterHandChange() {
 		r.player(id).Stack = r.hand.Players[i].Stack
 	}
 	r.stage = protocol.StageResult
-	r.schedule(r.opts.ResultDelay)
+	delay := r.opts.ResultDelay
+	if slices.ContainsFunc(r.hand.Events, func(e engine.Event) bool { return e.Kind == engine.EvShow }) {
+		delay = r.opts.ShowdownDelay
+	}
+	r.schedule(delay)
 }
 
 func (r *Room) act(p *Player, a *protocol.Action) error {
@@ -409,7 +427,15 @@ func (r *Room) act(p *Player, a *protocol.Action) error {
 	if err := typ.UnmarshalText([]byte(a.Type)); err != nil {
 		return err
 	}
-	if err := r.hand.Apply(idx, engine.Action{Type: typ, To: a.To}); err != nil {
+	ea := engine.Action{Type: typ, To: a.To}
+	for _, s := range a.Cards {
+		c, err := cards.Parse(s)
+		if err != nil {
+			return err
+		}
+		ea.Cards = append(ea.Cards, c)
+	}
+	if err := r.hand.Apply(idx, ea); err != nil {
 		return err
 	}
 	r.afterHandChange()
@@ -468,9 +494,13 @@ func (r *Room) onTimer(gen int) {
 		}
 		r.deal(v)
 	case protocol.StageHand:
-		// Timeout: check if possible, otherwise fold.
+		// Timeout: show the lowest cards during a reveal; otherwise check
+		// if possible, else fold.
 		a := engine.Action{Type: engine.Fold}
-		if r.hand.Legal(r.hand.ToAct).Check {
+		switch l := r.hand.Legal(r.hand.ToAct); {
+		case l.Show:
+			a = r.hand.DefaultShow(r.hand.ToAct)
+		case l.Check:
 			a.Type = engine.Check
 		}
 		if err := r.hand.Apply(r.hand.ToAct, a); err != nil {

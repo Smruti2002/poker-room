@@ -56,20 +56,27 @@ func buildPots(players []*Player) []Pot {
 	return pots
 }
 
-// splitPot divides chips among winners. Leftover chips go one at a time to
-// winners in seat order starting left of the dealer.
-func splitPot(chips int64, winners []int, dealer, numPlayers int) map[int]int64 {
+// payout is one winner's share of a pot.
+type payout struct {
+	player int
+	chips  int64
+}
+
+// splitPot divides chips among winners, returned in seat order starting left
+// of the dealer so events are deterministic. Leftover chips go one at a time
+// to winners in that order.
+func splitPot(chips int64, winners []int, dealer, numPlayers int) []payout {
 	order := slices.Clone(winners)
 	slices.SortFunc(order, func(a, b int) int {
 		return seatDistance(dealer, a, numPlayers) - seatDistance(dealer, b, numPlayers)
 	})
 	share := chips / int64(len(order))
 	odd := chips % int64(len(order))
-	out := make(map[int]int64, len(order))
+	out := make([]payout, len(order))
 	for i, w := range order {
-		out[w] = share
+		out[i] = payout{player: w, chips: share}
 		if int64(i) < odd {
-			out[w]++
+			out[i].chips++
 		}
 	}
 	return out

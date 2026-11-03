@@ -7,6 +7,17 @@ async function newPlayer(browser: Browser): Promise<Page> {
   return ctx.newPage()
 }
 
+async function createRoom(browser: Browser, name: string): Promise<{ page: Page; link: string }> {
+  const page = await newPlayer(browser)
+  await page.goto('/')
+  await page.getByLabel('Your name').fill(name)
+  await page.getByRole('button', { name: 'Create room' }).click()
+  await expect(page).toHaveURL(/\/r\/[A-Z0-9]{6}$/)
+  const link = (await page.locator('.share-link').textContent())!
+  expect(link).toMatch(/\/r\/[A-Z0-9]{6}$/)
+  return { page, link }
+}
+
 async function joinByLink(browser: Browser, link: string, name: string): Promise<Page> {
   const page = await newPlayer(browser)
   await page.goto(link)
@@ -16,13 +27,45 @@ async function joinByLink(browser: Browser, link: string, name: string): Promise
   return page
 }
 
+/** The table header's status line ("Your turn", "Hand over", ...). */
+const status = (page: Page) => page.locator('.table-header .status')
+
+/** Host leaves only the given variants enabled and saves. */
+async function onlyVariants(host: Page, keep: string[]) {
+  for (const label of ["Texas Hold'em", 'Omaha', 'Show 2 Play 2']) {
+    const box = host.getByRole('checkbox', { name: label, exact: true })
+    if ((await box.isChecked()) !== keep.includes(label)) await box.click()
+  }
+  await host.getByRole('button', { name: 'Save settings' }).click()
+  await expect(host.getByRole('button', { name: 'Start game' })).toBeEnabled()
+}
+
+/** Whoever is the dealer picks the variant. */
+async function dealerPicks(pages: Page[], variant: string) {
+  await expect
+    .poll(
+      async () => {
+        for (const page of pages) {
+          const button = page.locator('.choose').getByRole('button', { name: variant })
+          if (await button.isVisible()) {
+            await button.click()
+            return true
+          }
+        }
+        return false
+      },
+      { timeout: 10_000, intervals: [100] },
+    )
+    .toBe(true)
+}
+
 /** Plays passively (check, else call) until the hand is over on every page. */
 async function playOutHand(pages: Page[]) {
   await expect
     .poll(
       async () => {
         for (const page of pages) {
-          if ((await page.getByRole('status').textContent())?.includes('Hand over')) return true
+          if ((await status(page).textContent())?.includes('Hand over')) return true
           const check = page.getByRole('button', { name: 'Check', exact: true })
           const call = page.getByRole('button', { name: /^Call \d+$/ })
           if (await check.isVisible()) await check.click()
@@ -41,22 +84,16 @@ async function totalChips(page: Page): Promise<number> {
 }
 
 test('three friends create a room, join by link and play a hand', async ({ browser }) => {
-  const ann = await newPlayer(browser)
-  await ann.goto('/')
-  await ann.getByLabel('Your name').fill('Ann')
-  await ann.getByRole('button', { name: 'Create room' }).click()
-  await expect(ann).toHaveURL(/\/r\/[A-Z0-9]{6}$/)
-  const link = await ann.locator('.share-link').textContent()
-  expect(link).toMatch(/\/r\/[A-Z0-9]{6}$/)
-
-  const bob = await joinByLink(browser, link!, 'Bob')
-  const cy = await joinByLink(browser, link!, 'Cy')
+  const { page: ann, link } = await createRoom(browser, 'Ann')
+  const bob = await joinByLink(browser, link, 'Bob')
+  const cy = await joinByLink(browser, link, 'Cy')
   const players = [ann, bob, cy]
 
   await expect(ann.getByRole('heading', { name: 'Players (3/8)' })).toBeVisible()
   await expect(bob.getByText('Waiting for the host to start…')).toBeVisible()
 
   await ann.getByRole('button', { name: 'Start game' }).click()
+  await dealerPicks(players, "Texas Hold'em")
   for (const page of players) {
     await expect(page.getByText(/Hand #1 · Texas Hold'em/)).toBeVisible()
     // Each player sees exactly their own two cards face up.
@@ -67,22 +104,70 @@ test('three friends create a room, join by link and play a hand', async ({ brows
   await playOutHand(players)
 
   for (const page of players) {
-    await expect(page.getByRole('status')).toContainText('Hand over')
+    await expect(status(page)).toContainText('Hand over')
     expect(await totalChips(page)).toBe(6000)
     await expect(page.locator('.leaderboard li')).toHaveCount(3)
+    // Everyone sees who won and with what, and when the next hand starts.
+    await expect(page.locator('.result')).toContainText(/wins? \d+ with /)
+    await expect(page.locator('.result')).toContainText('Next hand in')
   }
 
-  // The next hand starts by itself after a short pause.
-  await expect(bob.getByText(/Hand #2/)).toBeVisible({ timeout: 15_000 })
+  // After the pause, the next dealer picks again.
+  await dealerPicks(players, 'Omaha')
+  await expect(bob.getByText(/Hand #2 · Omaha/)).toBeVisible()
+  await expect(bob.locator('.seat-me .card:not(.card-back)')).toHaveCount(4)
+})
+
+test('Show 2 Play 2: everyone reveals two cards before betting', async ({ browser }) => {
+  const { page: ann, link } = await createRoom(browser, 'Ann')
+  const bob = await joinByLink(browser, link, 'Bob')
+  const cy = await joinByLink(browser, link, 'Cy')
+  const players = [ann, bob, cy]
+  await onlyVariants(ann, ['Show 2 Play 2'])
+  await ann.getByRole('button', { name: 'Start game' }).click() // one variant: no choice needed
+
+  // Each player in turn picks two cards to show.
+  let reveals = 0
+  await expect
+    .poll(
+      async () => {
+        for (const page of players) {
+          const picker = page.locator('.show-picker')
+          if (await picker.isVisible()) {
+            const picks = picker.locator('.card-pick')
+            await picks.nth(0).click()
+            await picks.nth(1).click()
+            await picker.getByRole('button', { name: 'Show these 2' }).click()
+            await expect(picker).toBeHidden()
+            reveals++
+          }
+        }
+        return reveals
+      },
+      { timeout: 20_000, intervals: [100] },
+    )
+    .toBe(3)
+
+  // Betting has started, and everyone sees the others' two shown cards,
+  // face up, next to two face-down ones.
+  for (const page of players) {
+    await expect(status(page)).not.toContainText('picking cards')
+    await expect(page.locator('.seat:not(.seat-me) .card:not(.card-back)')).toHaveCount(4)
+    await expect(page.locator('.seat:not(.seat-me) .card-back')).toHaveCount(4)
+    await expect(page.locator('.dock .shown-card')).toHaveCount(2)
+  }
+
+  await playOutHand(players)
+  for (const page of players) {
+    expect(await totalChips(page)).toBe(6000)
+    await expect(page.locator('.result')).toBeVisible()
+  }
 })
 
 test('a player who refreshes keeps their seat and cards', async ({ browser }) => {
-  const ann = await newPlayer(browser)
-  await ann.goto('/')
-  await ann.getByLabel('Your name').fill('Ann')
-  await ann.getByRole('button', { name: 'Create room' }).click()
-  const link = (await ann.locator('.share-link').textContent())!
+  const { page: ann, link } = await createRoom(browser, 'Ann')
   const bob = await joinByLink(browser, link, 'Bob')
+  await onlyVariants(ann, ["Texas Hold'em"])
   await ann.getByRole('button', { name: 'Start game' }).click()
 
   const myCards = bob.locator('.seat-me .card:not(.card-back)')
@@ -96,18 +181,30 @@ test('a player who refreshes keeps their seat and cards', async ({ browser }) =>
   await expect(bob.locator('.seat-me')).toContainText('Bob')
 })
 
+test('the raise box can be cleared and retyped', async ({ browser }) => {
+  const { page: ann, link } = await createRoom(browser, 'Ann')
+  const bob = await joinByLink(browser, link, 'Bob')
+  await onlyVariants(ann, ["Texas Hold'em"])
+  await ann.getByRole('button', { name: 'Start game' }).click()
+
+  // Heads-up: the dealer acts first; find whoever has the action bar.
+  const actor = (await ann.locator('.action-bar').isVisible()) ? ann : bob
+  await expect(actor.locator('.action-bar')).toBeVisible()
+  const box = actor.getByLabel('raise to')
+  await box.fill('')
+  await expect(box).toHaveValue('')
+  await box.pressSequentially('150')
+  await expect(box).toHaveValue('150')
+  await expect(actor.getByRole('button', { name: 'Raise to 150' })).toBeEnabled()
+})
+
 test('unknown room links say so', async ({ page }) => {
   await page.goto('/r/ZZZZZZ')
   await expect(page.getByRole('heading', { name: 'Room not found' })).toBeVisible()
 })
 
 test('a taken name is rejected on join', async ({ browser }) => {
-  const ann = await newPlayer(browser)
-  await ann.goto('/')
-  await ann.getByLabel('Your name').fill('Ann')
-  await ann.getByRole('button', { name: 'Create room' }).click()
-  const link = (await ann.locator('.share-link').textContent())!
-
+  const { link } = await createRoom(browser, 'Ann')
   const imposter = await newPlayer(browser)
   await imposter.goto(link)
   await imposter.getByLabel('Your name').fill('ann')

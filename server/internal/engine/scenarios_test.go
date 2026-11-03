@@ -19,9 +19,12 @@ var (
 	defaultBoard = "3c 6d 9h Jc 2s"
 )
 
-// scenario is a scripted hand. Actions are "<player> <verb> [amount]".
+// scenario is a scripted hand. Actions are "<player> <verb> [amount]", or
+// "<player> show <card> <card>" in Show 2 Play 2.
 type scenario struct {
 	name      string
+	variant   Variant // default Holdem
+	board     string  // default defaultBoard
 	stacks    []int64
 	mults     []int64 // optional, default 1
 	dealer    int
@@ -43,7 +46,11 @@ func (s scenario) deck() []cards.Card {
 		}
 		d = append(d, cards.MustParseList(hole)...)
 	}
-	return append(d, cards.MustParseList(defaultBoard)...)
+	board := defaultBoard
+	if s.board != "" {
+		board = s.board
+	}
+	return append(d, cards.MustParseList(board)...)
 }
 
 func (s scenario) newHand(t *testing.T) *Hand {
@@ -62,7 +69,11 @@ func (s scenario) newHand(t *testing.T) *Hand {
 			seats[i].Mult = s.mults[i]
 		}
 	}
-	h, err := NewHand(cfg, Holdem, seats, s.dealer, Options{Deck: s.deck()})
+	v := s.variant
+	if v == nil {
+		v = Holdem
+	}
+	h, err := NewHand(cfg, v, seats, s.dealer, Options{Deck: s.deck()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +92,10 @@ func parseAction(t *testing.T, s string) (int, Action) {
 	if err := a.Type.UnmarshalText([]byte(f[1])); err != nil {
 		t.Fatalf("bad action %q: %v", s, err)
 	}
-	if len(f) == 3 {
+	switch {
+	case a.Type == Show:
+		a.Cards = cards.MustParseList(strings.Join(f[2:], " "))
+	case len(f) == 3:
 		a.To, _ = strconv.ParseInt(f[2], 10, 64)
 	}
 	return player, a

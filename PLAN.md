@@ -230,7 +230,7 @@ Each milestone ends with a **demo** and a **green test gate**. Don't start the n
 - **Tests:** WebSocket integration tests (scripted hands, hidden-card leak check, reconnect mid-hand), loan math tests (penalty applies to loans 1..N only; profits sum to minus total penalties), fuzz test on message decoding, first Playwright test (create → join → play one Hold'em hand).
 - **Gate:** 3 people on different machines (via ngrok or a LAN IP) can play Hold'em with loans from start to finish.
 
-### M4 — Omaha + Show 2 Play 2 (≈4 days)
+### M4 — Omaha + Show 2 Play 2 (≈4 days) ✅
 - Omaha: 4 cards, exact-2 rule, optional pot-limit betting.
 - S2P2: show phase (pick 2 to reveal, in seat order, with timer and auto-pick on timeout), 3+1+1 showdown, and the shown cards included in every player's view.
 - UI: 4-card hand, card picker for the show phase, shown cards displayed beside each opponent.

@@ -16,6 +16,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
 
+	"pokerroom/internal/engine"
 	"pokerroom/internal/httpapi"
 	"pokerroom/internal/protocol"
 	"pokerroom/internal/room"
@@ -24,7 +25,11 @@ import (
 func newTestServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	s := &Server{Rooms: room.NewManager(room.Options{ResultDelay: 50 * time.Millisecond}, log), Log: log}
+	s := &Server{Rooms: room.NewManager(room.Options{
+		Variants:      map[string]engine.Variant{"holdem": engine.Holdem},
+		ResultDelay:   50 * time.Millisecond,
+		ShowdownDelay: 50 * time.Millisecond,
+	}, log), Log: log}
 	srv := httptest.NewServer(httpapi.NewHandler(httpapi.Config{Routes: s.Register}, log))
 	t.Cleanup(srv.Close)
 	return srv

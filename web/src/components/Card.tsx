@@ -10,14 +10,25 @@ const RANK_NAMES: Record<string, string> = {
   '9': 'Nine', '8': 'Eight', '7': 'Seven', '6': 'Six', '5': 'Five', '4': 'Four', '3': 'Three', '2': 'Two',
 }
 
-/** A face-up card from its two-character code, e.g. "As" or "Td". */
-export function Card({ code, small = false }: { code: string; small?: boolean }) {
+/**
+ * A face-up card from its two-character code, e.g. "As" or "Td". After a
+ * showdown, `highlight` marks cards in the winning hand (win) or not (dim).
+ */
+export function Card({
+  code,
+  small = false,
+  highlight,
+}: {
+  code: string
+  small?: boolean
+  highlight?: 'win' | 'dim'
+}) {
   const rank = code[0]
   const suit = SUITS[code[1]]
   if (!suit || !RANK_NAMES[rank]) return <span className="card card-bad">?</span>
   return (
     <span
-      className={`card${suit.red ? ' card-red' : ''}${small ? ' card-small' : ''}`}
+      className={`card${suit.red ? ' card-red' : ''}${small ? ' card-small' : ''}${highlight ? ` card-${highlight}` : ''}`}
       aria-label={`${RANK_NAMES[rank]} of ${suit.name}`}
       title={`${RANK_NAMES[rank]} of ${suit.name}`}
     >

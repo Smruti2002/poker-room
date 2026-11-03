@@ -82,23 +82,18 @@ func TestSplitPot(t *testing.T) {
 		chips   int64
 		winners []int
 		dealer  int
-		want    map[int]int64
+		want    []payout // in seat order from the dealer's left
 	}{
-		{100, []int{2}, 0, map[int]int64{2: 100}},
-		{101, []int{0, 2}, 0, map[int]int64{0: 50, 2: 51}},               // 2 is closer to dealer's left
-		{101, []int{0, 2}, 1, map[int]int64{0: 50, 2: 51}},               // order from seat 2: 2, 3, 0
-		{102, []int{0, 1, 3}, 3, map[int]int64{0: 34, 1: 34, 3: 34}},     // even
-		{5, []int{0, 1, 2, 3}, 1, map[int]int64{2: 2, 3: 1, 0: 1, 1: 1}}, // 1 odd chip to seat 2
+		{100, []int{2}, 0, []payout{{2, 100}}},
+		{101, []int{0, 2}, 0, []payout{{2, 51}, {0, 50}}},                   // 2 is closer to dealer's left
+		{101, []int{0, 2}, 1, []payout{{2, 51}, {0, 50}}},                   // order from seat 2: 2, 3, 0
+		{102, []int{0, 1, 3}, 3, []payout{{0, 34}, {1, 34}, {3, 34}}},       // even
+		{5, []int{0, 1, 2, 3}, 1, []payout{{2, 2}, {3, 1}, {0, 1}, {1, 1}}}, // 1 odd chip to seat 2
 	}
 	for _, tt := range tests {
 		got := splitPot(tt.chips, tt.winners, tt.dealer, 4)
-		if len(got) != len(tt.want) {
+		if !slices.Equal(got, tt.want) {
 			t.Fatalf("splitPot(%d, %v, d=%d) = %v, want %v", tt.chips, tt.winners, tt.dealer, got, tt.want)
-		}
-		for k, v := range tt.want {
-			if got[k] != v {
-				t.Fatalf("splitPot(%d, %v, d=%d) = %v, want %v", tt.chips, tt.winners, tt.dealer, got, tt.want)
-			}
 		}
 	}
 }
@@ -190,7 +185,7 @@ func TestActionJSON(t *testing.T) {
 		t.Fatalf("json = %s, %v", b, err)
 	}
 	var a Action
-	if err := json.Unmarshal([]byte(`{"type":"check"}`), &a); err != nil || a != (Action{Type: Check}) {
+	if err := json.Unmarshal([]byte(`{"type":"check"}`), &a); err != nil || a.Type != Check || a.To != 0 || a.Cards != nil {
 		t.Fatalf("got %+v, %v", a, err)
 	}
 	if err := json.Unmarshal([]byte(`{"type":"shove"}`), &a); err == nil {

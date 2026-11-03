@@ -65,8 +65,12 @@ export interface ClientMsg {
  * Action is a betting action. To is the street total for bet/raise, in units.
  */
 export interface Action {
-  type: string; // fold, check, call, bet, raise
+  type: string; // fold, check, call, bet, raise, show
   to?: number /* int64 */;
+  /**
+   * Cards are the hole cards to reveal, for show (Show 2 Play 2).
+   */
+  cards?: string[];
 }
 /**
  * Server message types.
@@ -174,7 +178,16 @@ export interface PlayerView {
   allIn: boolean;
   bet: number /* int64 */; // units on the current street
   mult: number /* int64 */; // chips per unit
+  /**
+   * HoleCount is how many hole cards the player holds, so others can draw
+   * the right number of face-down cards.
+   */
+  holeCount?: number /* int */;
   hole?: string[];
+  /**
+   * Shown are hole cards revealed to everyone before betting (Show 2 Play 2).
+   */
+  shown?: string[];
   handDesc?: string;
   won?: number /* int64 */;
 }
@@ -185,14 +198,45 @@ export interface HandView {
   number: number /* int */;
   variant: string;
   street: string;
+  /**
+   * Showing is true while players reveal cards before betting (Show 2 Play 2).
+   */
+  showing?: boolean;
+  /**
+   * Reveal is how many cards each player shows in this variant.
+   */
+  reveal?: number /* int */;
   boards: string[][];
   pot: number /* int64 */; // chips, including current bets
   pots?: PotView[];
   toAct?: string;
   currentBet: number /* int64 */;
-  deadline?: number /* int64 */; // unix ms
+  /**
+   * Deadline is when the player to act times out or, once the hand is
+   * done, when the next hand starts (unix ms).
+   */
+  deadline?: number /* int64 */;
   legal?: Legal; // only for the player to act
   done: boolean;
+  /**
+   * Winners is filled in when the hand is done.
+   */
+  winners?: WinnerView[];
+}
+/**
+ * WinnerView is a player who won chips, and how.
+ */
+export interface WinnerView {
+  playerId: string;
+  chips: number /* int64 */;
+  /**
+   * Desc is the winning hand, empty when everyone else folded.
+   */
+  desc?: string;
+  /**
+   * Cards are the five cards that make the hand, per board.
+   */
+  cards?: string[][];
 }
 /**
  * PotView is a main or side pot after the hand ends.
@@ -205,6 +249,10 @@ export interface PotView {
  * Legal lists what the player to act may do; amounts are in units.
  */
 export interface Legal {
+  /**
+   * Show: reveal cards (Show 2 Play 2). It is then the only legal action.
+   */
+  show?: boolean;
   fold: boolean;
   check: boolean;
   call: boolean;

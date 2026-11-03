@@ -14,6 +14,7 @@ All chips are virtual. Chip amounts are always whole numbers.
    1. The dealer button moves one seat clockwise to the next seated player who is not sitting out. On the first hand, the button goes to a random seat.
    2. The **dealer picks the variant** from the host's allowed list (30 s timer; on timeout the previous variant is reused, or Texas Hold'em on the first hand). Variants the current table can't support (§4.7) can't be picked.
    3. The hand runs according to the chosen variant.
+   4. When the hand ends, the result (who won, how much, and with which five cards) stays on screen for about 9 seconds after a showdown, or 4 seconds when everyone else folded, before the next hand.
 4. Between hands, broke players may take a [loan](#3-loans).
 5. The host ends the game whenever they want. The leaderboard ranks players by **profit = stack − starting stack − debt**. 0 means the player broke even, a positive number means they are up, and a negative one means they are down.
 

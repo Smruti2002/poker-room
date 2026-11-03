@@ -46,6 +46,11 @@ func newHarnessOpts(t *testing.T, opts Options, names ...string) *harness {
 	t.Helper()
 	h := &harness{t: t, sched: &fakeSched{}}
 	seed := uint64(0)
+	// Hold'em only unless a test says otherwise, so hands deal without the
+	// dealer having to pick a variant.
+	if opts.Variants == nil {
+		opts.Variants = map[string]engine.Variant{"holdem": engine.Holdem}
+	}
 	opts.Sched = h.sched
 	opts.Now = func() time.Time { return time.UnixMilli(1_000_000) }
 	opts.Rand = mrand.New(mrand.NewPCG(1, 2))
@@ -554,9 +559,10 @@ func FuzzRoom(f *testing.F) {
 	f.Add([]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
 	f.Add([]byte("start the game and play some hands"))
 	f.Fuzz(func(t *testing.T, script []byte) {
-		h := newHarness(t, "Ann", "Bob", "Cy")
+		h := newHarnessOpts(t, Options{Variants: engine.AllVariants()}, "Ann", "Bob", "Cy")
 		h.r.Join("Dee")
 		players := h.r.players
+		variants := h.r.variantNames
 		base := int64(len(players)) * h.r.settings.StartingStack
 		for i := 0; i+1 < len(script); i += 2 {
 			p := players[int(script[i])%len(players)]
@@ -569,6 +575,11 @@ func FuzzRoom(f *testing.F) {
 				m = protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "call"}}
 			case 2:
 				m = protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "check"}}
+				if op%4 == 2 && h.r.hand != nil && h.r.hand.Showing {
+					// Reveal the first two hole cards of the player to act.
+					hole := cardStrings(h.r.hand.Players[h.r.hand.ToAct].Hole)
+					m.Action = &protocol.Action{Type: "show", Cards: hole[:2]}
+				}
 			case 3:
 				m = protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "raise", To: int64(op) * 7}}
 			case 4:
@@ -588,7 +599,7 @@ func FuzzRoom(f *testing.F) {
 				if op > 250 {
 					m.Type = protocol.MsgEndGame
 				} else {
-					m = protocol.ClientMsg{Type: protocol.MsgChooseVariant, Variant: "holdem"}
+					m = protocol.ClientMsg{Type: protocol.MsgChooseVariant, Variant: variants[int(op)%len(variants)]}
 				}
 			}
 			_ = h.r.Handle(p.ID, m) // errors are fine; panics and broken invariants are not
@@ -608,4 +619,163 @@ func FuzzRoom(f *testing.F) {
 			}
 		}
 	})
+}
+
+// Finished hands report who won, how, and when the next hand starts; a
+// showdown pauses longer than a hand won by folds.
+func TestWinnersAndResultPause(t *testing.T) {
+	var delays []time.Duration
+	h := newHarness(t, "Ann", "Bob", "Cy")
+	h.r.opts.Sched = schedFunc(func(d time.Duration, fire func()) {
+		delays = append(delays, d)
+		h.sched.After(d, fire)
+	})
+	h.start()
+
+	// Hand 1: everyone folds to the big blind, whose unmatched 10 comes back.
+	for h.r.stage == protocol.StageHand && !h.r.hand.Done {
+		h.must(h.toAct(), protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "fold"}})
+	}
+	hv := h.r.View(h.ps[0].ID).Hand
+	if len(hv.Winners) != 1 || hv.Winners[0].Desc != "" || hv.Winners[0].Cards != nil || hv.Winners[0].Chips != 20 {
+		t.Fatalf("fold win = %+v", hv.Winners)
+	}
+	if hv.Deadline == 0 || delays[len(delays)-1] != h.r.opts.ResultDelay {
+		t.Fatalf("fold win pause %v deadline %d", delays[len(delays)-1], hv.Deadline)
+	}
+
+	// Hand 2: checked down to a showdown.
+	h.sched.fire(t)
+	h.playPassively()
+	hv = h.r.View(h.ps[0].ID).Hand
+	if delays[len(delays)-1] != h.r.opts.ShowdownDelay || h.r.opts.ShowdownDelay <= h.r.opts.ResultDelay {
+		t.Fatalf("showdown pause %v", delays[len(delays)-1])
+	}
+	if len(hv.Winners) == 0 {
+		t.Fatal("no winners")
+	}
+	var paid int64
+	for _, w := range hv.Winners {
+		paid += w.Chips
+		if w.Desc == "" || len(w.Cards) != 1 || len(w.Cards[0]) != 5 {
+			t.Fatalf("showdown winner = %+v", w)
+		}
+	}
+	if paid != hv.Pot {
+		t.Fatalf("winners got %d of a %d pot", paid, hv.Pot)
+	}
+}
+
+type schedFunc func(time.Duration, func())
+
+func (f schedFunc) After(d time.Duration, fire func()) { f(d, fire) }
+
+func TestShowTwoInARoom(t *testing.T) {
+	h := newHarnessOpts(t, Options{Variants: map[string]engine.Variant{"show2": engine.ShowTwo}}, "Ann", "Bob", "Cy")
+	h.start()
+	if !h.r.hand.Showing {
+		t.Fatal("hand should start with the reveal phase")
+	}
+	first := h.toAct()
+	v := h.r.View(first.ID)
+	if v.Hand.Legal == nil || !v.Hand.Legal.Show || !v.Hand.Showing || v.Hand.Reveal != 2 {
+		t.Fatalf("hand view = %+v legal %+v", v.Hand, v.Hand.Legal)
+	}
+	show := func(p *Player, cs ...string) error {
+		return h.do(p, protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "show", Cards: cs}})
+	}
+	if err := show(first, "Zz", "As"); err == nil {
+		t.Fatal("a malformed card should be rejected")
+	}
+	hole := cardStrings(h.r.hand.Players[slices.Index(h.r.handIDs, first.ID)].Hole)
+	if err := show(first, hole[0], hole[1]); err != nil {
+		t.Fatal(err)
+	}
+
+	// Everyone sees the two shown cards, but not the other two.
+	for _, viewer := range h.ps {
+		for _, pv := range h.r.View(viewer.ID).Players {
+			if pv.HoleCount != 4 {
+				t.Fatalf("hole count %d", pv.HoleCount)
+			}
+			if pv.ID == first.ID {
+				if !slices.Equal(pv.Shown, hole[:2]) {
+					t.Fatalf("%s sees shown %v", viewer.Name, pv.Shown)
+				}
+				if viewer.ID != first.ID && pv.Hole != nil {
+					t.Fatalf("%s sees %s's hidden cards", viewer.Name, pv.Name)
+				}
+			}
+		}
+	}
+
+	// The next player times out: their lowest two cards are shown.
+	second := h.toAct()
+	idx := slices.Index(h.r.handIDs, second.ID)
+	want := h.r.hand.DefaultShow(idx).Cards
+	h.sched.fire(t)
+	if !slices.Equal(h.r.hand.Players[idx].Shown, want) {
+		t.Fatalf("timed-out reveal = %v, want %v", h.r.hand.Players[idx].Shown, want)
+	}
+
+	// Last reveal, then betting starts and the hand plays out.
+	third := h.toAct()
+	h.sched.fire(t)
+	if h.r.hand.Showing {
+		t.Fatalf("still showing after %s", third.Name)
+	}
+	h.playPassively()
+	if got := h.totalStacks(); got != 6000 {
+		t.Fatalf("chips = %d", got)
+	}
+}
+
+func TestOmahaInARoom(t *testing.T) {
+	h := newHarnessOpts(t, Options{Variants: map[string]engine.Variant{"omaha": engine.Omaha}}, "Ann", "Bob")
+	h.r.settings.PotLimit = true
+	h.start()
+	if h.r.hand.Config.Structure != engine.PotLimit {
+		t.Fatal("pot-limit setting should apply to Omaha")
+	}
+	v := h.r.View(h.ps[0].ID)
+	for _, pv := range v.Players {
+		if pv.HoleCount != 4 || (pv.ID == h.ps[0].ID && len(pv.Hole) != 4) {
+			t.Fatalf("player view %+v", pv)
+		}
+	}
+	h.playPassively()
+	if h.r.stage != protocol.StageResult {
+		t.Fatalf("stage %q", h.r.stage)
+	}
+}
+
+// Regression (found by FuzzRoom): players sitting out while the dealer is
+// choosing must not crash the deal.
+func TestSitOutWhileDealerChooses(t *testing.T) {
+	opts := Options{Variants: map[string]engine.Variant{"holdem": engine.Holdem, "omaha": engine.Omaha}}
+	h := newHarnessOpts(t, opts, "Ann", "Bob", "Cy")
+	h.start()
+	if h.r.stage != protocol.StageChoosing {
+		t.Fatalf("stage %q", h.r.stage)
+	}
+	for _, p := range h.ps {
+		if p.ID != h.r.dealerID {
+			h.must(p, protocol.ClientMsg{Type: protocol.MsgSitOut})
+		}
+	}
+	h.sched.fire(t) // dealer's time runs out with nobody left to play
+	if h.r.stage != protocol.StageWaiting {
+		t.Fatalf("stage %q, want waiting", h.r.stage)
+	}
+
+	// The dealer sitting out mid-choice passes the button on.
+	for _, p := range h.ps {
+		h.must(p, protocol.ClientMsg{Type: protocol.MsgSitIn})
+	}
+	dealer := h.r.player(h.r.dealerID)
+	h.must(dealer, protocol.ClientMsg{Type: protocol.MsgSitOut})
+	h.sched.fire(t)
+	if h.r.dealerID == dealer.ID || h.r.stage != protocol.StageChoosing {
+		t.Fatalf("dealer %s stage %q", h.r.dealerID, h.r.stage)
+	}
 }

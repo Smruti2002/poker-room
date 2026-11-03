@@ -13,6 +13,8 @@ import (
 
 // Config describes a simulated game.
 type Config struct {
+	// Variant is the game to play; empty means Texas Hold'em.
+	Variant    string
 	Players    int
 	Hands      int
 	StartStack int64
@@ -59,6 +61,14 @@ func Run(cfg Config) (Stats, error) {
 	}
 	var st Stats
 	dealer := r.IntN(cfg.Players)
+	variant := engine.Holdem
+	if cfg.Variant != "" {
+		v, err := engine.VariantByName(cfg.Variant)
+		if err != nil {
+			return st, err
+		}
+		variant = v
+	}
 	bot := RandomBot{}
 
 	for n := range cfg.Hands {
@@ -80,7 +90,7 @@ func Run(cfg Config) (Stats, error) {
 		}
 		h, err := engine.NewHand(engine.Config{
 			SmallBlind: cfg.SmallBlind, BigBlind: cfg.BigBlind, Structure: cfg.Structure,
-		}, engine.Holdem, seats, dealer, engine.Options{Seed: seed})
+		}, variant, seats, dealer, engine.Options{Seed: seed})
 		if err != nil {
 			return st, fmt.Errorf("hand %d setup: %w", n, err)
 		}
@@ -149,6 +159,15 @@ type RandomBot struct{}
 // Act chooses an action for player i, which must be the player to act.
 func (RandomBot) Act(h *engine.Hand, i int, r *rand.Rand) engine.Action {
 	l := h.Legal(i)
+	if l.Show {
+		// Reveal a random pair, or the default when time runs out.
+		if r.IntN(4) == 0 {
+			return h.DefaultShow(i)
+		}
+		hole := h.Players[i].Hole
+		perm := r.Perm(len(hole))
+		return engine.Action{Type: engine.Show, Cards: []cards.Card{hole[perm[0]], hole[perm[1]]}}
+	}
 	roll := r.Float64()
 	switch {
 	case l.Fold && roll < 0.2:

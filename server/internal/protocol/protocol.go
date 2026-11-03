@@ -30,8 +30,10 @@ type ClientMsg struct {
 
 // Action is a betting action. To is the street total for bet/raise, in units.
 type Action struct {
-	Type string `json:"type"` // fold, check, call, bet, raise
+	Type string `json:"type"` // fold, check, call, bet, raise, show
 	To   int64  `json:"to,omitempty"`
+	// Cards are the hole cards to reveal, for show (Show 2 Play 2).
+	Cards []string `json:"cards,omitempty"`
 }
 
 // Server message types.
@@ -109,30 +111,53 @@ type PlayerView struct {
 	SittingOut bool   `json:"sittingOut"`
 	Broke      bool   `json:"broke"` // no chips; may take a loan
 	// The fields below describe the current or last hand.
-	InHand   bool     `json:"inHand"`
-	Dealer   bool     `json:"dealer"`
-	Folded   bool     `json:"folded"`
-	AllIn    bool     `json:"allIn"`
-	Bet      int64    `json:"bet"`  // units on the current street
-	Mult     int64    `json:"mult"` // chips per unit
-	Hole     []string `json:"hole,omitempty"`
+	InHand bool  `json:"inHand"`
+	Dealer bool  `json:"dealer"`
+	Folded bool  `json:"folded"`
+	AllIn  bool  `json:"allIn"`
+	Bet    int64 `json:"bet"`  // units on the current street
+	Mult   int64 `json:"mult"` // chips per unit
+	// HoleCount is how many hole cards the player holds, so others can draw
+	// the right number of face-down cards.
+	HoleCount int      `json:"holeCount,omitempty"`
+	Hole      []string `json:"hole,omitempty"`
+	// Shown are hole cards revealed to everyone before betting (Show 2 Play 2).
+	Shown    []string `json:"shown,omitempty"`
 	HandDesc string   `json:"handDesc,omitempty"`
 	Won      int64    `json:"won,omitempty"`
 }
 
 // HandView is the current (or just finished) hand.
 type HandView struct {
-	Number     int        `json:"number"`
-	Variant    string     `json:"variant"`
-	Street     string     `json:"street"`
+	Number  int    `json:"number"`
+	Variant string `json:"variant"`
+	Street  string `json:"street"`
+	// Showing is true while players reveal cards before betting (Show 2 Play 2).
+	Showing bool `json:"showing,omitempty"`
+	// Reveal is how many cards each player shows in this variant.
+	Reveal     int        `json:"reveal,omitempty"`
 	Boards     [][]string `json:"boards"`
 	Pot        int64      `json:"pot"` // chips, including current bets
 	Pots       []PotView  `json:"pots,omitempty"`
 	ToAct      string     `json:"toAct,omitempty"`
 	CurrentBet int64      `json:"currentBet"`
-	Deadline   int64      `json:"deadline,omitempty"` // unix ms
-	Legal      *Legal     `json:"legal,omitempty"`    // only for the player to act
-	Done       bool       `json:"done"`
+	// Deadline is when the player to act times out or, once the hand is
+	// done, when the next hand starts (unix ms).
+	Deadline int64  `json:"deadline,omitempty"`
+	Legal    *Legal `json:"legal,omitempty"` // only for the player to act
+	Done     bool   `json:"done"`
+	// Winners is filled in when the hand is done.
+	Winners []WinnerView `json:"winners,omitempty"`
+}
+
+// WinnerView is a player who won chips, and how.
+type WinnerView struct {
+	PlayerID string `json:"playerId"`
+	Chips    int64  `json:"chips"`
+	// Desc is the winning hand, empty when everyone else folded.
+	Desc string `json:"desc,omitempty"`
+	// Cards are the five cards that make the hand, per board.
+	Cards [][]string `json:"cards,omitempty"`
 }
 
 // PotView is a main or side pot after the hand ends.
@@ -143,6 +168,8 @@ type PotView struct {
 
 // Legal lists what the player to act may do; amounts are in units.
 type Legal struct {
+	// Show: reveal cards (Show 2 Play 2). It is then the only legal action.
+	Show      bool  `json:"show,omitempty"`
 	Fold      bool  `json:"fold"`
 	Check     bool  `json:"check"`
 	Call      bool  `json:"call"`

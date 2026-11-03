@@ -58,6 +58,10 @@ func (r *Room) View(viewer string) protocol.State {
 			v.Bet = hp.Street
 			v.Mult = hp.Mult
 			v.Won = hp.Won
+			v.HoleCount = len(hp.Hole)
+			if hp.Shown != nil {
+				v.Shown = cardStrings(hp.Shown) // public once revealed
+			}
 			if live {
 				v.Stack = hp.Stack
 			}
@@ -95,6 +99,8 @@ func (r *Room) handView(viewer string) *protocol.HandView {
 		Number:     r.handNo,
 		Variant:    r.variant,
 		Street:     h.Street.String(),
+		Showing:    h.Showing,
+		Reveal:     h.Variant.Reveal(),
 		Pot:        h.PotChips(),
 		CurrentBet: h.CurrentBet,
 		Done:       h.Done,
@@ -110,6 +116,10 @@ func (r *Room) handView(viewer string) *protocol.HandView {
 			}
 			hv.Pots = append(hv.Pots, pv)
 		}
+		hv.Winners = r.winners()
+		if r.stage == protocol.StageResult {
+			hv.Deadline = r.deadline.UnixMilli()
+		}
 		return hv
 	}
 	hv.ToAct = r.handIDs[h.ToAct]
@@ -117,6 +127,7 @@ func (r *Room) handView(viewer string) *protocol.HandView {
 	if hv.ToAct == viewer {
 		l := h.Legal(h.ToAct)
 		hv.Legal = &protocol.Legal{
+			Show: l.Show,
 			Fold: l.Fold, Check: l.Check, Call: l.Call, CallUnits: l.CallUnits,
 			Bet: l.Bet, Raise: l.Raise, MinTo: l.MinTo, MaxTo: l.MaxTo,
 		}
@@ -138,5 +149,35 @@ func cardStrings(cs []cards.Card) []string {
 	for i, c := range cs {
 		out[i] = c.String()
 	}
+	return out
+}
+
+// winners totals each winner's chips across pots, with their shown hand.
+func (r *Room) winners() []protocol.WinnerView {
+	h := r.hand
+	var out []protocol.WinnerView
+	for _, e := range h.Events {
+		if e.Kind != engine.EvWin {
+			continue
+		}
+		id := r.handIDs[e.Player]
+		i := slices.IndexFunc(out, func(w protocol.WinnerView) bool { return w.PlayerID == id })
+		if i < 0 {
+			out = append(out, protocol.WinnerView{PlayerID: id, Desc: e.Desc})
+			i = len(out) - 1
+		}
+		out[i].Chips += e.Chips
+	}
+	for i := range out {
+		for _, e := range h.Events {
+			if e.Kind == engine.EvShow && r.handIDs[e.Player] == out[i].PlayerID {
+				for _, b := range e.Best {
+					out[i].Cards = append(out[i].Cards, cardStrings(b))
+				}
+			}
+		}
+	}
+	// Biggest winner first.
+	slices.SortStableFunc(out, func(a, b protocol.WinnerView) int { return cmp.Compare(b.Chips, a.Chips) })
 	return out
 }

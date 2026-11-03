@@ -3,6 +3,8 @@ package engine
 import (
 	"errors"
 	"fmt"
+
+	"pokerroom/internal/cards"
 )
 
 // Errors returned by Apply. Illegal actions wrap ErrIllegalAction with detail.
@@ -21,9 +23,10 @@ const (
 	Call
 	Bet   // open the betting on a street; To is the street total
 	Raise // raise an existing bet; To is the street total
+	Show  // Show 2 Play 2: reveal Cards before betting
 )
 
-var actionNames = map[ActionType]string{Fold: "fold", Check: "check", Call: "call", Bet: "bet", Raise: "raise"}
+var actionNames = map[ActionType]string{Fold: "fold", Check: "check", Call: "call", Bet: "bet", Raise: "raise", Show: "show"}
 
 func (a ActionType) String() string {
 	if s, ok := actionNames[a]; ok {
@@ -52,15 +55,20 @@ func (a *ActionType) UnmarshalText(b []byte) error {
 }
 
 // Action is a player's move. For Bet and Raise, To is the player's total
-// units on this street after the action ("raise to", not "raise by").
+// units on this street after the action ("raise to", not "raise by"). For
+// Show, Cards are the hole cards revealed.
 type Action struct {
-	Type ActionType `json:"type"`
-	To   int64      `json:"to,omitempty"`
+	Type  ActionType   `json:"type"`
+	To    int64        `json:"to,omitempty"`
+	Cards []cards.Card `json:"cards,omitempty"`
 }
 
 func (a Action) String() string {
 	if a.Type == Bet || a.Type == Raise {
 		return fmt.Sprintf("%v %d", a.Type, a.To)
+	}
+	if a.Type == Show {
+		return fmt.Sprintf("show %v", a.Cards)
 	}
 	return a.Type.String()
 }
@@ -123,6 +131,9 @@ func (s Street) boardCards() int {
 
 // Legal describes what the player to act may do.
 type Legal struct {
+	// Show is set during Show 2 Play 2's reveal phase, when it is the only
+	// legal action.
+	Show  bool `json:"show,omitempty"`
 	Fold  bool `json:"fold"`
 	Check bool `json:"check"`
 	Call  bool `json:"call"`

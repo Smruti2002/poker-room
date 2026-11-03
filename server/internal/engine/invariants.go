@@ -67,7 +67,11 @@ func (h *Hand) CheckInvariants() error {
 			fail("paid out %d but pots held %d", won, potChips)
 		}
 	} else {
-		if h.ToAct < 0 || h.ToAct >= len(h.Players) || !h.needsToAct(h.Players[h.ToAct]) {
+		if h.Showing {
+			if h.ToAct < 0 || h.ToAct >= len(h.Players) || h.Players[h.ToAct].Shown != nil {
+				fail("ToAct %d is not a player who still has to show", h.ToAct)
+			}
+		} else if h.ToAct < 0 || h.ToAct >= len(h.Players) || !h.needsToAct(h.Players[h.ToAct]) {
 			fail("ToAct %d is not a player who needs to act", h.ToAct)
 		}
 		if maxStreet > h.CurrentBet {
