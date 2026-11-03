@@ -128,3 +128,37 @@ func (dacoit) Rank(p *Player, boards [][]cards.Card) ([]eval.Hand, error) {
 	h, err := eval.Omaha(p.Hole, boards[0])
 	return []eval.Hand{h}, err
 }
+
+// DoubleTexas and TripleTexas: two or three Texas boards and two hole cards
+// per board. After the river, each player gives one pair to each board; each
+// board is judged as Hold'em and scores a point (docs/rules.md §4.4, §4.5).
+var (
+	DoubleTexas = register(multiTexas{name: "double", boards: 2})
+	TripleTexas = register(multiTexas{name: "triple", boards: 3})
+)
+
+type multiTexas struct {
+	name   string
+	boards int
+}
+
+func (v multiTexas) Name() string      { return v.name }
+func (v multiTexas) HoleCards() int    { return 2 * v.boards }
+func (v multiTexas) Boards() int       { return v.boards }
+func (v multiTexas) Reveal() int       { return 0 }
+func (v multiTexas) Choices() []Choice { return nil }
+
+func (v multiTexas) Rank(p *Player, boards [][]cards.Card) ([]eval.Hand, error) {
+	if len(p.Split) != len(boards) {
+		return nil, fmt.Errorf("player has not split their cards")
+	}
+	out := make([]eval.Hand, len(boards))
+	for b, board := range boards {
+		h, err := eval.Holdem(p.Split[b], board)
+		if err != nil {
+			return nil, err
+		}
+		out[b] = h
+	}
+	return out, nil
+}

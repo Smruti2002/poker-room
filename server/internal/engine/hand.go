@@ -28,6 +28,9 @@ type Player struct {
 	Shown []cards.Card `json:"shown,omitempty"`
 	// Picked is how many hole cards the player chose (Dacoit); 0 until then.
 	Picked int `json:"picked,omitempty"`
+	// Split is the player's hole cards as one pair per board, set when they
+	// allocate (Double/Triple Texas).
+	Split [][]cards.Card `json:"split,omitempty"`
 
 	Folded bool  `json:"folded"`
 	AllIn  bool  `json:"allIn"`
@@ -89,6 +92,11 @@ type Hand struct {
 	// Picking is true during Dacoit's choice phase, before blinds and the
 	// deal: each player but the dealer picks one of Variant.Choices().
 	Picking bool
+	// Allocating is true after the last betting round of a multi-board hand
+	// that reached a showdown: every player still in splits their cards
+	// across the boards, all at once and in any order. ToAct is -1.
+	Allocating bool
+	allocated  bool // the allocation phase has finished
 	// ToAct is the index of the player to act, or -1.
 	ToAct int
 	// CurrentBet is the street total (units) players must match.
@@ -246,6 +254,13 @@ func (h *Hand) postBlind(i int, units int64) {
 // Legal returns what player i may do now. It is the zero value unless it
 // is player i's turn.
 func (h *Hand) Legal(i int) Legal {
+	if h.Allocating {
+		// Everyone still in allocates at once, not in turn.
+		if i >= 0 && i < len(h.Players) && slices.Contains(h.Pending(), i) {
+			return Legal{Allocate: true}
+		}
+		return Legal{}
+	}
 	if h.Done || i != h.ToAct {
 		return Legal{}
 	}
@@ -319,6 +334,9 @@ func (h *Hand) potChips() int64 {
 func (h *Hand) Apply(i int, a Action) error {
 	if h.Done {
 		return ErrHandOver
+	}
+	if h.Allocating {
+		return h.allocate(i, a)
 	}
 	if i != h.ToAct {
 		return ErrNotYourTurn
@@ -452,6 +470,93 @@ func (h *Hand) pick(i int, c Choice) {
 	p.Picked = c.Cards
 	p.Mult = c.Mult
 	h.emit(Event{Kind: EvChoose, Player: i, Count: c.Cards, Mult: c.Mult})
+}
+
+// Pending lists the players who still have to split their cards.
+func (h *Hand) Pending() []int {
+	if !h.Allocating {
+		return nil
+	}
+	var out []int
+	for i, p := range h.Players {
+		if !p.Folded && p.Split == nil {
+			out = append(out, i)
+		}
+	}
+	return out
+}
+
+// allocate handles an Allocate: Cards are the player's hole cards ordered as
+// one pair per board. Once everyone still in has split, the showdown runs.
+func (h *Hand) allocate(i int, a Action) error {
+	if i < 0 || i >= len(h.Players) {
+		return ErrNotYourTurn
+	}
+	p := h.Players[i]
+	switch {
+	case a.Type != Allocate:
+		return fmt.Errorf("%w: split your cards across the boards first", ErrIllegalAction)
+	case p.Folded || p.Split != nil:
+		return ErrNotYourTurn
+	case len(a.Cards) != len(p.Hole) || len(a.Cards) != 2*len(h.Boards):
+		return fmt.Errorf("%w: give exactly 2 cards to each of the %d boards", ErrIllegalAction, len(h.Boards))
+	}
+	for j, c := range a.Cards {
+		if !slices.Contains(p.Hole, c) || slices.Contains(a.Cards[:j], c) {
+			return fmt.Errorf("%w: %v is not one of your cards, or is used twice", ErrIllegalAction, c)
+		}
+	}
+	for b := range h.Boards {
+		p.Split = append(p.Split, slices.Clone(a.Cards[2*b:2*b+2]))
+	}
+	h.log.Actions = append(h.log.Actions, LoggedAction{Player: i, Action: a})
+	h.emit(Event{Kind: EvAllocate, Player: i})
+
+	if len(h.Pending()) > 0 {
+		return nil
+	}
+	h.Allocating = false
+	h.allocated = true
+	return h.finish()
+}
+
+// DefaultSplit is how a player who runs out of time splits their cards: the
+// split whose weakest board hand is strongest, then the strongest
+// second-weakest, and so on; among equals, the first found
+// (docs/rules.md §4.4).
+func (h *Hand) DefaultSplit(i int) Action {
+	hole := h.Players[i].Hole
+	var best []cards.Card
+	var bestKey []eval.HandRank
+	var try func(prefix, rest []cards.Card)
+	try = func(prefix, rest []cards.Card) {
+		if len(rest) == 0 {
+			key := make([]eval.HandRank, len(h.Boards))
+			for b := range h.Boards {
+				hand, _ := eval.Holdem(prefix[2*b:2*b+2], h.Boards[b])
+				key[b] = hand.Rank
+			}
+			slices.Sort(key) // weakest first
+			if best == nil || slices.Compare(key, bestKey) > 0 {
+				best, bestKey = slices.Clone(prefix), key
+			}
+			return
+		}
+		// Choose the next board's pair from the remaining cards.
+		for x := 0; x < len(rest); x++ {
+			for y := x + 1; y < len(rest); y++ {
+				var left []cards.Card
+				for z, c := range rest {
+					if z != x && z != y {
+						left = append(left, c)
+					}
+				}
+				try(append(slices.Clone(prefix), rest[x], rest[y]), left)
+			}
+		}
+	}
+	try(nil, hole)
+	return Action{Type: Allocate, Cards: best}
 }
 
 // DefaultChoose is what a player who runs out of time picks: the first,
@@ -593,6 +698,11 @@ func (h *Hand) finish() error {
 	h.returnUncalled()
 	h.ToAct = -1
 	h.Street = Showdown
+	if h.Variant.Boards() > 1 && h.liveCount() > 1 && !h.allocated {
+		// Before the showdown, everyone still in splits their cards.
+		h.Allocating = true
+		return nil
+	}
 	h.Pots = buildPots(h.Players)
 
 	showdown := h.liveCount() > 1
@@ -611,7 +721,7 @@ func (h *Hand) finish() error {
 			for b, hand := range r {
 				best[b] = hand.Cards[:]
 			}
-			h.emit(Event{Kind: EvShow, Player: i, Cards: p.Hole, Desc: describe(r), Best: best})
+			h.emit(Event{Kind: EvShow, Player: i, Cards: p.Hole, Desc: describe(r), Best: best, Split: p.Split})
 		}
 	}
 
@@ -688,4 +798,31 @@ func (h *Hand) Log() Log {
 	l := h.log
 	l.Actions = slices.Clone(l.Actions)
 	return l
+}
+
+// BoardWinners lists, for each board, the players with the best hand on it
+// among everyone who reached the showdown. Nil if there was no showdown.
+func (h *Hand) BoardWinners() [][]int {
+	if !h.Done || h.ranks == nil {
+		return nil
+	}
+	var live []int
+	for i, p := range h.Players {
+		if !p.Folded {
+			live = append(live, i)
+		}
+	}
+	out := make([][]int, len(h.Boards))
+	for b := range h.Boards {
+		var best eval.HandRank
+		for _, i := range live {
+			best = max(best, h.ranks[i][b].Rank)
+		}
+		for _, i := range live {
+			if h.ranks[i][b].Rank == best {
+				out[b] = append(out[b], i)
+			}
+		}
+	}
+	return out
 }

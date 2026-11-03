@@ -125,6 +125,11 @@ type PlayerView struct {
 	Hole      []string `json:"hole,omitempty"`
 	// Shown are hole cards revealed to everyone before betting (Show 2 Play 2).
 	Shown []string `json:"shown,omitempty"`
+	// Allocated is true once the player has locked in their split (Double/
+	// Triple Texas); the split itself is hidden until the showdown.
+	Allocated bool `json:"allocated,omitempty"`
+	// Split is the pair the player played on each board, after the showdown.
+	Split [][]string `json:"split,omitempty"`
 	// Picked is how many hole cards the player chose (Dacoit), public.
 	Picked   int    `json:"picked,omitempty"`
 	HandDesc string `json:"handDesc,omitempty"`
@@ -138,6 +143,12 @@ type HandView struct {
 	Street  string `json:"street"`
 	// Showing is true while players reveal cards before betting (Show 2 Play 2).
 	Showing bool `json:"showing,omitempty"`
+	// Allocating is true while players split their cards across the boards
+	// (Double/Triple Texas). There is no single player to act.
+	Allocating bool `json:"allocating,omitempty"`
+	// BoardWinners lists, per board, who had the best hand there (after the
+	// showdown).
+	BoardWinners [][]string `json:"boardWinners,omitempty"`
 	// Picking is true while players choose 4 or 6 cards, before the deal (Dacoit).
 	Picking bool `json:"picking,omitempty"`
 	// Reveal is how many cards each player shows in this variant.
@@ -178,8 +189,10 @@ type Legal struct {
 	Show bool `json:"show,omitempty"`
 	// Choose: take 4 cards, or up to ChooseMax (Dacoit). It is then the only
 	// legal action.
-	Choose    bool  `json:"choose,omitempty"`
-	ChooseMax int   `json:"chooseMax,omitempty"`
+	Choose    bool `json:"choose,omitempty"`
+	ChooseMax int  `json:"chooseMax,omitempty"`
+	// Allocate: split your cards, two per board, in board order.
+	Allocate  bool  `json:"allocate,omitempty"`
 	Fold      bool  `json:"fold"`
 	Check     bool  `json:"check"`
 	Call      bool  `json:"call"`

@@ -193,6 +193,15 @@ export interface PlayerView {
    */
   shown?: string[];
   /**
+   * Allocated is true once the player has locked in their split (Double/
+   * Triple Texas); the split itself is hidden until the showdown.
+   */
+  allocated?: boolean;
+  /**
+   * Split is the pair the player played on each board, after the showdown.
+   */
+  split?: string[][];
+  /**
    * Picked is how many hole cards the player chose (Dacoit), public.
    */
   picked?: number /* int */;
@@ -210,6 +219,16 @@ export interface HandView {
    * Showing is true while players reveal cards before betting (Show 2 Play 2).
    */
   showing?: boolean;
+  /**
+   * Allocating is true while players split their cards across the boards
+   * (Double/Triple Texas). There is no single player to act.
+   */
+  allocating?: boolean;
+  /**
+   * BoardWinners lists, per board, who had the best hand there (after the
+   * showdown).
+   */
+  boardWinners?: string[][];
   /**
    * Picking is true while players choose 4 or 6 cards, before the deal (Dacoit).
    */
@@ -271,6 +290,10 @@ export interface Legal {
    */
   choose?: boolean;
   chooseMax?: number /* int */;
+  /**
+   * Allocate: split your cards, two per board, in board order.
+   */
+  allocate?: boolean;
   fold: boolean;
   check: boolean;
   call: boolean;

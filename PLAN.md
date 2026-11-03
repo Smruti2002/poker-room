@@ -243,7 +243,7 @@ Each milestone ends with a **demo** and a **green test gate**. Don't start the n
 - **Tests:** hand-calculated multiplier scenarios (6-card all-in vs 4-card big stack, mixed side pots), chip conservation under the multiplier, simulation.
 - **Gate:** a mixed table of 4-card and 6-card players with all-ins settles correctly, and the result is checked by hand against the rules doc example.
 
-### M6 — Double & Triple Texas (≈1 week)
+### M6 — Double & Triple Texas (≈1 week) ✅
 - Multi-board dealing and reveal, shared betting, allocation phase (drag cards onto each board; "auto-best split" is the timeout default), per-board judging, points-based pot split.
 - UI: 2 or 3 boards stacked, an allocation tray, and a showdown that highlights who won which board.
 - **Tests:** all splits enumerated (6 for Double, 15 for Triple), scoring tables (clean win, 1–1 split, tie on a board gives every tied player a full point, the 4-way A/B-C-D Triple example, a tie on one board + a win on another), timeout auto-allocation, Triple Texas refused with 7+ players.

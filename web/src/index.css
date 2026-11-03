@@ -716,3 +716,107 @@ details[open] > summary {
   font-size: 0.8rem;
   color: var(--accent);
 }
+
+/* Double/Triple Texas */
+.board-row {
+  align-items: center;
+}
+.board-label {
+  display: grid;
+  justify-items: center;
+  min-width: 1.4rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+.board-winner {
+  max-width: 3.5rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--ok);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.split-picker {
+  display: grid;
+  gap: 0.5rem;
+}
+.split-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.split-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.split-board {
+  display: flex;
+  gap: 0.15rem;
+  opacity: 0.85;
+}
+.split-slots {
+  display: flex;
+  gap: 0.2rem;
+  margin-left: auto;
+  padding-left: 0.4rem;
+  border-left: 2px solid var(--line);
+}
+.card-slot {
+  background: transparent;
+  border: 2px dashed var(--muted);
+  box-shadow: none;
+}
+.split-hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-height: 3rem;
+}
+.split-actions {
+  display: flex;
+  justify-content: space-between;
+}
+.tag-locked {
+  background: #1f3a2c;
+  color: var(--ok);
+}
+.hand-desc-boards {
+  display: grid;
+  gap: 0.1rem;
+}
+.board-num {
+  display: inline-block;
+  min-width: 1rem;
+  text-align: center;
+  border-radius: 4px;
+  background: #24392f;
+  color: var(--fg);
+  font-size: 0.7rem;
+}
+@media (max-width: 600px) {
+  .split-board .card-small,
+  .split-slots .card-small {
+    width: 1.65rem;
+    height: 2.3rem;
+    font-size: 0.72rem;
+  }
+}
+.split-row {
+  padding: 0.25rem;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.split-target {
+  border-color: var(--accent);
+}
+.result-board {
+  display: grid;
+  gap: 0.25rem;
+}
+.result-board-line {
+  margin: 0;
+  font-size: 0.9rem;
+}

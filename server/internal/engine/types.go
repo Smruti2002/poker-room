@@ -21,13 +21,14 @@ const (
 	Fold ActionType = iota + 1
 	Check
 	Call
-	Bet    // open the betting on a street; To is the street total
-	Raise  // raise an existing bet; To is the street total
-	Show   // Show 2 Play 2: reveal Cards before betting
-	Choose // Dacoit: take Count hole cards before the deal
+	Bet      // open the betting on a street; To is the street total
+	Raise    // raise an existing bet; To is the street total
+	Show     // Show 2 Play 2: reveal Cards before betting
+	Choose   // Dacoit: take Count hole cards before the deal
+	Allocate // Double/Triple Texas: split Cards into pairs, one per board, in board order
 )
 
-var actionNames = map[ActionType]string{Fold: "fold", Check: "check", Call: "call", Bet: "bet", Raise: "raise", Show: "show", Choose: "choose"}
+var actionNames = map[ActionType]string{Fold: "fold", Check: "check", Call: "call", Bet: "bet", Raise: "raise", Show: "show", Choose: "choose", Allocate: "allocate"}
 
 func (a ActionType) String() string {
 	if s, ok := actionNames[a]; ok {
@@ -75,6 +76,9 @@ func (a Action) String() string {
 	}
 	if a.Type == Choose {
 		return fmt.Sprintf("choose %d", a.Count)
+	}
+	if a.Type == Allocate {
+		return fmt.Sprintf("allocate %v", a.Cards)
 	}
 	return a.Type.String()
 }
@@ -145,9 +149,12 @@ type Legal struct {
 	// deck or their stack can't support 6).
 	Choose    bool `json:"choose,omitempty"`
 	ChooseMax int  `json:"chooseMax,omitempty"`
-	Fold      bool `json:"fold"`
-	Check     bool `json:"check"`
-	Call      bool `json:"call"`
+	// Allocate is set while a multi-board hand waits for this player to
+	// split their cards across the boards (Double/Triple Texas).
+	Allocate bool `json:"allocate,omitempty"`
+	Fold     bool `json:"fold"`
+	Check    bool `json:"check"`
+	Call     bool `json:"call"`
 	// CallUnits is what calling adds; less than the amount owed when it puts
 	// the player all-in.
 	CallUnits int64 `json:"callUnits,omitempty"`

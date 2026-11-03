@@ -6,6 +6,7 @@ package sim
 import (
 	"fmt"
 	"math/rand/v2"
+	"slices"
 
 	"pokerroom/internal/cards"
 	"pokerroom/internal/engine"
@@ -100,8 +101,13 @@ func Run(cfg Config) (Stats, error) {
 		}
 
 		for !h.Done {
-			a := bot.Act(h, h.ToAct, r)
-			if err := h.Apply(h.ToAct, a); err != nil {
+			player := h.ToAct
+			if h.Allocating {
+				pending := h.Pending()
+				player = pending[r.IntN(len(pending))]
+			}
+			a := bot.Act(h, player, r)
+			if err := h.Apply(player, a); err != nil {
 				return st, fail(fmt.Errorf("bot action %v rejected: %w", a, err))
 			}
 			if err := h.CheckInvariants(); err != nil {
@@ -159,6 +165,15 @@ type RandomBot struct{}
 // Act chooses an action for player i, which must be the player to act.
 func (RandomBot) Act(h *engine.Hand, i int, r *rand.Rand) engine.Action {
 	l := h.Legal(i)
+	if l.Allocate {
+		// Usually the sensible split, sometimes a random one.
+		if r.IntN(3) > 0 {
+			return h.DefaultSplit(i)
+		}
+		hole := slices.Clone(h.Players[i].Hole)
+		r.Shuffle(len(hole), func(a, b int) { hole[a], hole[b] = hole[b], hole[a] })
+		return engine.Action{Type: engine.Allocate, Cards: hole}
+	}
 	if l.Choose {
 		if l.ChooseMax > 4 && r.IntN(2) == 0 {
 			return engine.Action{Type: engine.Choose, Count: l.ChooseMax}

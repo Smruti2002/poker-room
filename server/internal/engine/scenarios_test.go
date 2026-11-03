@@ -23,8 +23,9 @@ var (
 // "<player> show <card> <card>" in Show 2 Play 2.
 type scenario struct {
 	name      string
-	variant   Variant // default Holdem
-	board     string  // default defaultBoard
+	variant   Variant  // default Holdem
+	board     string   // default defaultBoard
+	boards    []string // multi-board deals, one string per board; overrides board
 	stacks    []int64
 	mults     []int64 // optional, default 1
 	dealer    int
@@ -45,6 +46,20 @@ func (s scenario) deck() []cards.Card {
 			hole = s.holes[i]
 		}
 		d = append(d, cards.MustParseList(hole)...)
+	}
+	if len(s.boards) > 0 {
+		// The engine deals each street to every board in turn: all flops,
+		// then all turns, then all rivers.
+		var bs [][]cards.Card
+		for _, b := range s.boards {
+			bs = append(bs, cards.MustParseList(b))
+		}
+		for _, street := range [][2]int{{0, 3}, {3, 4}, {4, 5}} {
+			for _, b := range bs {
+				d = append(d, b[street[0]:street[1]]...)
+			}
+		}
+		return d
 	}
 	board := defaultBoard
 	if s.board != "" {
@@ -93,7 +108,7 @@ func parseAction(t *testing.T, s string) (int, Action) {
 		t.Fatalf("bad action %q: %v", s, err)
 	}
 	switch {
-	case a.Type == Show:
+	case a.Type == Show || a.Type == Allocate:
 		a.Cards = cards.MustParseList(strings.Join(f[2:], " "))
 	case a.Type == Choose:
 		a.Count, _ = strconv.Atoi(f[2])

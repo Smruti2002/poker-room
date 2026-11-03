@@ -14,7 +14,12 @@ import (
 // genHand draws a random table: 2-10 players, stacks from tiny to deep,
 // some players paying double, random blinds, structure and dealer.
 func genHand(t *rapid.T) *Hand {
-	n := rapid.IntRange(2, MaxPlayers).Draw(t, "players")
+	v := rapid.SampledFrom([]Variant{Holdem, Omaha, ShowTwo, Dacoit, DoubleTexas, TripleTexas}).Draw(t, "variant")
+	maxPlayers := MaxPlayers
+	for cardsNeeded(v, maxPlayers) > cards.NumCards {
+		maxPlayers--
+	}
+	n := rapid.IntRange(2, maxPlayers).Draw(t, "players")
 	bb := rapid.Int64Range(2, 100).Draw(t, "bigBlind")
 	cfg := Config{
 		SmallBlind: rapid.Int64Range(1, bb).Draw(t, "smallBlind"),
@@ -34,7 +39,6 @@ func genHand(t *rapid.T) *Hand {
 	dealer := rapid.IntRange(0, n-1).Draw(t, "dealer")
 	seed := cards.SeedFromUint64(rapid.Uint64().Draw(t, "seed"))
 
-	v := rapid.SampledFrom([]Variant{Holdem, Omaha, ShowTwo, Dacoit}).Draw(t, "variant")
 	h, err := NewHand(cfg, v, seats, dealer, Options{Seed: seed})
 	if err != nil {
 		t.Fatalf("NewHand: %v", err)
@@ -43,14 +47,21 @@ func genHand(t *rapid.T) *Hand {
 }
 
 // drawAction picks a random legal action for the player to act.
-func drawAction(t *rapid.T, h *Hand) Action {
-	l := h.Legal(h.ToAct)
+func drawAction(t *rapid.T, h *Hand, player int) Action {
+	l := h.Legal(player)
+	if l.Allocate {
+		// A random split, or the default best one.
+		if rapid.Bool().Draw(t, "defaultSplit") {
+			return h.DefaultSplit(player)
+		}
+		return Action{Type: Allocate, Cards: rapid.Permutation(h.Players[player].Hole).Draw(t, "split")}
+	}
 	if l.Choose {
 		return Action{Type: Choose, Count: rapid.SampledFrom([]int{4, l.ChooseMax}).Draw(t, "cards")}
 	}
 	if l.Show {
 		// Reveal a random pair of hole cards.
-		hole := h.Players[h.ToAct].Hole
+		hole := h.Players[player].Hole
 		perm := rapid.Permutation(hole).Draw(t, "reveal")
 		return Action{Type: Show, Cards: perm[:h.Variant.Reveal()]}
 	}
@@ -97,8 +108,13 @@ func TestPropertyRandomHands(t *testing.T) {
 			if steps > 500 {
 				t.Fatalf("hand did not finish in 500 actions\n%s", strings.Join(h.Narrate(), "\n"))
 			}
-			a := drawAction(t, h)
-			if err := h.Apply(h.ToAct, a); err != nil {
+			player := h.ToAct
+			if h.Allocating {
+				// Splits come in any order.
+				player = rapid.SampledFrom(h.Pending()).Draw(t, "allocator")
+			}
+			a := drawAction(t, h, player)
+			if err := h.Apply(player, a); err != nil {
 				t.Fatalf("legal action %v rejected: %v", a, err)
 			}
 			check()

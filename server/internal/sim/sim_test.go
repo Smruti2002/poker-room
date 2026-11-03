@@ -39,6 +39,9 @@ func TestSimulation(t *testing.T) {
 		{Players: 10, StartStack: 300, SmallBlind: 5, BigBlind: 10, Variant: "show2", Structure: engine.PotLimit},
 		{Players: 4, StartStack: 2000, SmallBlind: 10, BigBlind: 20, Variant: "dacoit"},
 		{Players: 10, StartStack: 300, SmallBlind: 5, BigBlind: 10, Variant: "dacoit", Structure: engine.PotLimit},
+		{Players: 6, StartStack: 2000, SmallBlind: 10, BigBlind: 20, Variant: "double"},
+		{Players: 10, StartStack: 300, SmallBlind: 5, BigBlind: 10, Variant: "double", DoubleChance: 0.3},
+		{Players: 6, StartStack: 500, SmallBlind: 5, BigBlind: 10, Variant: "triple"},
 	}
 	hands := simHands(t)
 	for i, cfg := range configs {

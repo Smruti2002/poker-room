@@ -132,7 +132,7 @@ A full house (K K K Q Q) would need 0 hole cards, so it doesn't count. Best: K�
 - **Phases:** Blinds, Deal 4, Bet, Flop×2, Bet, Turn×2, Bet, River×2, Bet, **Allocate**, Showdown.
 - There are **two boards** of 5 cards, dealt from one deck and revealed together street by street.
 - There is **one pot and one betting line** for both boards.
-- **Allocate:** after the river betting, every player still in the hand splits their 4 cards into two pairs, one pair per board. Picks are hidden until everyone has locked in. On timeout, the server picks the split whose **weakest** board hand is strongest. Ties go to the stronger second-weakest hand, then to the lowest board number.
+- **Allocate:** after the river betting (or once the boards run out after an all-in), every player still in the hand splits their 4 cards into two pairs, one pair per board. Everyone splits at the same time, with twice the normal turn timer. Others only see that a player has locked in; the splits are shown at the showdown. On timeout, the server picks the split whose **weakest** board hand is strongest. Ties go to the stronger second-weakest hand, then to the lowest board number.
 - Each board is judged on its own as Texas Hold'em: best 5 of that pair + that board's 5 cards.
 - **Scoring:**
   - Each board gives **1 point** to its winner.

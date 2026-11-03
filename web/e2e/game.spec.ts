@@ -32,7 +32,7 @@ const status = (page: Page) => page.locator('.table-header .status')
 
 /** Host leaves only the given variants enabled and saves. */
 async function onlyVariants(host: Page, keep: string[]) {
-  for (const label of ["Texas Hold'em", 'Omaha', 'Show 2 Play 2', 'Dacoit']) {
+  for (const label of ["Texas Hold'em", 'Omaha', 'Show 2 Play 2', 'Dacoit', 'Double Texas', 'Triple Texas']) {
     const box = host.getByRole('checkbox', { name: label, exact: true })
     if ((await box.isChecked()) !== keep.includes(label)) await box.click()
   }
@@ -207,6 +207,57 @@ test('Dacoit: players choose 4 or 6 cards, and 6 costs double', async ({ browser
 
   await playOutHand(players)
   for (const page of players) expect(await totalChips(page)).toBe(6000)
+})
+
+test('Double Texas: everyone splits their cards, hidden until the showdown', async ({ browser }) => {
+  const { page: ann, link } = await createRoom(browser, 'Ann')
+  const bob = await joinByLink(browser, link, 'Bob')
+  const cy = await joinByLink(browser, link, 'Cy')
+  const players = [ann, bob, cy]
+  await onlyVariants(ann, ['Double Texas'])
+  await ann.getByRole('button', { name: 'Start game' }).click()
+
+  // Check it down; the hand stops at the split instead of a showdown.
+  await expect
+    .poll(
+      async () => {
+        for (const page of players) {
+          if (await page.locator('.split-picker').isVisible()) return true
+          const check = page.getByRole('button', { name: 'Check', exact: true })
+          const call = page.getByRole('button', { name: /^Call \d+$/ })
+          if (await check.isVisible()) await check.click()
+          else if (await call.isVisible()) await call.click()
+        }
+        return false
+      },
+      { timeout: 30_000, intervals: [100] },
+    )
+    .toBe(true)
+  for (const page of players) await expect(page.locator('.split-picker')).toBeVisible()
+  await expect(ann.locator('.board-row')).toHaveCount(2)
+
+  // Ann locks in first: the others see that she has, but not how.
+  const place = async (page: Page) => {
+    const picker = page.locator('.split-picker')
+    for (let i = 0; i < 4; i++) await picker.locator('.split-hand .card-pick').first().click()
+    await picker.getByRole('button', { name: 'Lock in' }).click()
+    await expect(picker).toBeHidden()
+  }
+  await place(ann)
+  await expect(bob.getByLabel('Seat Ann').getByText('locked in')).toBeVisible()
+  await expect(bob.getByLabel('Seat Ann').locator('.card:not(.card-back)')).toHaveCount(0)
+  await expect(status(bob)).toContainText('Split your cards')
+  await expect(status(ann)).toContainText('Waiting for Bob, Cy to split')
+
+  await place(bob)
+  await place(cy)
+  for (const page of players) {
+    await expect(status(page)).toContainText('Hand over')
+    expect(await totalChips(page)).toBe(6000)
+    // Every board shows its winner, and the banner credits boards won.
+    await expect(page.locator('.board-winner')).toHaveCount(2)
+    await expect(page.locator('.result')).toContainText(/Board [12]: /)
+  }
 })
 
 test('a player who refreshes keeps their seat and cards', async ({ browser }) => {

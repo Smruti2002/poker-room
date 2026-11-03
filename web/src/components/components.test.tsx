@@ -299,3 +299,100 @@ describe('Dacoit', () => {
     expect(within(screen.getByLabelText('Seat Ann')).getByText('Bet 20')).toBeInTheDocument()
   })
 })
+
+describe('Double/Triple Texas', () => {
+  const boards = [
+    ['9c', 'Tc', '2d', '3h', 'Ks'],
+    ['Ad', '4s', '4h', 'Jc', 'Qd'],
+  ]
+
+  it('places two cards per board, lets you take them back, then locks in', async () => {
+    const { SplitPicker } = await import('./SplitPicker.tsx')
+    const onAct = vi.fn()
+    render(<SplitPicker hole={['As', 'Ah', '7c', '8c']} boards={boards} onAct={onAct} />)
+    const lock = () => screen.getByRole('button', { name: /Lock in|Place/ })
+    expect(lock()).toBeDisabled()
+
+    const hand = () => within(screen.getByLabelText('Cards to place'))
+    fireEvent.click(hand().getByRole('button', { name: 'Seven of clubs' })) // board 1
+    fireEvent.click(hand().getByRole('button', { name: 'Eight of clubs' })) // board 1
+    fireEvent.click(hand().getByRole('button', { name: 'Ace of spades' })) // board 2
+    // Changed my mind: put the clubs back, so the aces go to board 1.
+    const board1 = within(screen.getByLabelText('Your cards for board 1'))
+    fireEvent.click(board1.getByRole('button', { name: 'Seven of clubs' }))
+    fireEvent.click(board1.getByRole('button', { name: 'Eight of clubs' }))
+    expect(lock()).toHaveTextContent('Place 3 more')
+
+    // Taking a card back aims at that board; move the ace of spades over too.
+    const board2 = within(screen.getByLabelText('Your cards for board 2'))
+    fireEvent.click(board2.getByRole('button', { name: 'Ace of spades' }))
+    fireEvent.click(screen.getByLabelText('Board 1'))
+    fireEvent.click(hand().getByRole('button', { name: 'Ace of spades' })) // board 1
+    fireEvent.click(hand().getByRole('button', { name: 'Ace of hearts' })) // board 1, now full
+    fireEvent.click(hand().getByRole('button', { name: 'Seven of clubs' })) // board 2
+    fireEvent.click(hand().getByRole('button', { name: 'Eight of clubs' })) // board 2
+    expect(lock()).toBeEnabled()
+    fireEvent.click(lock())
+    expect(onAct).toHaveBeenCalledWith({ type: 'allocate', cards: ['As', 'Ah', '7c', '8c'] })
+  })
+
+  it('shows who has locked in and who we are waiting for', () => {
+    const s = state({
+      phase: 'playing',
+      stage: 'hand',
+      players: [
+        player({ id: 'p1', name: 'Ann', inHand: true, holeCount: 4, hole: ['As', 'Ah', '7c', '8c'], allocated: true, split: [['As', 'Ah'], ['7c', '8c']] }),
+        player({ id: 'p2', name: 'Bob', inHand: true, holeCount: 4, allocated: true }),
+        player({ id: 'p3', name: 'Cy', inHand: true, holeCount: 4 }),
+      ],
+      hand: { number: 1, variant: 'double', street: 'Showdown', allocating: true, boards, pot: 60, currentBet: 0, done: false },
+    })
+    render(<Table state={s} clockOffset={0} onAct={vi.fn()} send={vi.fn()} />)
+    expect(screen.getByRole('status')).toHaveTextContent('Waiting for Cy to split')
+    expect(within(screen.getByLabelText('Seat Bob')).getByText('locked in')).toBeInTheDocument()
+    expect(screen.getByText('Locked in, waiting for the others')).toBeInTheDocument()
+  })
+
+  it('labels each board with its winner after the showdown', () => {
+    const s = state({
+      phase: 'playing',
+      stage: 'result',
+      players: [
+        player({ id: 'p1', name: 'Ann', inHand: true, holeCount: 4, handDesc: 'Pair of Aces | Pair of Fours' }),
+        player({ id: 'p2', name: 'Bob', inHand: true, holeCount: 4, handDesc: 'King high | Two pair, Kings and Fours' }),
+      ],
+      hand: { number: 1, variant: 'double', street: 'Showdown', boards, pot: 40, currentBet: 0, done: true, boardWinners: [['p1'], ['p2']] },
+    })
+    render(<Table state={s} clockOffset={0} onAct={vi.fn()} send={vi.fn()} />)
+    const board = within(screen.getByLabelText('Board'))
+    expect(board.getByText('Ann')).toBeInTheDocument()
+    expect(board.getByText('Bob')).toBeInTheDocument()
+    expect(within(screen.getByLabelText('Seat Bob')).getByText('Two pair, Kings and Fours')).toBeInTheDocument()
+  })
+})
+
+describe('ResultBanner', () => {
+  it('credits each multi-board winner only with the boards they won', async () => {
+    const { ResultBanner } = await import('./ResultBanner.tsx')
+    const s = state({
+      phase: 'playing',
+      stage: 'result',
+      players: [player({ id: 'p1', name: 'Ann' }), player({ id: 'p2', name: 'Bob' })],
+    })
+    const hand = {
+      number: 1, variant: 'double', street: 'Showdown', pot: 40, currentBet: 0, done: true,
+      boards: [['9s', '5s', '2h', 'Ac', 'Qh'], ['Kc', '7c', 'Tc', '7s', '2s']],
+      boardWinners: [['p2'], ['p1']],
+      winners: [
+        { playerId: 'p1', chips: 20, desc: 'Pair of Fives | Two pair, Kings and Sevens', cards: [['5h', '9s', '5s', 'Ac', 'Qh'], ['Kd', 'Kc', '7c', 'Tc', '7s']] },
+        { playerId: 'p2', chips: 20, desc: 'Pair of Queens | Pair of Sevens', cards: [['Qc', '9s', '5s', 'Ac', 'Qh'], ['Js', 'Kc', '7c', 'Tc', '7s']] },
+      ],
+    }
+    render(<ResultBanner state={s} hand={hand} clockOffset={0} />)
+    const banner = screen.getByLabelText('Hand result')
+    expect(banner).toHaveTextContent('You win 20 (split pot)Board 2: Two pair, Kings and Sevens')
+    expect(banner).toHaveTextContent('Bob wins 20 (split pot)Board 1: Pair of Queens')
+    expect(banner).not.toHaveTextContent('Pair of Fives')
+    expect(within(banner).getAllByLabelText('Winning hand')).toHaveLength(2)
+  })
+})

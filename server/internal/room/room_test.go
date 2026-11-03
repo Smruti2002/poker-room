@@ -92,10 +92,18 @@ func (h *harness) toAct() *Player {
 	return h.r.player(h.r.handIDs[h.r.hand.ToAct])
 }
 
-// passive checks or calls until the hand ends.
+// passive checks or calls until the hand ends; in multi-board hands
+// everyone takes the default split.
 func (h *harness) playPassively() {
 	h.t.Helper()
 	for h.r.stage == protocol.StageHand && !h.r.hand.Done {
+		if h.r.hand.Allocating {
+			for _, i := range h.r.hand.Pending() {
+				split := cardStrings(h.r.hand.DefaultSplit(i).Cards)
+				h.must(h.r.player(h.r.handIDs[i]), protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "allocate", Cards: split}})
+			}
+			continue
+		}
 		p := h.toAct()
 		l := h.r.hand.Legal(h.r.hand.ToAct)
 		a := &protocol.Action{Type: "call"}
@@ -576,6 +584,11 @@ func FuzzRoom(f *testing.F) {
 				m = protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "call"}}
 			case 2:
 				m = protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "check"}}
+				if h.r.hand != nil && h.r.hand.Allocating {
+					if idx := slices.Index(h.r.handIDs, p.ID); idx >= 0 {
+						m.Action = &protocol.Action{Type: "allocate", Cards: cardStrings(h.r.hand.Players[idx].Hole)}
+					}
+				}
 				if h.r.hand != nil && h.r.hand.Picking {
 					m.Action = &protocol.Action{Type: "choose", Count: 4 + 2*int(op%2)}
 				}
@@ -849,5 +862,75 @@ func TestViewListsAreNeverNull(t *testing.T) {
 				t.Fatalf("%s in %s", field, b)
 			}
 		}
+	}
+}
+
+func TestDoubleTexasInARoom(t *testing.T) {
+	var delays []time.Duration
+	h := newHarnessOpts(t, Options{Variants: map[string]engine.Variant{"double": engine.DoubleTexas}}, "Ann", "Bob", "Cy")
+	h.r.opts.Sched = schedFunc(func(d time.Duration, fire func()) {
+		delays = append(delays, d)
+		h.sched.After(d, fire)
+	})
+	h.start()
+	// Check it down to the river.
+	for !h.r.hand.Allocating {
+		l := h.r.hand.Legal(h.r.hand.ToAct)
+		a := &protocol.Action{Type: "call"}
+		if l.Check {
+			a.Type = "check"
+		}
+		h.must(h.toAct(), protocol.ClientMsg{Type: protocol.MsgAction, Action: a})
+	}
+	if got := delays[len(delays)-1]; got != 2*time.Duration(h.r.settings.TurnSeconds)*time.Second {
+		t.Fatalf("split clock %v", got)
+	}
+	timers := len(delays)
+
+	// Everyone may split now, in any order.
+	for _, p := range h.ps {
+		v := h.r.View(p.ID)
+		if !v.Hand.Allocating || v.Hand.ToAct != "" || v.Hand.Legal == nil || !v.Hand.Legal.Allocate {
+			t.Fatalf("%s view: %+v legal %+v", p.Name, v.Hand, v.Hand.Legal)
+		}
+	}
+	last := h.ps[2]
+	idx := slices.Index(h.r.handIDs, last.ID)
+	hole := cardStrings(h.r.hand.Players[idx].Hole)
+	h.must(last, protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "allocate", Cards: hole}})
+	if len(delays) != timers {
+		t.Fatal("a lock-in must not restart the split clock")
+	}
+	for _, viewer := range h.ps {
+		for _, pv := range h.r.View(viewer.ID).Players {
+			if pv.ID != last.ID {
+				continue
+			}
+			if !pv.Allocated {
+				t.Fatalf("%s doesn't see %s locked in", viewer.Name, pv.Name)
+			}
+			if (viewer.ID == last.ID) != (pv.Split != nil) {
+				t.Fatalf("%s sees split %v", viewer.Name, pv.Split)
+			}
+		}
+	}
+
+	// Time runs out: the other two get the default split, and the showdown
+	// shows every split and who won each board.
+	h.sched.fire(t)
+	if h.r.stage != protocol.StageResult {
+		t.Fatalf("stage %q", h.r.stage)
+	}
+	v := h.r.View(h.ps[0].ID)
+	if len(v.Hand.BoardWinners) != 2 || len(v.Hand.Winners) == 0 {
+		t.Fatalf("board winners %v winners %v", v.Hand.BoardWinners, v.Hand.Winners)
+	}
+	for _, pv := range v.Players {
+		if len(pv.Split) != 2 || !strings.Contains(pv.HandDesc, " | ") {
+			t.Fatalf("%s split %v desc %q", pv.Name, pv.Split, pv.HandDesc)
+		}
+	}
+	if got := h.totalStacks(); got != 6000 {
+		t.Fatalf("chips = %d", got)
 	}
 }

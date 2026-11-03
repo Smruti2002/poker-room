@@ -67,7 +67,11 @@ func (h *Hand) CheckInvariants() error {
 			fail("paid out %d but pots held %d", won, potChips)
 		}
 	} else {
-		if h.Picking {
+		if h.Allocating {
+			if h.ToAct != -1 || len(h.Pending()) == 0 {
+				fail("allocating with ToAct %d and %d players pending", h.ToAct, len(h.Pending()))
+			}
+		} else if h.Picking {
 			if h.ToAct < 0 || h.ToAct >= len(h.Players) || h.ToAct == h.Dealer || h.Players[h.ToAct].Picked != 0 {
 				fail("ToAct %d is not a player who still has to choose", h.ToAct)
 			}
@@ -85,7 +89,7 @@ func (h *Hand) CheckInvariants() error {
 			fail("a street bet %d exceeds the current bet %d", maxStreet, h.CurrentBet)
 		}
 		for _, b := range h.Boards {
-			if want := [...]int{0, 3, 4, 5}[h.Street]; len(b) != want {
+			if want := [...]int{0, 3, 4, 5, 5}[h.Street]; len(b) != want {
 				fail("%v board has %d cards, want %d", h.Street, len(b), want)
 			}
 		}

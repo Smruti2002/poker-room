@@ -11,15 +11,16 @@ import (
 type EventKind string
 
 const (
-	EvBlind  EventKind = "blind"  // Player posted Units/Chips
-	EvHole   EventKind = "hole"   // Player was dealt Cards (private)
-	EvAction EventKind = "action" // Player did Action; Units/Chips is their street total
-	EvBoard  EventKind = "board"  // Cards were added to Board
-	EvRefund EventKind = "refund" // Player's uncalled Units/Chips came back
-	EvShow   EventKind = "show"   // Player showed Cards at showdown; Desc and Best are the hand
-	EvReveal EventKind = "reveal" // Player showed Cards before betting (Show 2 Play 2), to everyone
-	EvChoose EventKind = "choose" // Player took Count hole cards, paying Mult chips per unit (Dacoit)
-	EvWin    EventKind = "win"    // Player won Chips from Pot
+	EvBlind    EventKind = "blind"    // Player posted Units/Chips
+	EvHole     EventKind = "hole"     // Player was dealt Cards (private)
+	EvAction   EventKind = "action"   // Player did Action; Units/Chips is their street total
+	EvBoard    EventKind = "board"    // Cards were added to Board
+	EvRefund   EventKind = "refund"   // Player's uncalled Units/Chips came back
+	EvShow     EventKind = "show"     // Player showed Cards at showdown; Desc and Best are the hand
+	EvReveal   EventKind = "reveal"   // Player showed Cards before betting (Show 2 Play 2), to everyone
+	EvChoose   EventKind = "choose"   // Player took Count hole cards, paying Mult chips per unit (Dacoit)
+	EvAllocate EventKind = "allocate" // Player locked in their split; the split itself stays hidden until the showdown
+	EvWin      EventKind = "win"      // Player won Chips from Pot
 )
 
 // Event is one thing that happened in a hand, in order. The room layer turns
@@ -36,6 +37,8 @@ type Event struct {
 	Desc   string       `json:"desc,omitempty"`
 	// Best is, for a show event, the five cards that make the hand on each board.
 	Best [][]cards.Card `json:"best,omitempty"`
+	// Split is, for a multi-board show event, the pair played on each board.
+	Split [][]cards.Card `json:"split,omitempty"`
 	// Count and Mult are a choose event's hole cards and chips per unit.
 	Count int   `json:"count,omitempty"`
 	Mult  int64 `json:"mult,omitempty"`
@@ -102,6 +105,8 @@ func (h *Hand) narrate(visible func(Event) bool) []string {
 				line += fmt.Sprintf(" (pays %dx)", e.Mult)
 			}
 			out = append(out, line)
+		case EvAllocate:
+			out = append(out, fmt.Sprintf("%s locked in their split", name(e.Player)))
 		case EvReveal:
 			out = append(out, fmt.Sprintf("%s shows %s", name(e.Player), pretty(e.Cards)))
 		case EvShow:

@@ -7,6 +7,7 @@ import { Countdown } from './Countdown.tsx'
 import { ResultBanner } from './ResultBanner.tsx'
 import { ChoosePicker } from './ChoosePicker.tsx'
 import { ShowPicker } from './ShowPicker.tsx'
+import { SplitPicker } from './SplitPicker.tsx'
 import { winningCards } from './winning.ts'
 
 interface Props {
@@ -32,6 +33,14 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
           <div className="board" aria-label="Board">
             {hand.boards.map((board, b) => (
               <div className="board-row" key={b}>
+                {hand.boards.length > 1 && (
+                  <span className="board-label">
+                    {b + 1}
+                    {hand.boardWinners?.[b] && (
+                      <span className="board-winner">{hand.boardWinners[b].map((id) => name(id)).join(' & ')}</span>
+                    )}
+                  </span>
+                )}
                 {board.map((c) => (
                   <Card key={c} code={c} highlight={highlightOf(c, winning)} />
                 ))}
@@ -69,7 +78,7 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
           // Pinned to the bottom of the screen so your cards and actions are
           // always in reach on a phone.
           <div className={`dock${hand?.legal ? ' dock-active' : ''}`}>
-            {me.hole && !hand?.legal?.show && (
+            {me.hole && !hand?.legal?.show && !hand?.legal?.allocate && (
               <div className="dock-cards" aria-label="Your cards">
                 {me.hole.map((c) => (
                   <span key={c} className={me.shown?.includes(c) ? 'shown-card' : undefined}>
@@ -78,6 +87,8 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
                 ))}
                 {hand?.legal ? (
                   <span className="dock-turn">Your turn</span>
+                ) : me.allocated ? (
+                  <span className="muted">Locked in, waiting for the others</span>
                 ) : (
                   me.folded && <span className="muted">Folded</span>
                 )}
@@ -88,7 +99,8 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
             )}
             {hand?.legal?.choose && <ChoosePicker max={hand.legal.chooseMax ?? 4} onAct={onAct} />}
             {hand?.legal?.show && me.hole && <ShowPicker hole={me.hole} count={hand.reveal ?? 2} onAct={onAct} />}
-            {hand?.legal && !hand.legal.show && !hand.legal.choose && (
+            {hand?.legal?.allocate && me.hole && <SplitPicker hole={me.hole} boards={hand.boards} onAct={onAct} />}
+            {hand?.legal && !hand.legal.show && !hand.legal.choose && !hand.legal.allocate && (
               <ActionBar
                 key={`${hand.number}-${hand.street}-${hand.currentBet}`}
                 legal={hand.legal}
@@ -193,6 +205,17 @@ function TableHeader({
         <Countdown deadline={state.choosing.deadline} clockOffset={clockOffset} />
       </>
     )
+  } else if (hand?.allocating) {
+    // Everyone splits at once: say who we're still waiting for.
+    const waiting = state.players.filter((p) => p.inHand && !p.folded && !p.allocated && p.id !== state.you)
+    status = (
+      <>
+        {hand.legal?.allocate
+          ? 'Split your cards across the boards'
+          : `Waiting for ${waiting.map((p) => p.name).join(', ')} to split`}{' '}
+        {hand.deadline ? <Countdown deadline={hand.deadline} clockOffset={clockOffset} /> : null}
+      </>
+    )
   } else if (hand && !hand.done && hand.toAct) {
     status = (
       <>
@@ -262,6 +285,7 @@ function Seat({
             {p.picked} cards{p.mult > 1 ? ' · 2×' : ''}
           </span>
         )}
+        {p.allocated && <span className="tag tag-locked">locked in</span>}
         {p.id === state.hostId && <span className="tag">host</span>}
         {!p.connected && <span className="tag tag-muted">offline</span>}
       </div>
@@ -287,7 +311,7 @@ function Seat({
         {p.folded && 'Folded'}
         {p.allIn && !hand?.done && 'All-in'}
         {p.bet > 0 && !hand?.done && `Bet ${p.bet * p.mult}`}
-        {p.handDesc && <span className="hand-desc">{p.handDesc}</span>}
+        {p.handDesc && <HandDesc desc={p.handDesc} />}
         {(p.won ?? 0) > 0 && hand?.done && <span className="won">Won {p.won}</span>}
         {p.sittingOut && 'Sitting out'}
         {p.broke && 'Broke'}
@@ -305,4 +329,19 @@ function Seat({
 function highlightOf(card: string, winning: Set<string>): 'win' | 'dim' | undefined {
   if (winning.size === 0) return undefined
   return winning.has(card) ? 'win' : 'dim'
+}
+
+/** A hand description; multi-board hands are listed per board. */
+function HandDesc({ desc }: { desc: string }) {
+  const parts = desc.split(' | ')
+  if (parts.length === 1) return <span className="hand-desc">{desc}</span>
+  return (
+    <span className="hand-desc hand-desc-boards">
+      {parts.map((d, b) => (
+        <span key={b}>
+          <span className="board-num">{b + 1}</span> {d}
+        </span>
+      ))}
+    </span>
+  )
 }

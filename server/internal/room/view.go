@@ -60,6 +60,14 @@ func (r *Room) View(viewer string) protocol.State {
 			v.Won = hp.Won
 			v.HoleCount = len(hp.Hole)
 			v.Picked = hp.Picked
+			// Others only learn that a split is locked in; the pairs are
+			// shown with the hand at the showdown.
+			v.Allocated = h.Allocating && hp.Split != nil
+			if shown[i] || (p.ID == viewer && hp.Split != nil) {
+				for _, pair := range hp.Split {
+					v.Split = append(v.Split, cardStrings(pair))
+				}
+			}
 			if hp.Shown != nil {
 				v.Shown = cardStrings(hp.Shown) // public once revealed
 			}
@@ -106,6 +114,7 @@ func (r *Room) handView(viewer string) *protocol.HandView {
 		Street:     h.Street.String(),
 		Showing:    h.Showing,
 		Picking:    h.Picking,
+		Allocating: h.Allocating,
 		Reveal:     h.Variant.Reveal(),
 		Pot:        h.PotChips(),
 		CurrentBet: h.CurrentBet,
@@ -123,19 +132,31 @@ func (r *Room) handView(viewer string) *protocol.HandView {
 			hv.Pots = append(hv.Pots, pv)
 		}
 		hv.Winners = r.winners()
+		for _, ids := range h.BoardWinners() {
+			var names []string
+			for _, i := range ids {
+				names = append(names, r.handIDs[i])
+			}
+			hv.BoardWinners = append(hv.BoardWinners, names)
+		}
 		if r.stage == protocol.StageResult {
 			hv.Deadline = r.deadline.UnixMilli()
 		}
 		return hv
 	}
-	hv.ToAct = r.handIDs[h.ToAct]
 	hv.Deadline = r.deadline.UnixMilli()
-	if hv.ToAct == viewer {
-		l := h.Legal(h.ToAct)
+	if h.ToAct >= 0 {
+		hv.ToAct = r.handIDs[h.ToAct]
+	}
+	// Usually only the player to act has options, but everyone still in
+	// splits at once in Double/Triple Texas.
+	if i := slices.Index(r.handIDs, viewer); i >= 0 && h.Legal(i) != (engine.Legal{}) {
+		l := h.Legal(i)
 		hv.Legal = &protocol.Legal{
 			Show:   l.Show,
 			Choose: l.Choose, ChooseMax: l.ChooseMax,
-			Fold: l.Fold, Check: l.Check, Call: l.Call, CallUnits: l.CallUnits,
+			Allocate: l.Allocate,
+			Fold:     l.Fold, Check: l.Check, Call: l.Call, CallUnits: l.CallUnits,
 			Bet: l.Bet, Raise: l.Raise, MinTo: l.MinTo, MaxTo: l.MaxTo,
 		}
 	}

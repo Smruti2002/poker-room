@@ -78,6 +78,9 @@ type Room struct {
 	deadline     time.Time
 	timerGen     int
 	endAfterHand bool
+	// allocTimer is set once the split timer for this hand is running, so
+	// each player's lock-in doesn't restart everyone's clock.
+	allocTimer bool
 }
 
 // User-facing errors.
@@ -389,6 +392,7 @@ func (r *Room) deal(variant string) {
 		panic(fmt.Sprintf("room %s: dealing %s: %v", r.Code, variant, err))
 	}
 	r.hand = h
+	r.allocTimer = false
 	r.handNo++
 	r.variant = variant
 	r.stage = protocol.StageHand
@@ -397,6 +401,14 @@ func (r *Room) deal(variant string) {
 
 // afterHandChange settles a finished hand or starts the next turn timer.
 func (r *Room) afterHandChange() {
+	if r.hand.Allocating {
+		// One shared clock for splitting; it gets twice the turn time.
+		if !r.allocTimer {
+			r.allocTimer = true
+			r.schedule(2 * time.Duration(r.settings.TurnSeconds) * time.Second)
+		}
+		return
+	}
 	if !r.hand.Done {
 		r.schedule(time.Duration(r.settings.TurnSeconds) * time.Second)
 		return
@@ -420,7 +432,7 @@ func (r *Room) act(p *Player, a *protocol.Action) error {
 		return errors.New("missing action")
 	}
 	idx := slices.Index(r.handIDs, p.ID)
-	if idx < 0 || idx != r.hand.ToAct {
+	if idx < 0 || (idx != r.hand.ToAct && !r.hand.Allocating) {
 		return ErrNotYourTurn
 	}
 	var typ engine.ActionType
@@ -494,6 +506,16 @@ func (r *Room) onTimer(gen int) {
 		}
 		r.deal(v)
 	case protocol.StageHand:
+		if r.hand.Allocating {
+			// Time's up: everyone still splitting gets the default split.
+			for _, i := range r.hand.Pending() {
+				if err := r.hand.Apply(i, r.hand.DefaultSplit(i)); err != nil {
+					panic(fmt.Sprintf("room %s: default split: %v", r.Code, err))
+				}
+			}
+			r.afterHandChange()
+			return
+		}
 		// Timeout: take 4 cards in a Dacoit choice, show the lowest cards
 		// during a reveal; otherwise check if possible, else fold.
 		a := engine.Action{Type: engine.Fold}
