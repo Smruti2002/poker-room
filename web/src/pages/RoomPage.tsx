@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getRoom, saveToken } from '../api.ts'
 import { Drawer, type DrawerTab } from '../components/Drawer.tsx'
+import { ClosingNotice } from '../components/ClosingNotice.tsx'
 import { KickVotes } from '../components/KickVotes.tsx'
 import { Lobby } from '../components/Lobby.tsx'
 import { Table } from '../components/Table.tsx'
@@ -58,7 +59,7 @@ export function RoomPage({ code }: { code: string }) {
     return (
       <main className="home">
         <h1>Room not found</h1>
-        <p className="muted">The room {code.toUpperCase()} doesn't exist — it may have ended, or the server restarted. Check the link, or start a new room.</p>
+        <p className="muted">The room {code.toUpperCase()} doesn't exist. Rooms close 12 hours after they're opened, or after a long time with nobody in them. Check the link, or start a new room.</p>
         <a className="btn btn-primary" href="/">
           New room
         </a>
@@ -95,6 +96,7 @@ export function RoomPage({ code }: { code: string }) {
       </nav>
       {s && <HostAway state={s} onClaim={() => room.send({ type: 'claimHost' })} />}
       {s && <KickVotes state={s} send={room.send} />}
+      {s && s.phase !== 'ended' && <ClosingNotice closesAt={s.closesAt} clockOffset={room.clockOffset} />}
       {room.error && (
         <div className="toast" role="alert" onClick={room.dismissError}>
           {room.error}

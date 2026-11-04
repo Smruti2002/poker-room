@@ -121,6 +121,9 @@ type State struct {
 	// NextRoom is set once the host has started a new game with the same
 	// players; the client moves there.
 	NextRoom *NextRoom `json:"nextRoom,omitempty"`
+	// ClosesAt is when the room will be closed for good (unix ms), however
+	// busy it is; 0 if never.
+	ClosesAt int64 `json:"closesAt,omitempty"`
 	// KickVotes are the votes in progress, oldest first.
 	KickVotes []KickVote `json:"kickVotes"`
 }

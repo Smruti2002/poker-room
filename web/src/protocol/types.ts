@@ -219,6 +219,11 @@ export interface State {
    */
   nextRoom?: NextRoom;
   /**
+   * ClosesAt is when the room will be closed for good (unix ms), however
+   * busy it is; 0 if never.
+   */
+  closesAt?: number /* int64 */;
+  /**
    * KickVotes are the votes in progress, oldest first.
    */
   kickVotes: KickVote[];
