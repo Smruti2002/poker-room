@@ -64,12 +64,12 @@ func run(ctx context.Context, base, version string, wait time.Duration) error {
 	if err != nil {
 		return fmt.Errorf("host: %w", err)
 	}
-	defer host.CloseNow()
+	defer func() { _ = host.CloseNow() }()
 	guest, err := connect(ctx, base, code, protocol.ClientMsg{Type: protocol.MsgJoin, Name: "Smoke guest"})
 	if err != nil {
 		return fmt.Errorf("guest: %w", err)
 	}
-	defer guest.CloseNow()
+	defer func() { _ = guest.CloseNow() }()
 	step("two players connected")
 
 	if err := wsjson.Write(ctx, host, protocol.ClientMsg{Type: protocol.MsgStart}); err != nil {
@@ -123,7 +123,7 @@ func get(ctx context.Context, u string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
@@ -144,7 +144,7 @@ func createRoom(ctx context.Context, base string) (code, token string, err error
 	if err != nil {
 		return "", "", fmt.Errorf("create room: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusCreated {
 		return "", "", fmt.Errorf("create room: status %d", resp.StatusCode)
 	}
@@ -162,21 +162,24 @@ func connect(ctx context.Context, base, code string, hello protocol.ClientMsg) (
 		return nil, err
 	}
 	u.Scheme = map[string]string{"http": "ws", "https": "wss"}[u.Scheme]
-	conn, _, err := websocket.Dial(ctx, u.String(), &websocket.DialOptions{
+	conn, resp, err := websocket.Dial(ctx, u.String(), &websocket.DialOptions{
 		// Browsers send an Origin; the server only accepts its own.
 		HTTPHeader: http.Header{"Origin": {base}},
 	})
+	if resp != nil && resp.Body != nil {
+		_ = resp.Body.Close()
+	}
 	if err != nil {
 		return nil, err
 	}
 	if err := wsjson.Write(ctx, conn, hello); err != nil {
-		conn.CloseNow()
+		_ = conn.CloseNow()
 		return nil, err
 	}
 	for {
 		m, err := read(ctx, conn)
 		if err != nil {
-			conn.CloseNow()
+			_ = conn.CloseNow()
 			return nil, err
 		}
 		if m.Type == protocol.MsgWelcome {

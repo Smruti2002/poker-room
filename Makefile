@@ -49,8 +49,8 @@ lint: lint-server lint-web ## Run all linters
 .PHONY: lint-server
 lint-server: ## go vet + golangci-lint
 	cd $(SERVER) && go vet ./...
-	@command -v golangci-lint >/dev/null || { echo "golangci-lint not found: brew install golangci-lint"; exit 1; }
-	cd $(SERVER) && golangci-lint run
+	@if command -v golangci-lint >/dev/null; then cd $(SERVER) && golangci-lint run; \
+	else cd $(SERVER) && go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0 run; fi
 
 .PHONY: lint-web
 lint-web: ## Typecheck + oxlint
