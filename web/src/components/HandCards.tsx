@@ -11,6 +11,9 @@ const DRAG_PX = 8
  * Your cards, which you can rearrange: drag one to a new spot, or tap one
  * card then another to swap them (easier on a phone). With a card picked,
  * the arrow keys move it. The order is only for you.
+ *
+ * In Show 2 Play 2, once you've shown cards they form their own group,
+ * "Shown", before the "Hidden" ones; cards move within their group only.
  */
 export function HandCards({
   cards,
@@ -31,6 +34,17 @@ export function HandCards({
   const [over, setOver] = useState<number | null>(null)
   const press = useRef<{ index: number; x: number; y: number; dragging: boolean } | null>(null)
 
+  // Indexes into cards, grouped for display: shown first, then hidden.
+  const isShown = (i: number) => !!shown?.includes(cards[i])
+  const all = cards.map((_, i) => i)
+  const groups = shown?.length
+    ? [
+        { label: 'Shown', items: all.filter(isShown) },
+        { label: 'Hidden', items: all.filter((i) => !isShown(i)) },
+      ]
+    : [{ label: '', items: all }]
+  const sameGroup = (i: number, j: number) => isShown(i) === isShown(j)
+
   const indexAt = (x: number, y: number) => {
     for (const el of document.elementsFromPoint?.(x, y) ?? []) {
       const i = (el as HTMLElement).dataset?.cardIndex
@@ -40,7 +54,7 @@ export function HandCards({
   }
 
   const tap = (i: number) => {
-    if (picked === null) setPicked(i)
+    if (picked === null || !sameGroup(picked, i)) setPicked(i)
     else if (picked === i) setPicked(null)
     else {
       onSwap(picked, i)
@@ -69,13 +83,16 @@ export function HandCards({
     if (!p) return
     if (!p.dragging) return tap(p.index)
     const to = indexAt(e.clientX, e.clientY)
-    if (to !== null && to !== p.index) onMove(p.index, to)
+    if (to !== null && to !== p.index && sameGroup(p.index, to)) onMove(p.index, to)
     setPicked(null)
   }
   const onKeyDown = (i: number) => (e: KeyboardEvent) => {
     if (picked !== i) return
-    const to = e.key === 'ArrowLeft' ? i - 1 : e.key === 'ArrowRight' ? i + 1 : null
-    if (to === null || to < 0 || to >= cards.length) return
+    const group = groups.find((g) => g.items.includes(i))!.items
+    const at = group.indexOf(i)
+    const step = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0
+    const to = group[at + step]
+    if (!step || to === undefined) return
     e.preventDefault()
     onMove(i, to)
     setPicked(to)
@@ -84,33 +101,33 @@ export function HandCards({
   return (
     <div className="hand-cards">
       <div className="hand-cards-row" role="group" aria-label="Your cards">
-        {cards.map((c, i) => (
-          <button
-            key={c}
-            type="button"
-            data-card-index={i}
-            className={[
-              'hand-card',
-              picked === i && 'hand-card-picked',
-              over === i && 'hand-card-over',
-              shown?.includes(c) && 'shown-card',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            aria-pressed={picked === i}
-            onPointerDown={onPointerDown(i)}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={() => {
-              press.current = null
-              setOver(null)
-            }}
-            onKeyDown={onKeyDown(i)}
-            // Keyboard activation (Enter/Space) arrives as a click with no pointer.
-            onClick={(e) => e.detail === 0 && tap(i)}
-          >
-            <Card code={c} />
-          </button>
+        {groups.map((g) => (
+          <div key={g.label} className="hand-group" role={g.label ? 'group' : undefined} aria-label={g.label || undefined}>
+            {g.label && <span className="hand-group-label">{g.label}</span>}
+            <div className="hand-group-cards">
+              {g.items.map((i) => (
+                <button
+                  key={cards[i]}
+                  type="button"
+                  data-card-index={i}
+                  className={['hand-card', picked === i && 'hand-card-picked', over === i && 'hand-card-over'].filter(Boolean).join(' ')}
+                  aria-pressed={picked === i}
+                  onPointerDown={onPointerDown(i)}
+                  onPointerMove={onPointerMove}
+                  onPointerUp={onPointerUp}
+                  onPointerCancel={() => {
+                    press.current = null
+                    setOver(null)
+                  }}
+                  onKeyDown={onKeyDown(i)}
+                  // Keyboard activation (Enter/Space) arrives as a click with no pointer.
+                  onClick={(e) => e.detail === 0 && tap(i)}
+                >
+                  <Card code={cards[i]} />
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
       {cards.length > 2 && (

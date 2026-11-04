@@ -352,17 +352,33 @@ function Seat({
       {p.inHand && (
         <div className="seat-cards">
           {hole
-            ? hole.map((c) => <Card key={c} code={c} small highlight={highlightOf(c, winning)} />)
-            : !p.folded && (
+            ? shown.length > 0
+              ? // Show 2 Play 2: the cards shown before betting, then the hidden ones.
+                [hole.filter((c) => shown.includes(c)), hole.filter((c) => !shown.includes(c))].map((group, g) => (
+                  <span key={g} className="seat-card-group" aria-label={g === 0 ? 'Shown' : 'Hidden'}>
+                    {group.map((c) => (
+                      <Card key={c} code={c} small highlight={highlightOf(c, winning)} />
+                    ))}
+                  </span>
+                ))
+              : hole.map((c) => <Card key={c} code={c} small highlight={highlightOf(c, winning)} />)
+            : !p.folded &&
+              (shown.length > 0 ? (
                 <>
-                  {shown.map((c) => (
-                    <Card key={c} code={c} small />
-                  ))}
-                  {Array.from({ length: holeCount - shown.length }, (_, i) => (
-                    <CardBack key={i} small />
-                  ))}
+                  <span className="seat-card-group" aria-label="Shown">
+                    {shown.map((c) => (
+                      <Card key={c} code={c} small />
+                    ))}
+                  </span>
+                  <span className="seat-card-group" aria-label="Hidden">
+                    {Array.from({ length: holeCount - shown.length }, (_, i) => (
+                      <CardBack key={i} small />
+                    ))}
+                  </span>
                 </>
-              )}
+              ) : (
+                Array.from({ length: holeCount }, (_, i) => <CardBack key={i} small />)
+              ))}
         </div>
       )}
       <div className="seat-status">
