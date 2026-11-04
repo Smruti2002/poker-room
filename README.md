@@ -90,7 +90,7 @@ fly apps create poker-room-smruti
 ```
 
 ```bash
-fly volumes create rooms --region bom --size 1 --app poker-room-smruti
+fly volumes create rooms --region sin --size 1 --app poker-room-smruti
 ```
 
 ```bash

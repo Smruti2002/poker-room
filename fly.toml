@@ -1,7 +1,7 @@
 # Fly.io config. The app name must be unique across Fly; if it's taken,
 # pick another and change it here (and the URL in .github/workflows/deploy.yml).
 app = "poker-room-smruti"
-primary_region = "bom" # Mumbai
+primary_region = "sin" # Singapore, the closest region to India
 
 # The server saves every room to the volume when it stops (on deploys and
 # when Fly stops an idle machine), then loads them when it starts again.
