@@ -99,7 +99,13 @@ fly deploy --ha=false
 
 If the app name is taken, choose another and change it in `fly.toml` and `.github/workflows/deploy.yml`.
 
-After that, every push to `main` deploys automatically once CI passes, provided the repository has a `FLY_API_TOKEN` secret:
+After that, deploys are manual: merging to `main` never deploys on its own, since each deploy restarts the server and briefly disconnects anyone playing. To ship the latest `main`, open **Actions → Deploy → Run workflow** on GitHub, or:
+
+```bash
+gh workflow run deploy.yml
+```
+
+It refuses to deploy a commit CI hasn't passed on, and smoke-tests the live site afterwards. It needs a `FLY_API_TOKEN` repository secret, created once with:
 
 ```bash
 fly tokens create deploy --app poker-room-smruti | gh secret set FLY_API_TOKEN
