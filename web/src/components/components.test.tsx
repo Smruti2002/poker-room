@@ -4,6 +4,7 @@ import type { Legal } from '../protocol/types.ts'
 import { player, settings, state } from '../test/fixtures.ts'
 import { ActionBar } from './ActionBar.tsx'
 import { Card } from './Card.tsx'
+import { HandCards } from './HandCards.tsx'
 import { KickVotes } from './KickVotes.tsx'
 import { Lobby } from './Lobby.tsx'
 import { Table } from './Table.tsx'
@@ -626,5 +627,66 @@ describe('Vote to kick', () => {
     expect(screen.queryByLabelText('Seat Cy')).toBeNull()
     const lb = screen.getByRole('heading', { name: 'Leaderboard' }).parentElement!
     expect(lb).toHaveTextContent('Cyremoved')
+  })
+})
+
+describe('Rearranging your cards', () => {
+  const setup = () => {
+    const onMove = vi.fn()
+    const onSwap = vi.fn()
+    const onSort = vi.fn()
+    render(<HandCards cards={['7h', 'As', '7c', 'Kh']} nextSort="rank" onMove={onMove} onSwap={onSwap} onSort={onSort} />)
+    const card = (name: string) => screen.getByRole('button', { name })
+    return { onMove, onSwap, onSort, card }
+  }
+  const tap = (el: HTMLElement) => {
+    fireEvent.pointerDown(el, { button: 0, clientX: 10, clientY: 10 })
+    fireEvent.pointerUp(el, { button: 0, clientX: 10, clientY: 10 })
+  }
+
+  it('tap one card then another to swap them', () => {
+    const { onSwap, card } = setup()
+    tap(card('Seven of hearts'))
+    expect(card('Seven of hearts')).toHaveAttribute('aria-pressed', 'true')
+    tap(card('King of hearts'))
+    expect(onSwap).toHaveBeenCalledWith(0, 3)
+    expect(card('Seven of hearts')).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('tapping the picked card again puts it back', () => {
+    const { onSwap, card } = setup()
+    tap(card('Ace of spades'))
+    tap(card('Ace of spades'))
+    expect(onSwap).not.toHaveBeenCalled()
+    expect(card('Ace of spades')).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('drag a card onto another spot to move it there', () => {
+    const { onMove, card } = setup()
+    const target = card('Seven of clubs')
+    const real = document.elementsFromPoint
+    document.elementsFromPoint = () => [target]
+    try {
+      const from = card('Seven of hearts')
+      fireEvent.pointerDown(from, { button: 0, clientX: 0, clientY: 0 })
+      fireEvent.pointerMove(from, { clientX: 60, clientY: 0 })
+      fireEvent.pointerUp(from, { clientX: 60, clientY: 0 })
+    } finally {
+      document.elementsFromPoint = real
+    }
+    expect(onMove).toHaveBeenCalledWith(0, 2)
+  })
+
+  it('arrow keys move the picked card', () => {
+    const { onMove, card } = setup()
+    tap(card('Ace of spades'))
+    fireEvent.keyDown(card('Ace of spades'), { key: 'ArrowRight' })
+    expect(onMove).toHaveBeenCalledWith(1, 2)
+  })
+
+  it('offers the next sort', () => {
+    const { onSort } = setup()
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by rank' }))
+    expect(onSort).toHaveBeenCalled()
   })
 })

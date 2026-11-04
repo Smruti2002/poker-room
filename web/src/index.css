@@ -393,8 +393,49 @@ input:not([type]) {
 }
 .dock-cards {
   display: flex;
+  flex-wrap: wrap; /* six cards fill a phone's width: the rest wraps below */
   gap: 0.4rem;
   align-items: center;
+}
+/* Your cards, which you can rearrange (drag, or tap two to swap). */
+.hand-cards {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+.hand-cards-row {
+  display: flex;
+  gap: 0.4rem;
+}
+.hand-card {
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 8px;
+  cursor: grab;
+  touch-action: none; /* a drag moves the card, not the page */
+  transition: transform 0.12s ease;
+}
+.hand-card-picked {
+  transform: translateY(-6px);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.hand-card-over {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+}
+.hand-sort {
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hand-card {
+    transition: none;
+  }
 }
 .dock-turn {
   margin-left: auto;
