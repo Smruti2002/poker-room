@@ -4,6 +4,7 @@ import type { Legal } from '../protocol/types.ts'
 import { player, settings, state } from '../test/fixtures.ts'
 import { ActionBar } from './ActionBar.tsx'
 import { Card } from './Card.tsx'
+import { KickVotes } from './KickVotes.tsx'
 import { Lobby } from './Lobby.tsx'
 import { Table } from './Table.tsx'
 
@@ -107,7 +108,7 @@ describe('Lobby', () => {
   it('lets the host save settings and start once two players are in', () => {
     const onSave = vi.fn()
     const onStart = vi.fn()
-    render(<Lobby state={state()} onSave={onSave} onStart={onStart} />)
+    render(<Lobby state={state()} onSave={onSave} onStart={onStart} send={vi.fn()} />)
 
     const start = screen.getByRole('button', { name: 'Start game' })
     expect(start).toBeEnabled()
@@ -119,17 +120,17 @@ describe('Lobby', () => {
   })
 
   it('needs two players to start', () => {
-    render(<Lobby state={state({ players: [player({ id: 'p1', name: 'Ann' })] })} onSave={vi.fn()} onStart={vi.fn()} />)
+    render(<Lobby state={state({ players: [player({ id: 'p1', name: 'Ann' })] })} onSave={vi.fn()} onStart={vi.fn()} send={vi.fn()} />)
     expect(screen.getByRole('button', { name: 'Start game' })).toBeDisabled()
   })
 
   it('shows read-only live settings to other players', () => {
-    const { rerender } = render(<Lobby state={state({ you: 'p2' })} onSave={vi.fn()} onStart={vi.fn()} />)
+    const { rerender } = render(<Lobby state={state({ you: 'p2' })} onSave={vi.fn()} onStart={vi.fn()} send={vi.fn()} />)
     expect(screen.getByText('Waiting for the host to start…')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Start game' })).toBeNull()
     expect(screen.getByLabelText('Starting stack')).toBeDisabled()
 
-    rerender(<Lobby state={state({ you: 'p2', settings: { ...settings, startingStack: 7000 } })} onSave={vi.fn()} onStart={vi.fn()} />)
+    rerender(<Lobby state={state({ you: 'p2', settings: { ...settings, startingStack: 7000 } })} onSave={vi.fn()} onStart={vi.fn()} send={vi.fn()} />)
     expect(screen.getByLabelText('Starting stack')).toHaveValue(7000)
   })
 })
@@ -569,5 +570,61 @@ describe('Game over', () => {
     render(<Table state={ended('p2')} clockOffset={0} onAct={vi.fn()} send={vi.fn()} />)
     expect(screen.queryByRole('button', { name: 'New game with same players' })).toBeNull()
     expect(screen.getByText(/Ann \(the host\) can start a new game/)).toBeInTheDocument()
+  })
+})
+
+describe('Vote to kick', () => {
+  const three = (over: Partial<ReturnType<typeof state>> = {}) =>
+    state({
+      phase: 'playing',
+      stage: 'result',
+      players: [player({ id: 'p1', name: 'Ann' }), player({ id: 'p2', name: 'Bob' }), player({ id: 'p3', name: 'Cy' })],
+      ...over,
+    })
+
+  it('starts a vote from a seat after confirming, but not against yourself', () => {
+    const send = vi.fn()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<Table state={three()} clockOffset={0} onAct={vi.fn()} send={send} />)
+    expect(within(screen.getByLabelText('Seat Ann')).queryByRole('button', { name: /remove/ })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Vote to remove Cy' }))
+    expect(confirm).toHaveBeenCalled()
+    expect(send).toHaveBeenCalledWith({ type: 'voteKick', target: 'p3', yes: true })
+    confirm.mockRestore()
+  })
+
+  it('lets everyone but the target answer, and the starter cancel', () => {
+    const send = vi.fn()
+    const vote = { target: 'p3', startedBy: 'p1', yes: ['p1'], no: [], needed: 2 }
+    const { rerender } = render(<KickVotes state={three({ you: 'p2', kickVotes: [vote] })} send={send} />)
+    const group = screen.getByRole('group', { name: 'Vote to remove Cy' })
+    expect(group).toHaveTextContent('1 of 2 yes')
+    expect(within(group).queryByRole('button', { name: 'Cancel' })).toBeNull()
+    fireEvent.click(within(group).getByRole('button', { name: 'No' }))
+    expect(send).toHaveBeenCalledWith({ type: 'voteKick', target: 'p3', yes: false })
+
+    rerender(<KickVotes state={three({ you: 'p1', kickVotes: [vote] })} send={send} />)
+    expect(screen.getByRole('button', { name: 'Yes' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(send).toHaveBeenCalledWith({ type: 'cancelKick', target: 'p3' })
+
+    rerender(<KickVotes state={three({ you: 'p3', kickVotes: [vote] })} send={send} />)
+    expect(screen.getByRole('status')).toHaveTextContent('voting on removing you')
+    expect(screen.queryByRole('button', { name: 'Yes' })).toBeNull()
+  })
+
+  it('hides removed players from the table but keeps them on the leaderboard', () => {
+    const s = three({
+      players: [player({ id: 'p1', name: 'Ann' }), player({ id: 'p2', name: 'Bob' }), player({ id: 'p3', name: 'Cy', kicked: true })],
+      leaderboard: [
+        { id: 'p3', name: 'Cy', profit: 500, kicked: true },
+        { id: 'p1', name: 'Ann', profit: 0 },
+        { id: 'p2', name: 'Bob', profit: -500 },
+      ],
+    })
+    render(<Table state={s} clockOffset={0} onAct={vi.fn()} send={vi.fn()} />)
+    expect(screen.queryByLabelText('Seat Cy')).toBeNull()
+    const lb = screen.getByRole('heading', { name: 'Leaderboard' }).parentElement!
+    expect(lb).toHaveTextContent('Cyremoved')
   })
 })

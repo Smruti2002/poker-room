@@ -32,7 +32,7 @@ func (r *Room) rematchSeats() (protocol.Settings, []*Player) {
 	s.Variants = slices.Clone(r.settings.Variants)
 	seats := []*Player{r.player(r.hostID)}
 	for _, p := range r.players {
-		if p.ID != r.hostID {
+		if p.ID != r.hostID && !p.Kicked {
 			seats = append(seats, p)
 		}
 	}

@@ -1135,6 +1135,32 @@ details[open] > summary {
 }
 
 /* The host has gone offline: anyone can take over. */
+/* Votes to remove a player. */
+.kick-votes .banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem 0.6rem;
+  padding: 0.5rem 1rem;
+  background: #2a1d1d;
+  border-bottom: 1px solid #a14a4a;
+  font-size: 0.9rem;
+}
+.kick-votes .banner-warn {
+  background: #3a1616;
+}
+.banner-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+.btn-kick {
+  min-height: 1.75rem; /* easy to tap on a phone, small to look at */
+  padding: 0 0.4rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
 .host-away {
   display: flex;
   flex-wrap: wrap;

@@ -401,3 +401,36 @@ test('after a game, the host starts a new one with the same players and settings
   await expect(cy.locator('.seat-me')).toContainText('Cy')
   await expect(cy.locator('.seat-me .seat-stack')).toContainText('5000')
 })
+
+test('players vote someone out mid-hand @phone', async ({ browser }) => {
+  const { page: ann, link } = await createRoom(browser, 'Ann')
+  const bob = await joinByLink(browser, link, 'Bob')
+  const cy = await joinByLink(browser, link, 'Cy')
+  await onlyVariants(ann, ["Texas Hold'em"])
+  await ann.getByRole('button', { name: 'Start game' }).click()
+  await expect(cy.locator('.seat-me .card:not(.card-back)')).toHaveCount(2)
+
+  ann.once('dialog', (d) => d.accept())
+  await ann.getByRole('button', { name: 'Vote to remove Cy' }).click()
+  // Two voters (Ann, Bob): both must agree. Cy is told, and can't vote.
+  await expect(cy.getByText('The other players are voting on removing you')).toBeVisible()
+  const vote = bob.getByRole('group', { name: 'Vote to remove Cy' })
+  await expect(vote).toContainText('1 of 2 yes')
+  await vote.getByRole('button', { name: 'Yes' }).click()
+
+  await expect(cy.getByRole('heading', { name: 'You were removed' })).toBeVisible()
+  await expect(ann.getByRole('group', { name: 'Vote to remove Cy' })).toHaveCount(0)
+
+  // The hand finishes without waiting on Cy, and Cy is gone from the table
+  // but still on the leaderboard.
+  await playOutHand([ann, bob])
+  await ann.getByRole('button', { name: 'Next hand', exact: true }).click()
+  await expect(ann.getByLabel('Seat Cy')).toHaveCount(0)
+  await expect(ann.locator('.leaderboard')).toContainText('Cyremoved')
+
+  // Cy's link no longer gets them back in under that name.
+  await cy.goto(link)
+  await cy.getByLabel('Your name').fill('Cy')
+  await cy.getByRole('button', { name: 'Join' }).click()
+  await expect(cy.getByRole('alert')).toContainText('taken')
+})

@@ -58,6 +58,11 @@ func randomStep(h *harness, rng *mrand.Rand) {
 		m = protocol.ClientMsg{Type: protocol.MsgSitIn}
 	case 3:
 		m = protocol.ClientMsg{Type: protocol.MsgTakeLoan}
+	case 5:
+		// Come and go, and vote people out.
+		p.Connections = rng.IntN(2)
+		h.r.resolveKicks()
+		m = protocol.ClientMsg{Type: protocol.MsgVoteKick, Target: ps[rng.IntN(len(ps))].ID, Yes: rng.IntN(3) > 0}
 	case 4:
 		if h.r.stage == protocol.StageChoosing {
 			p = h.r.player(h.r.dealerID)
@@ -120,6 +125,9 @@ func TestSnapshotRestoresEveryState(t *testing.T) {
 		h.r.settings.SmallBlind, h.r.settings.BigBlind = 50, 100 // more all-ins and loans
 		checkAll := func(step int) {
 			back := roundTrip(t, h.r)
+			for _, p := range h.r.players {
+				back.player(p.ID).Connections = p.Connections // live, not saved
+			}
 			for _, p := range h.r.players {
 				if got, want := viewJSON(t, back, p.ID), viewJSON(t, h.r, p.ID); got != want {
 					t.Fatalf("game %d step %d: %s's view differs after restore\n got: %s\nwant: %s", g, step, p.Name, got, want)

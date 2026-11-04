@@ -78,6 +78,14 @@ export const MsgClaimHost = "claimHost"; // become host while the host is offlin
  */
 export const MsgRematch = "rematch"; // host only, after the game: a new room with the same players
 /**
+ * Client message types.
+ */
+export const MsgVoteKick = "voteKick"; // Target, Yes: start or answer a vote to remove a player
+/**
+ * Client message types.
+ */
+export const MsgCancelKick = "cancelKick"; // Target: whoever started the vote withdraws it
+/**
  * ClientMsg is sent by the browser. The first message on a connection must
  * be join or resume.
  */
@@ -90,7 +98,8 @@ export interface ClientMsg {
   action?: Action;
   text?: string;
   emoji?: string;
-  target?: string; // player ID, for skip
+  target?: string; // player ID, for skip and kick votes
+  yes?: boolean; // a kick vote's answer
 }
 /**
  * Action is a betting action. To is the street total for bet/raise, in units.
@@ -123,6 +132,10 @@ export const MsgError = "error"; // a request failed; Error says why
  * Server message types.
  */
 export const MsgHistoryReply = "history"; // History: recent hands, as this viewer may see them
+/**
+ * Server message types.
+ */
+export const MsgRemoved = "removed"; // the other players voted this player out of the room
 /**
  * ServerMsg is sent to the browser.
  */
@@ -205,6 +218,10 @@ export interface State {
    * players; the client moves there.
    */
   nextRoom?: NextRoom;
+  /**
+   * KickVotes are the votes in progress, oldest first.
+   */
+  kickVotes: KickVote[];
 }
 /**
  * NextRoom is where the players went after a game ended. Token is this
@@ -256,6 +273,11 @@ export interface PlayerView {
   connected: boolean;
   sittingOut: boolean;
   broke: boolean; // no chips; may take a loan
+  /**
+   * Kicked players were voted out; they stay listed for the leaderboard
+   * and until a hand they were in has finished.
+   */
+  kicked?: boolean;
   /**
    * The fields below describe the current or last hand.
    */
@@ -400,4 +422,16 @@ export interface Standing {
   id: string;
   name: string;
   profit: number /* int64 */;
+  kicked?: boolean;
+}
+/**
+ * KickVote is an open vote to remove Target from the room. It passes once
+ * Needed of the connected players other than Target have voted yes.
+ */
+export interface KickVote {
+  target: string;
+  startedBy: string;
+  yes: string[];
+  no: string[];
+  needed: number /* int */;
 }

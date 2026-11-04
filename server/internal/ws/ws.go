@@ -130,7 +130,11 @@ func (s *Server) serveWS(w http.ResponseWriter, r *http.Request) {
 	}
 	c := room.NewClient()
 	if err := a.Connect(c, hello); err != nil {
-		_ = wsjson.Write(ctx, conn, protocol.ServerMsg{Type: protocol.MsgError, Error: err.Error()})
+		typ := protocol.MsgError
+		if errors.Is(err, room.ErrKicked) {
+			typ = protocol.MsgRemoved
+		}
+		_ = wsjson.Write(ctx, conn, protocol.ServerMsg{Type: typ, Error: err.Error()})
 		_ = conn.Close(websocket.StatusPolicyViolation, "could not join")
 		return
 	}

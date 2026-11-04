@@ -18,7 +18,12 @@ All chips are virtual. Chip amounts are always whole numbers.
 4. Between hands, broke players may take a [loan](#3-loans).
 5. If the host goes offline, any player still in the room can **become host**, so the game can still be started, skipped or ended.
 6. The host ends the game whenever they want. The leaderboard ranks players by **profit = stack − starting stack − debt**. 0 means the player broke even, a positive number means they are up, and a negative one means they are down.
-7. After the game, the host can tap **New game with same players**. It opens a new room with the same settings and everyone already seated, with fresh stacks and no debt, and moves every player there. Anyone who was away is moved when they next open the old link.
+7. Any player can start a **vote to remove** another player (Kick on their seat). It passes once more than half of the connected players, not counting the target, vote yes. Players who have left don't count, so they can't block it. There is no time limit: the vote stays open until it passes, can no longer pass, or whoever started it cancels it. A removed player:
+   - gets the default move (check, else fold) whenever a hand they're still in waits on them; their chips already in the pot stay there,
+   - is never dealt in again and can't rejoin the room under that name,
+   - stays on the leaderboard, marked "removed", so the profits still add up,
+   - hands the host role to the next connected player if they were the host.
+8. After the game, the host can tap **New game with same players**. It opens a new room with the same settings and everyone except removed players already seated, with fresh stacks and no debt, and moves every player there. Anyone who was away is moved when they next open the old link.
 
 ## 2. Room settings
 

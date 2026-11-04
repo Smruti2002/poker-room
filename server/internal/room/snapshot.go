@@ -37,6 +37,15 @@ type Snapshot struct {
 	Past         []PastSnapshot      `json:"past,omitempty"`
 	NextCode     string              `json:"nextCode,omitempty"`
 	NextTokens   map[string]string   `json:"nextTokens,omitempty"`
+	KickVotes    []KickVoteSnapshot  `json:"kickVotes,omitempty"`
+}
+
+// KickVoteSnapshot is an open vote to remove a player.
+type KickVoteSnapshot struct {
+	Target    string   `json:"target"`
+	StartedBy string   `json:"startedBy"`
+	Yes       []string `json:"yes,omitempty"`
+	No        []string `json:"no,omitempty"`
 }
 
 // PlayerSnapshot is a player as saved; the session token lets them resume.
@@ -48,6 +57,7 @@ type PlayerSnapshot struct {
 	Debt       int64  `json:"debt"`
 	Loans      int    `json:"loans"`
 	SittingOut bool   `json:"sittingOut,omitempty"`
+	Kicked     bool   `json:"kicked,omitempty"`
 }
 
 // PastSnapshot is a finished hand kept for the history panel.
@@ -84,7 +94,13 @@ func (r *Room) Snapshot() Snapshot {
 	for _, p := range r.players {
 		s.Players = append(s.Players, PlayerSnapshot{
 			ID: p.ID, Name: p.Name, Token: p.Token, Stack: p.Stack,
-			Debt: p.Debt, Loans: p.Loans, SittingOut: p.SittingOut,
+			Debt: p.Debt, Loans: p.Loans, SittingOut: p.SittingOut, Kicked: p.Kicked,
+		})
+	}
+	for _, v := range r.kickVotes {
+		s.KickVotes = append(s.KickVotes, KickVoteSnapshot{
+			Target: v.target, StartedBy: v.startedBy,
+			Yes: slices.Sorted(maps.Keys(v.yes)), No: slices.Sorted(maps.Keys(v.no)),
 		})
 	}
 	if r.hand != nil {
@@ -121,8 +137,18 @@ func Restore(s Snapshot, opts Options) (*Room, error) {
 	for _, p := range s.Players {
 		r.players = append(r.players, &Player{
 			ID: p.ID, Name: p.Name, Token: p.Token, Stack: p.Stack,
-			Debt: p.Debt, Loans: p.Loans, SittingOut: p.SittingOut,
+			Debt: p.Debt, Loans: p.Loans, SittingOut: p.SittingOut, Kicked: p.Kicked,
 		})
+	}
+	for _, v := range s.KickVotes {
+		kv := &kickVote{target: v.Target, startedBy: v.StartedBy, yes: map[string]bool{}, no: map[string]bool{}}
+		for _, id := range v.Yes {
+			kv.yes[id] = true
+		}
+		for _, id := range v.No {
+			kv.no[id] = true
+		}
+		r.kickVotes = append(r.kickVotes, kv)
 	}
 	if s.Hand != nil {
 		h, err := engine.Replay(*s.Hand)

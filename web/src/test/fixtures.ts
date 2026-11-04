@@ -45,6 +45,7 @@ export function state(over: Partial<State> = {}): State {
     variants: ['holdem'],
     chat: [],
     reactions: [],
+    kickVotes: [],
     now: Date.now(),
     ...over,
   }

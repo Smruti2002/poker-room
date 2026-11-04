@@ -12,6 +12,8 @@ export interface RoomConn {
   joinError: string | null
   /** True when the room no longer exists, e.g. after a server restart. */
   gone: boolean
+  /** True when the other players voted this player out of the room. */
+  removed: boolean
   /** True once we hold a session token for this room. */
   hasSession: boolean
   /** Server clock minus local clock, for countdowns. */
@@ -47,6 +49,7 @@ export function useRoom(code: string): RoomConn {
   const [clockOffset, setClockOffset] = useState(0)
   const [pendingName, setPendingName] = useState<string | null>(null)
   const [gone, setGone] = useState(false)
+  const [removed, setRemoved] = useState(false)
   const [history, setHistory] = useState<HistoryHand[] | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
 
@@ -88,6 +91,13 @@ export function useRoom(code: string): RoomConn {
             break
           case 'history':
             setHistory(msg.history ?? [])
+            break
+          case 'removed':
+            // Voted out: this seat is gone for good.
+            stopped = true
+            clearToken(code)
+            setStatus('idle')
+            setRemoved(true)
             break
           case 'error':
             if (!welcomed) {
@@ -164,6 +174,7 @@ export function useRoom(code: string): RoomConn {
     error,
     joinError,
     gone,
+    removed,
     hasSession: token !== null,
     clockOffset,
     join: (name: string) => {
