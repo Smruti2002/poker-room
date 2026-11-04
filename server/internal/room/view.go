@@ -50,6 +50,7 @@ func (r *Room) View(viewer string) protocol.State {
 		}
 	}
 
+	callouts := betCallouts(h)
 	for _, p := range r.players {
 		v := protocol.PlayerView{
 			ID:         p.ID,
@@ -72,6 +73,7 @@ func (r *Room) View(viewer string) protocol.State {
 			v.Bet = hp.Street
 			v.Mult = hp.Mult
 			v.Won = hp.Won
+			v.LastBet = callouts[i]
 			v.HoleCount = len(hp.Hole)
 			v.Picked = hp.Picked
 			// Others only learn that a split is locked in; the pairs are

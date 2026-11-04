@@ -40,6 +40,11 @@ export const sounds = {
     tone(1800, 0, 0.05, 0.08, 'triangle')
     tone(2400, 0.03, 0.04, 0.05, 'triangle')
   },
+  /** A firmer double knock: someone bet or raised. */
+  raise() {
+    tone(330, 0, 0.09, 0.14, 'square')
+    tone(440, 0.1, 0.12, 0.12, 'square')
+  },
   /** A little arpeggio: you won. */
   win() {
     ;[523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.09, 0.25, 0.12))
