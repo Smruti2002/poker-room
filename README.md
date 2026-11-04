@@ -100,16 +100,28 @@ fly deploy --ha=false
 
 If the app name is taken, choose another and change it in `fly.toml` and `.github/workflows/deploy.yml`.
 
-After that, deploys are manual: merging to `main` never deploys on its own, since each deploy restarts the server and briefly disconnects anyone playing. To ship the latest `main`, open **Actions → Deploy → Run workflow** on GitHub, or:
+After that, deploys are manual: merging to `main` never deploys on its own, since each deploy restarts the server and briefly disconnects anyone playing.
+
+**Releasing (the usual way).** Publish a GitHub release with a version tag. That exact commit is deployed, the site reports the tag as its version (`/healthz`), and the release notes list the PRs merged since the last one:
+
+```bash
+gh release create v0.2.0 --target main --generate-notes
+```
+
+Use the next version number each time: bump the last number for fixes (`v0.2.1`) and the middle one for new features (`v0.3.0`). To roll back, open **Actions → Deploy**, find the run for the release you want back, and choose **Re-run all jobs**.
+
+**Deploying the latest `main` without a release:** open **Actions → Deploy → Run workflow**, or:
 
 ```bash
 gh workflow run deploy.yml
 ```
 
-It refuses to deploy a commit CI hasn't passed on, and smoke-tests the live site afterwards. It needs a `FLY_API_TOKEN` repository secret, created once with:
+Either way it refuses to deploy a commit CI hasn't passed on, and smoke-tests the live site afterwards. The repository's **Deployments → production** shows what's live and links to the site.
+
+The Fly token is a secret of the `production` environment, which only `main` and `v*` tags may use; only admins can create `v*` tags. Create it once with:
 
 ```bash
-fly tokens create deploy --app poker-room-smruti | gh secret set FLY_API_TOKEN
+fly tokens create deploy --app poker-room-smruti | gh secret set FLY_API_TOKEN --env production
 ```
 
 To stop everything between game nights, and start it again:

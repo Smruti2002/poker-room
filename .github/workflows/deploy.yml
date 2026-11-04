@@ -1,11 +1,19 @@
 name: Deploy
 
-# Deploys to Fly.io only when you ask: Actions → Deploy → Run workflow.
-# Merges to main never deploy on their own, because each deploy restarts
-# the server and briefly disconnects anyone playing. It deploys the latest
-# main, but only if CI passed on that exact commit, then smoke-tests the
+# Deploys to Fly.io only when you ask, never on a merge (each deploy
+# restarts the server and briefly disconnects anyone playing):
+#   - Publish a release (tag v1.2.3): that exact version goes live, and the
+#     site reports it as its version.
+#   - Or Actions → Deploy → Run workflow on main: the latest main goes live.
+# Either way it only deploys a commit CI passed on, then smoke-tests the
 # live site.
+#
+# The Fly token lives in the "production" environment, which only main and
+# v* tags may use (and only admins can create v* tags), so no other branch
+# can reach it.
 on:
+  release:
+    types: [published]
   workflow_dispatch:
 
 concurrency:
@@ -23,7 +31,10 @@ jobs:
   deploy:
     name: Deploy to Fly.io
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: production
+      url: https://poker-room-smruti.fly.dev
     steps:
       - name: CI passed on this commit
         env:
@@ -33,23 +44,26 @@ jobs:
             --json status,conclusion -q '.[0] | "\(.status) \(.conclusion)"')
           echo "CI for ${GITHUB_SHA::7}: ${result:-no run}"
           if [ "$result" != "completed success" ]; then
-            echo "::error::CI hasn't passed on ${GITHUB_SHA::7} yet. Wait for it (or fix it), then run Deploy again."
+            echo "::error::CI hasn't passed on ${GITHUB_SHA::7}. Release or deploy a commit from main that CI passed on."
             exit 1
           fi
       - uses: actions/checkout@v5
       - name: Version
         id: version
-        run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+        # A release deploys as its tag (v1.2.3); a manual deploy as the commit.
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then v="$GITHUB_REF_NAME"; else v=$(git rev-parse --short HEAD); fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - name: Deploy
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         # --ha=false: exactly one machine, never a second one.
-        run: flyctl deploy --remote-only --ha=false --build-arg VERSION=${{ steps.version.outputs.sha }}
+        run: flyctl deploy --remote-only --ha=false --build-arg VERSION=${{ steps.version.outputs.version }}
       - uses: actions/setup-go@v6
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
       - name: Smoke-test the live site
         working-directory: server
-        run: go run ./cmd/smoke -url "$APP_URL" -version ${{ steps.version.outputs.sha }}
+        run: go run ./cmd/smoke -url "$APP_URL" -version ${{ steps.version.outputs.version }}
