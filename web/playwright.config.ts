@@ -22,7 +22,8 @@ export default defineConfig({
     { name: 'phone', use: { ...devices['Pixel 7'] }, grep: /@phone/ },
   ],
   webServer: {
-    command: `cd .. && make build >/dev/null && PORT=${port} STATIC_DIR=web/dist ./bin/server`,
+    // Many tests create rooms from one address, so lift the per-IP limit.
+    command: `cd .. && make build >/dev/null && PORT=${port} STATIC_DIR=web/dist ROOMS_PER_MINUTE=1000 ./bin/server`,
     url: `http://localhost:${port}/healthz`,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/coder/websocket"
@@ -24,12 +25,30 @@ type Server struct {
 	// "localhost:5173"). Same-origin requests are always allowed.
 	OriginPatterns []string
 	Log            *slog.Logger
+	// TrustProxy reads the client IP from Fly-Client-IP (set it only behind
+	// Fly.io's proxy, which overwrites the header).
+	TrustProxy bool
+	// RoomsPerMinute limits room creation per IP (default 10).
+	RoomsPerMinute float64
+
+	createOnce    sync.Once
+	createLimiter *ipLimiter
 }
 
 const (
 	helloTimeout = 10 * time.Second
 	writeTimeout = 10 * time.Second
 	maxMessage   = 8 << 10
+	// pingEvery keeps connections alive through proxies and notices phones
+	// that went to sleep, so their seat shows as offline.
+	pingEvery = 25 * time.Second
+
+	// Per connection: a short burst is fine; sustained flooding is dropped
+	// and, if it keeps up, disconnected.
+	msgRate            = 10.0 // messages per second
+	msgBurst           = 30.0
+	maxDropped         = 200
+	defaultRoomsPerMin = 10.0 // room creations per IP
 )
 
 // Register adds the routes to mux.
@@ -49,12 +68,27 @@ type createResp struct {
 }
 
 func (s *Server) createRoom(w http.ResponseWriter, r *http.Request) {
+	s.createOnce.Do(func() {
+		n := s.RoomsPerMinute
+		if n <= 0 {
+			n = defaultRoomsPerMin
+		}
+		s.createLimiter = newIPLimiter(n, n)
+	})
+	if !s.createLimiter.allow(s.clientIP(r), time.Now()) {
+		httpError(w, http.StatusTooManyRequests, "too many new rooms, try again in a minute")
+		return
+	}
 	var req createReq
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&req); err != nil {
 		httpError(w, http.StatusBadRequest, "invalid request")
 		return
 	}
 	code, token, err := s.Rooms.Create(req.Name)
+	if errors.Is(err, room.ErrTooManyRooms) {
+		httpError(w, http.StatusServiceUnavailable, err.Error())
+		return
+	}
 	if err != nil {
 		httpError(w, http.StatusBadRequest, err.Error())
 		return
@@ -104,6 +138,8 @@ func (s *Server) serveWS(w http.ResponseWriter, r *http.Request) {
 
 	go s.writeLoop(ctx, conn, c)
 
+	var limit bucket
+	dropped := 0
 	for {
 		var m protocol.ClientMsg
 		if err := wsjson.Read(ctx, conn, &m); err != nil {
@@ -116,13 +152,30 @@ func (s *Server) serveWS(w http.ResponseWriter, r *http.Request) {
 		if m.Type == protocol.MsgJoin || m.Type == protocol.MsgResume {
 			continue // already identified
 		}
+		if !limit.allow(time.Now(), msgRate, msgBurst) {
+			if dropped++; dropped > maxDropped {
+				_ = conn.Close(websocket.StatusPolicyViolation, "too many messages")
+				return
+			}
+			continue
+		}
 		a.Submit(c, m)
 	}
 }
 
 func (s *Server) writeLoop(ctx context.Context, conn *websocket.Conn, c *room.Client) {
+	ping := time.NewTicker(pingEvery)
+	defer ping.Stop()
 	for {
 		select {
+		case <-ping.C:
+			pctx, cancel := context.WithTimeout(ctx, writeTimeout)
+			err := conn.Ping(pctx)
+			cancel()
+			if err != nil {
+				_ = conn.CloseNow() // the reader then fails and the seat goes offline
+				return
+			}
 		case b := <-c.Send():
 			wctx, cancel := context.WithTimeout(ctx, writeTimeout)
 			err := conn.Write(wctx, websocket.MessageText, b)

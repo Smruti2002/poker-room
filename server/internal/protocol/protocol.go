@@ -14,12 +14,13 @@ const (
 	MsgTakeLoan       = "takeLoan"       // broke player, between hands
 	MsgSitOut         = "sitOut"
 	MsgSitIn          = "sitIn"
-	MsgEndGame        = "endGame"  // host only
-	MsgChat           = "chat"     // Text: a chat message to the table
-	MsgReact          = "react"    // Emoji: a quick reaction shown over your seat
-	MsgHistory        = "history"  // ask for the recent hand history (sent only to you)
-	MsgNextHand       = "nextHand" // any player, once a hand is over
-	MsgSkip           = "skip"     // host only: Target gets the default move
+	MsgEndGame        = "endGame"   // host only
+	MsgChat           = "chat"      // Text: a chat message to the table
+	MsgReact          = "react"     // Emoji: a quick reaction shown over your seat
+	MsgHistory        = "history"   // ask for the recent hand history (sent only to you)
+	MsgNextHand       = "nextHand"  // any player, once a hand is over
+	MsgSkip           = "skip"      // host only: Target gets the default move
+	MsgClaimHost      = "claimHost" // become host while the host is offline
 )
 
 // ClientMsg is sent by the browser. The first message on a connection must

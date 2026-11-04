@@ -293,6 +293,19 @@ test('chat, reactions and hand history @phone', async ({ browser }) => {
   await expect(ann.locator('.history summary').first()).toContainText(/#1 Texas Hold'em · .+ \+\d+/)
 })
 
+test('if the host leaves, another player can become host @phone', async ({ browser }) => {
+  const { page: ann, link } = await createRoom(browser, 'Ann')
+  const bob = await joinByLink(browser, link, 'Bob')
+  await joinByLink(browser, link, 'Cy')
+  await expect(bob.getByText('Waiting for the host to start…')).toBeVisible()
+  await expect(bob.getByRole('button', { name: 'Become host' })).toHaveCount(0)
+
+  await ann.context().close() // the host walks away
+  await bob.getByRole('button', { name: 'Become host' }).click()
+  await expect(bob.getByRole('button', { name: 'Start game' })).toBeEnabled()
+  await expect(bob.getByRole('button', { name: 'Become host' })).toHaveCount(0)
+})
+
 test('a player who refreshes keeps their seat and cards', async ({ browser }) => {
   const { page: ann, link } = await createRoom(browser, 'Ann')
   const bob = await joinByLink(browser, link, 'Bob')

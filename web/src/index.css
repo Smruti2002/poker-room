@@ -1126,3 +1126,16 @@ details[open] > summary {
   justify-self: start;
   min-width: 8rem;
 }
+
+/* The host has gone offline: anyone can take over. */
+.host-away {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.5rem 1rem;
+  background: #3a2f12;
+  border-bottom: 1px solid var(--accent);
+  font-size: 0.9rem;
+}

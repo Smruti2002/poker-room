@@ -223,6 +223,8 @@ func (r *Room) Handle(pid string, m protocol.ClientMsg) error {
 		return r.startNextHand()
 	case protocol.MsgSkip:
 		return r.skip(p, m.Target)
+	case protocol.MsgClaimHost:
+		return r.claimHost(p)
 	}
 	return ErrUnknownMsg
 }
@@ -474,6 +476,19 @@ func (r *Room) takeLoan(p *Player) error {
 // Profit is the player's score: stack − starting stack − debt.
 func (r *Room) Profit(p *Player) int64 {
 	return p.Stack - r.settings.StartingStack - p.Debt
+}
+
+// claimHost makes p the host when the current host is offline, so a game
+// isn't stuck without anyone who can skip, start or end it.
+func (r *Room) claimHost(p *Player) error {
+	if p.ID == r.hostID {
+		return errors.New("you're already the host")
+	}
+	if host := r.player(r.hostID); host != nil && host.Connections > 0 {
+		return errors.New("the host is still here")
+	}
+	r.hostID = p.ID
+	return nil
 }
 
 // skip lets the host move the game on when it's waiting for someone: the

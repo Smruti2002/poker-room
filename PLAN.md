@@ -258,12 +258,15 @@ Each milestone ends with a **demo** and a **green test gate**. Don't start the n
 - **Changed after playtesting (2026-11-04):** all timers removed. The table waits for players; the result stays until anyone taps "Next hand"; the host can skip a stuck player (default move). The turn-timer setting is gone.
 - **Deferred:** oval seat layout (the grid reads better on phones with up to 10 players) and screenshot-diff tests (baselines differ between macOS and CI Linux). The 5+ friends playtest is still to do.
 
-### M8 — Hardening (≈1 week)
+### M8 — Hardening (≈1 week) ✅
 - Disconnect grace period (60 s, then auto-fold/sit-out), host transfer, room cleanup after inactivity, per-connection rate limits, message size limits, origin check.
 - Optional Redis snapshots after each hand, so a deploy doesn't wipe active rooms.
 - Structured logs, Prometheus metrics (rooms, connections, hands/min, action latency), `/healthz`.
 - **Tests:** chaos tests (kill a connection mid-action, duplicate messages, out-of-order seq), k6 load test, restart-recovery test with Redis.
 - **Gate:** load target met (§4). No panics in a 24 h soak run with bots.
+- **Done (2026-11-04):** rooms saved to a JSON file (`SNAPSHOT_PATH`) every 30s and on shutdown, and restored at start by replaying each hand's log, so even a hand in progress survives a redeploy; a test restores from every state of 40 random games across all variants. Host handoff ("Become host" when the host is offline; no timers, per the playtest decision). Idle-room cleanup, a room cap, per-connection message limits, per-IP room-creation limits, WebSocket heartbeats, and room/connection counts in `/healthz`.
+- **Changed:** a file snapshot instead of Redis (one server is plenty for now). No disconnect auto-fold: the host's Skip covers it.
+- **Deferred:** the k6 load test, a 24h bot soak run and Prometheus metrics. Worth doing before inviting many people.
 
 ### M9 — Deploy (≈3 days)
 - Multi-stage Dockerfile: build the web app → embed it into the Go binary → `distroless` image (~20 MB).

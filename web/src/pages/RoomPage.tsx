@@ -5,6 +5,7 @@ import { Lobby } from '../components/Lobby.tsx'
 import { Table } from '../components/Table.tsx'
 import { useGameSounds } from '../gameSounds.ts'
 import { usePrefs } from '../prefs.ts'
+import type { State } from '../protocol/types.ts'
 import { useRoom } from '../useRoom.ts'
 
 export function RoomPage({ code }: { code: string }) {
@@ -69,6 +70,7 @@ export function RoomPage({ code }: { code: string }) {
           </span>
         )}
       </nav>
+      {s && <HostAway state={s} onClaim={() => room.send({ type: 'claimHost' })} />}
       {room.error && (
         <div className="toast" role="alert" onClick={room.dismissError}>
           {room.error}
@@ -135,5 +137,22 @@ function JoinForm({
         )}
       </form>
     </main>
+  )
+}
+
+/**
+ * When the host is offline nobody can start, skip or end the game, so anyone
+ * still here can take over. There's no timer: it's offered straight away.
+ */
+function HostAway({ state, onClaim }: { state: State; onClaim: () => void }) {
+  const host = state.players.find((p) => p.id === state.hostId)
+  if (!host || host.connected || state.you === state.hostId || state.phase === 'ended') return null
+  return (
+    <div className="host-away" role="status">
+      <span>{host.name} (the host) is offline.</span>
+      <button className="btn btn-small btn-primary" onClick={onClaim}>
+        Become host
+      </button>
+    </div>
   )
 }

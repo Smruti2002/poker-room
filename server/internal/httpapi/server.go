@@ -20,6 +20,8 @@ type Config struct {
 	Version   string
 	// Routes registers extra handlers, such as the room API.
 	Routes func(*http.ServeMux)
+	// Stats, if set, adds load figures (rooms, connections) to /healthz.
+	Stats func() any
 }
 
 // NewHandler returns the root handler for the server.
@@ -28,11 +30,15 @@ func NewHandler(cfg Config, log *slog.Logger) http.Handler {
 	started := time.Now()
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{
+		body := map[string]any{
 			"status":  "ok",
 			"version": cfg.Version,
 			"uptimeS": int(time.Since(started).Seconds()),
-		})
+		}
+		if cfg.Stats != nil {
+			body["stats"] = cfg.Stats()
+		}
+		writeJSON(w, http.StatusOK, body)
 	})
 
 	if cfg.Routes != nil {

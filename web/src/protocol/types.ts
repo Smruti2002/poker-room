@@ -70,6 +70,10 @@ export const MsgNextHand = "nextHand"; // any player, once a hand is over
  */
 export const MsgSkip = "skip"; // host only: Target gets the default move
 /**
+ * Client message types.
+ */
+export const MsgClaimHost = "claimHost"; // become host while the host is offline
+/**
  * ClientMsg is sent by the browser. The first message on a connection must
  * be join or resume.
  */

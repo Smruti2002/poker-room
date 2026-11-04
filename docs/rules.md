@@ -16,7 +16,8 @@ All chips are virtual. Chip amounts are always whole numbers.
    3. The hand runs according to the chosen variant.
    4. When the hand ends, the result (who won, how much, and with which five cards) stays on screen until any player taps **Next hand**.
 4. Between hands, broke players may take a [loan](#3-loans).
-5. The host ends the game whenever they want. The leaderboard ranks players by **profit = stack − starting stack − debt**. 0 means the player broke even, a positive number means they are up, and a negative one means they are down.
+5. If the host goes offline, any player still in the room can **become host**, so the game can still be started, skipped or ended.
+6. The host ends the game whenever they want. The leaderboard ranks players by **profit = stack − starting stack − debt**. 0 means the player broke even, a positive number means they are up, and a negative one means they are down.
 
 ## 2. Room settings
 
