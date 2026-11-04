@@ -51,6 +51,7 @@ type Actor struct {
 	quit     chan struct{}
 	stopOnce sync.Once
 	clients  map[*Client]bool
+	mgr      *Manager // for opening a new room after a game; nil in some tests
 	log      *slog.Logger
 	now      func() time.Time
 	lastSeen time.Time // last connect, disconnect or message, for idle cleanup
@@ -181,6 +182,12 @@ func (a *Actor) Submit(c *Client, m protocol.ClientMsg) {
 			return
 		}
 		a.lastSeen = a.now()
+		if m.Type == protocol.MsgRematch {
+			if err := a.rematch(c.playerID); err != nil {
+				a.sendTo(c, protocol.ServerMsg{Type: protocol.MsgError, Error: err.Error()})
+			}
+			return
+		}
 		if m.Type == protocol.MsgHistory {
 			// Only for the asker; nothing in the room changes.
 			a.sendTo(c, protocol.ServerMsg{Type: protocol.MsgHistoryReply, History: a.room.History(c.playerID)})
@@ -290,29 +297,51 @@ func (m *Manager) Create(hostName string) (code, token string, err error) {
 	if _, err := cleanName(hostName); err != nil {
 		return "", "", err
 	}
+	code, tokens, err := m.create(nil, []string{hostName})
+	if err != nil {
+		return "", "", err
+	}
+	return code, tokens[0], nil
+}
+
+// create opens a room with the given settings (nil for the defaults) and
+// seats names in order, the first as host. It returns each player's token.
+func (m *Manager) create(settings *protocol.Settings, names []string) (code string, tokens []string, err error) {
 	m.mu.Lock()
 	if len(m.rooms) >= m.MaxRooms {
 		m.mu.Unlock()
-		return "", "", ErrTooManyRooms
+		return "", nil, ErrTooManyRooms
 	}
 	for code == "" || m.rooms[code] != nil {
 		code = newCode()
 	}
-	a := newActor(New(code, m.opts), m.log)
+	r := New(code, m.opts)
+	if settings != nil {
+		r.settings = *settings
+	}
+	a := newActor(r, m.log)
+	a.mgr = m
 	m.rooms[code] = a
 	m.mu.Unlock()
 
 	a.call(func() {
-		var p *Player
-		if p, err = a.room.Join(hostName); err == nil {
-			token = p.Token
+		for _, name := range names {
+			var p *Player
+			if p, err = a.room.Join(name); err != nil {
+				return
+			}
+			tokens = append(tokens, p.Token)
 		}
 	})
 	if err != nil {
-		return "", "", fmt.Errorf("creating room: %w", err)
+		m.mu.Lock()
+		delete(m.rooms, code)
+		m.mu.Unlock()
+		a.stop()
+		return "", nil, fmt.Errorf("creating room: %w", err)
 	}
 	m.log.Info("room created", "room", code)
-	return code, token, nil
+	return code, tokens, nil
 }
 
 // Get finds a room by code, ignoring case.
@@ -430,7 +459,9 @@ func (m *Manager) LoadAll(path string) (int, error) {
 		}
 		m.mu.Lock()
 		if m.rooms[r.Code] == nil {
-			m.rooms[r.Code] = newActor(r, m.log)
+			a := newActor(r, m.log)
+			a.mgr = m
+			m.rooms[r.Code] = a
 			loaded++
 		}
 		m.mu.Unlock()

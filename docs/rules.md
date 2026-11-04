@@ -18,6 +18,7 @@ All chips are virtual. Chip amounts are always whole numbers.
 4. Between hands, broke players may take a [loan](#3-loans).
 5. If the host goes offline, any player still in the room can **become host**, so the game can still be started, skipped or ended.
 6. The host ends the game whenever they want. The leaderboard ranks players by **profit = stack − starting stack − debt**. 0 means the player broke even, a positive number means they are up, and a negative one means they are down.
+7. After the game, the host can tap **New game with same players**. It opens a new room with the same settings and everyone already seated, with fresh stacks and no debt, and moves every player there. Anyone who was away is moved when they next open the old link.
 
 ## 2. Room settings
 

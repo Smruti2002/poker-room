@@ -544,3 +544,30 @@ describe('No timers: Next hand and Skip', () => {
     expect(send).toHaveBeenCalledWith({ type: 'nextHand' })
   })
 })
+
+describe('Game over', () => {
+  const ended = (you: string) =>
+    state({
+      phase: 'ended',
+      you,
+      players: [player({ id: 'p1', name: 'Ann' }), player({ id: 'p2', name: 'Bob' })],
+      leaderboard: [
+        { id: 'p1', name: 'Ann', profit: 300 },
+        { id: 'p2', name: 'Bob', profit: -300 },
+      ],
+    })
+
+  it('lets the host start a new game with the same players', () => {
+    const send = vi.fn()
+    render(<Table state={ended('p1')} clockOffset={0} onAct={vi.fn()} send={send} />)
+    expect(screen.getByText('Game over')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'New game with same players' }))
+    expect(send).toHaveBeenCalledWith({ type: 'rematch' })
+  })
+
+  it('tells everyone else the host can start one', () => {
+    render(<Table state={ended('p2')} clockOffset={0} onAct={vi.fn()} send={vi.fn()} />)
+    expect(screen.queryByRole('button', { name: 'New game with same players' })).toBeNull()
+    expect(screen.getByText(/Ann \(the host\) can start a new game/)).toBeInTheDocument()
+  })
+})

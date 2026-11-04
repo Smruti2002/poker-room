@@ -65,6 +65,11 @@ type Room struct {
 
 	endAfterHand bool
 
+	// Set when the host starts a new game with the same players: the new
+	// room's code, and each player's session token there.
+	nextCode   string
+	nextTokens map[string]string
+
 	chat      []protocol.ChatLine
 	chatID    int
 	chatTimes map[string][]time.Time // recent messages per player, for rate limiting

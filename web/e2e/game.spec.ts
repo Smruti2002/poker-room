@@ -359,3 +359,45 @@ test('a taken name is rejected on join', async ({ browser }) => {
   await imposter.getByRole('button', { name: 'Join' }).click()
   await expect(imposter.getByRole('alert')).toContainText('taken')
 })
+
+test('after a game, the host starts a new one with the same players and settings @phone', async ({ browser }) => {
+  const { page: ann, link } = await createRoom(browser, 'Ann')
+  const bob = await joinByLink(browser, link, 'Bob')
+  const cy = await joinByLink(browser, link, 'Cy')
+  await ann.getByLabel('Starting stack').fill('5000')
+  await onlyVariants(ann, ['Omaha', 'Dacoit']) // two, so the game ends at the dealer's choice
+  await ann.getByRole('button', { name: 'Start game' }).click()
+
+  ann.once('dialog', (d) => d.accept())
+  await ann.getByRole('button', { name: 'End game' }).click()
+  await expect(status(bob)).toHaveText('Game over')
+  await expect(bob.getByText('Ann (the host) can start a new game')).toBeVisible()
+  await expect(bob.getByRole('button', { name: 'New game with same players' })).toHaveCount(0)
+
+  await cy.goto('about:blank') // Cy has stepped away
+  await ann.getByRole('button', { name: 'New game with same players' }).click()
+
+  // Ann and Bob land in the new room's lobby, already seated.
+  await expect(ann).not.toHaveURL(link)
+  await expect(ann).toHaveURL(/\/r\/[A-Z0-9]{6}$/)
+  const next = ann.url()
+  await expect(bob).toHaveURL(next)
+  for (const page of [ann, bob]) {
+    await expect(page.getByLabel('Your name')).toHaveCount(0) // no join form
+    await expect(page.locator('.lobby-players li')).toHaveText([/^Ann/, /^Bob/, /^Cy/])
+  }
+  // Same settings, and Ann is still the host.
+  await expect(ann.getByLabel('Starting stack')).toHaveValue('5000')
+  await expect(ann.getByRole('checkbox', { name: 'Omaha', exact: true })).toBeChecked()
+  await expect(ann.getByRole('checkbox', { name: 'Dacoit', exact: true })).toBeChecked()
+  await expect(ann.getByRole('checkbox', { name: "Texas Hold'em", exact: true })).not.toBeChecked()
+  await expect(ann.getByRole('button', { name: 'Start game' })).toBeEnabled()
+
+  // Cy comes back to the old link and is sent on too.
+  await cy.goto(link)
+  await expect(cy).toHaveURL(next)
+  await expect(cy.getByLabel('Your name')).toHaveCount(0)
+  await ann.getByRole('button', { name: 'Start game' }).click()
+  await expect(cy.locator('.seat-me')).toContainText('Cy')
+  await expect(cy.locator('.seat-me .seat-stack')).toContainText('5000')
+})
