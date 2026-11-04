@@ -14,14 +14,16 @@ const (
 	MsgTakeLoan       = "takeLoan"       // broke player, between hands
 	MsgSitOut         = "sitOut"
 	MsgSitIn          = "sitIn"
-	MsgEndGame        = "endGame"   // host only
-	MsgChat           = "chat"      // Text: a chat message to the table
-	MsgReact          = "react"     // Emoji: a quick reaction shown over your seat
-	MsgHistory        = "history"   // ask for the recent hand history (sent only to you)
-	MsgNextHand       = "nextHand"  // any player, once a hand is over
-	MsgSkip           = "skip"      // host only: Target gets the default move
-	MsgClaimHost      = "claimHost" // become host while the host is offline
-	MsgRematch        = "rematch"   // host only, after the game: a new room with the same players
+	MsgEndGame        = "endGame"    // host only
+	MsgChat           = "chat"       // Text: a chat message to the table
+	MsgReact          = "react"      // Emoji: a quick reaction shown over your seat
+	MsgHistory        = "history"    // ask for the recent hand history (sent only to you)
+	MsgNextHand       = "nextHand"   // any player, once a hand is over
+	MsgSkip           = "skip"       // host only: Target gets the default move
+	MsgClaimHost      = "claimHost"  // become host while the host is offline
+	MsgRematch        = "rematch"    // host only, after the game: a new room with the same players
+	MsgVoteKick       = "voteKick"   // Target, Yes: start or answer a vote to remove a player
+	MsgCancelKick     = "cancelKick" // Target: whoever started the vote withdraws it
 )
 
 // ClientMsg is sent by the browser. The first message on a connection must
@@ -35,7 +37,8 @@ type ClientMsg struct {
 	Action   *Action   `json:"action,omitempty"`
 	Text     string    `json:"text,omitempty"`
 	Emoji    string    `json:"emoji,omitempty"`
-	Target   string    `json:"target,omitempty"` // player ID, for skip
+	Target   string    `json:"target,omitempty"` // player ID, for skip and kick votes
+	Yes      bool      `json:"yes,omitempty"`    // a kick vote's answer
 }
 
 // Action is a betting action. To is the street total for bet/raise, in units.
@@ -54,6 +57,7 @@ const (
 	MsgState        = "state"   // full room snapshot for this viewer
 	MsgError        = "error"   // a request failed; Error says why
 	MsgHistoryReply = "history" // History: recent hands, as this viewer may see them
+	MsgRemoved      = "removed" // the other players voted this player out of the room
 )
 
 // ServerMsg is sent to the browser.
@@ -117,6 +121,8 @@ type State struct {
 	// NextRoom is set once the host has started a new game with the same
 	// players; the client moves there.
 	NextRoom *NextRoom `json:"nextRoom,omitempty"`
+	// KickVotes are the votes in progress, oldest first.
+	KickVotes []KickVote `json:"kickVotes"`
 }
 
 // NextRoom is where the players went after a game ended. Token is this
@@ -163,6 +169,9 @@ type PlayerView struct {
 	Connected  bool   `json:"connected"`
 	SittingOut bool   `json:"sittingOut"`
 	Broke      bool   `json:"broke"` // no chips; may take a loan
+	// Kicked players were voted out; they stay listed for the leaderboard
+	// and until a hand they were in has finished.
+	Kicked bool `json:"kicked,omitempty"`
 	// The fields below describe the current or last hand.
 	InHand bool  `json:"inHand"`
 	Dealer bool  `json:"dealer"`
@@ -265,4 +274,15 @@ type Standing struct {
 	ID     string `json:"id"`
 	Name   string `json:"name"`
 	Profit int64  `json:"profit"`
+	Kicked bool   `json:"kicked,omitempty"`
+}
+
+// KickVote is an open vote to remove Target from the room. It passes once
+// Needed of the connected players other than Target have voted yes.
+type KickVote struct {
+	Target    string   `json:"target"`
+	StartedBy string   `json:"startedBy"`
+	Yes       []string `json:"yes"`
+	No        []string `json:"no"`
+	Needed    int      `json:"needed"`
 }

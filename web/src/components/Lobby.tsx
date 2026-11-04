@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import type { Settings, State } from '../protocol/types.ts'
+import type { ClientMsg, Settings, State } from '../protocol/types.ts'
+import { KickButton } from './KickVotes.tsx'
 import { variantName } from '../variants.ts'
 
 interface Props {
   state: State
   onSave: (s: Settings) => void
   onStart: () => void
+  send: (m: ClientMsg) => void
 }
 
 type NumberField = Exclude<keyof Settings, 'variants' | 'potLimit' | 'hints'>
@@ -20,8 +22,9 @@ const FIELDS: { key: NumberField; label: string; min: number; max: number; hint?
   { key: 'maxPlayers', label: 'Max players', min: 2, max: 10 },
 ]
 
-export function Lobby({ state, onSave, onStart }: Props) {
+export function Lobby({ state, onSave, onStart, send }: Props) {
   const isHost = state.you === state.hostId
+  const seated = state.players.filter((p) => !p.kicked)
   const [draft, setDraft] = useState<Settings>(state.settings)
   const dirty = isHost && JSON.stringify(draft) !== JSON.stringify(state.settings)
   // Only the host edits; everyone else sees the live settings.
@@ -56,22 +59,23 @@ export function Lobby({ state, onSave, onStart }: Props) {
           </button>
         </div>
         <h3>
-          Players ({state.players.length}/{state.settings.maxPlayers})
+          Players ({seated.length}/{state.settings.maxPlayers})
         </h3>
         <ul className="lobby-players">
-          {state.players.map((p) => (
+          {seated.map((p) => (
             <li key={p.id}>
               {p.name}
               {p.id === state.hostId && <span className="tag">host</span>}
               {p.id === state.you && <span className="tag">you</span>}
               {!p.connected && <span className="tag tag-muted">offline</span>}
+              <KickButton p={p} state={state} send={send} />
             </li>
           ))}
         </ul>
         {isHost ? (
           <button
             className="btn btn-primary"
-            disabled={state.players.length < 2 || dirty}
+            disabled={seated.length < 2 || dirty}
             onClick={onStart}
             title={dirty ? 'Save settings first' : undefined}
           >

@@ -159,6 +159,8 @@ func (a *Actor) Connect(c *Client, m protocol.ClientMsg) error {
 			err = nil
 			if p = a.room.PlayerByToken(m.Token); p == nil {
 				err = errors.New("unknown session, please join again")
+			} else if p.Kicked {
+				err = ErrKicked
 			}
 		default:
 			err = errors.New("first message must be join or resume")
@@ -169,6 +171,7 @@ func (a *Actor) Connect(c *Client, m protocol.ClientMsg) error {
 		c.playerID = p.ID
 		p.Connections++
 		a.clients[c] = true
+		a.room.resolveKicks() // one more voter changes the majority
 		a.lastSeen = a.now()
 		a.sendTo(c, protocol.ServerMsg{Type: protocol.MsgWelcome, Token: p.Token, PlayerID: p.ID})
 	})
@@ -214,11 +217,24 @@ func (a *Actor) drop(c *Client) {
 	delete(a.clients, c)
 	if p := a.room.player(c.playerID); p != nil {
 		p.Connections--
+		a.room.resolveKicks() // one fewer voter changes the majority
 	}
 	c.close()
 }
 
 func (a *Actor) broadcast() {
+	// Disconnect anyone voted out first. Dropping them can settle another
+	// vote, so repeat until nobody is left to remove.
+	for removed := true; removed; {
+		removed = false
+		for c := range a.clients {
+			if p := a.room.player(c.playerID); p != nil && p.Kicked {
+				a.sendTo(c, protocol.ServerMsg{Type: protocol.MsgRemoved, Error: ErrKicked.Error()})
+				a.drop(c)
+				removed = true
+			}
+		}
+	}
 	for c := range a.clients {
 		s := a.room.View(c.playerID)
 		a.sendTo(c, protocol.ServerMsg{Type: protocol.MsgState, State: &s})

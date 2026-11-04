@@ -622,9 +622,16 @@ func FuzzRoom(f *testing.F) {
 				_ = h.tryAdvance()
 				continue
 			case 9:
-				if op > 250 {
+				switch {
+				case op > 250:
 					m.Type = protocol.MsgEndGame
-				} else {
+				case op > 200:
+					// Come and go, and vote people out.
+					p.Connections = int(op % 2)
+					target := players[int(op/3)%len(players)]
+					m = protocol.ClientMsg{Type: protocol.MsgVoteKick, Target: target.ID, Yes: op%4 < 2}
+					h.r.resolveKicks()
+				default:
 					m = protocol.ClientMsg{Type: protocol.MsgChooseVariant, Variant: variants[int(op)%len(variants)]}
 				}
 			}

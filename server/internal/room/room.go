@@ -40,6 +40,7 @@ type Player struct {
 	Debt        int64
 	Loans       int
 	SittingOut  bool
+	Kicked      bool // voted out of the room (kick.go)
 	Connections int
 }
 
@@ -69,6 +70,8 @@ type Room struct {
 	// room's code, and each player's session token there.
 	nextCode   string
 	nextTokens map[string]string
+
+	kickVotes []*kickVote // open votes, oldest first
 
 	chat      []protocol.ChatLine
 	chatID    int
@@ -129,7 +132,7 @@ func (r *Room) Join(name string) (*Player, error) {
 	if r.phase == protocol.PhaseEnded {
 		return nil, ErrGameOver
 	}
-	if len(r.players) >= r.settings.MaxPlayers {
+	if r.seated() >= r.settings.MaxPlayers {
 		return nil, ErrRoomFull
 	}
 	for _, p := range r.players {
@@ -198,6 +201,9 @@ func (r *Room) Handle(pid string, m protocol.ClientMsg) error {
 	if p == nil {
 		return errors.New("unknown player")
 	}
+	if p.Kicked {
+		return ErrKicked
+	}
 	switch m.Type {
 	case protocol.MsgUpdateSettings:
 		return r.updateSettings(p, m.Settings)
@@ -230,6 +236,10 @@ func (r *Room) Handle(pid string, m protocol.ClientMsg) error {
 		return r.skip(p, m.Target)
 	case protocol.MsgClaimHost:
 		return r.claimHost(p)
+	case protocol.MsgVoteKick:
+		return r.voteKick(p, m.Target, m.Yes)
+	case protocol.MsgCancelKick:
+		return r.cancelKick(p, m.Target)
 	}
 	return ErrUnknownMsg
 }
@@ -246,8 +256,8 @@ func (r *Room) updateSettings(p *Player, s *protocol.Settings) error {
 	if err := validateSettings(*s, r.variantNames); err != nil {
 		return err
 	}
-	if s.MaxPlayers < len(r.players) {
-		return fmt.Errorf("%d players have already joined", len(r.players))
+	if s.MaxPlayers < r.seated() {
+		return fmt.Errorf("%d players have already joined", r.seated())
 	}
 	r.settings = *s
 	r.settings.Variants = slices.Clone(s.Variants)
@@ -263,7 +273,7 @@ func (r *Room) start(p *Player) error {
 		return ErrNotHost
 	case r.phase != protocol.PhaseLobby:
 		return errors.New("the game has already started")
-	case len(r.players) < 2:
+	case r.seated() < 2:
 		return errors.New("need at least 2 players to start")
 	}
 	r.phase = protocol.PhasePlaying
@@ -327,7 +337,7 @@ func (r *Room) nextHand() {
 func (r *Room) eligible() []*Player {
 	var out []*Player
 	for _, p := range r.players {
-		if !p.SittingOut && p.Stack > 0 {
+		if !p.SittingOut && !p.Kicked && p.Stack > 0 {
 			out = append(out, p)
 		}
 	}
@@ -401,8 +411,15 @@ func (r *Room) deal(variant string) {
 // afterHandChange settles a hand once it's done. There are no timers: the
 // table waits for players, and the host can skip anyone holding it up.
 func (r *Room) afterHandChange() {
-	if !r.hand.Done {
-		return
+	// Players voted out get the default move whenever the hand waits on them.
+	for !r.hand.Done {
+		i := r.kickedAwaited()
+		if i < 0 {
+			return
+		}
+		if err := r.hand.Apply(i, r.defaultMove(i)); err != nil {
+			panic(fmt.Sprintf("default move for a kicked player: %v", err))
+		}
 	}
 	for i, id := range r.handIDs {
 		r.player(id).Stack = r.hand.Players[i].Stack
@@ -510,11 +527,7 @@ func (r *Room) skip(p *Player, target string) error {
 		if target != r.dealerID {
 			return errors.New("the game isn't waiting for that player")
 		}
-		v := r.options[0]
-		if slices.Contains(r.options, r.variant) {
-			v = r.variant
-		}
-		r.deal(v)
+		r.dealDefault()
 		return nil
 	case protocol.StageHand:
 		i := slices.Index(r.handIDs, target)
@@ -531,6 +544,16 @@ func (r *Room) skip(p *Player, target string) error {
 }
 
 // defaultMove is what player i does when skipped.
+// dealDefault deals for a dealer who isn't choosing: the previous variant
+// if allowed, else the first allowed one.
+func (r *Room) dealDefault() {
+	v := r.options[0]
+	if slices.Contains(r.options, r.variant) {
+		v = r.variant
+	}
+	r.deal(v)
+}
+
 func (r *Room) defaultMove(i int) engine.Action {
 	switch l := r.hand.Legal(i); {
 	case l.Allocate:

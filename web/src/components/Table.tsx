@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { Action, ClientMsg, PlayerView, State } from '../protocol/types.ts'
 import { variantName } from '../variants.ts'
 import { ActionBar } from './ActionBar.tsx'
+import { KickButton } from './KickVotes.tsx'
 import { Card, CardBack } from './Card.tsx'
 import { useNow } from './useNow.ts'
 import { ResultBanner } from './ResultBanner.tsx'
@@ -65,7 +66,7 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
         {hand && <ResultBanner state={state} hand={hand} onNext={() => send({ type: 'nextHand' })} />}
 
         <ul className="seats">
-          {state.players.map((p) => (
+          {state.players.filter((p) => !p.kicked || (p.inHand && hand && !hand.done)).map((p) => (
             <Seat key={p.id} p={p} state={state} winning={winning} reaction={reactionOf(p.id)} send={send} />
           ))}
         </ul>
@@ -188,7 +189,10 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
           <ol className="leaderboard">
             {state.leaderboard.map((s) => (
               <li key={s.id}>
-                <span>{s.name}</span>
+                <span>
+                  {s.name}
+                  {s.kicked && <span className="tag tag-muted">removed</span>}
+                </span>
                 <span className={s.profit >= 0 ? 'profit-up' : 'profit-down'}>
                   {s.profit > 0 ? '+' : ''}
                   {s.profit}
@@ -325,7 +329,8 @@ function Seat({
         )}
         {p.allocated && <span className="tag tag-locked">locked in</span>}
         {p.id === state.hostId && <span className="tag">host</span>}
-        {!p.connected && <span className="tag tag-muted">offline</span>}
+        {p.kicked ? <span className="tag tag-muted">removed</span> : !p.connected && <span className="tag tag-muted">offline</span>}
+        <KickButton p={p} state={state} send={send} />
       </div>
       <div className="seat-stack">{p.stack} chips</div>
       {p.inHand && (

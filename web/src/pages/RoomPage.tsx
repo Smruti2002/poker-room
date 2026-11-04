@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getRoom, saveToken } from '../api.ts'
 import { Drawer, type DrawerTab } from '../components/Drawer.tsx'
+import { KickVotes } from '../components/KickVotes.tsx'
 import { Lobby } from '../components/Lobby.tsx'
 import { Table } from '../components/Table.tsx'
 import { useGameSounds } from '../gameSounds.ts'
@@ -40,6 +41,18 @@ export function RoomPage({ code }: { code: string }) {
       .then((r) => setExists(r !== null))
       .catch(() => setExists(true)) // let the WebSocket report real problems
   }, [code])
+
+  if (room.removed) {
+    return (
+      <main className="home">
+        <h1>You were removed</h1>
+        <p className="muted">The other players in room {code.toUpperCase()} voted to remove you, so you can't rejoin it.</p>
+        <a className="btn btn-primary" href="/">
+          New room
+        </a>
+      </main>
+    )
+  }
 
   if (exists === false || room.gone) {
     return (
@@ -81,6 +94,7 @@ export function RoomPage({ code }: { code: string }) {
         )}
       </nav>
       {s && <HostAway state={s} onClaim={() => room.send({ type: 'claimHost' })} />}
+      {s && <KickVotes state={s} send={room.send} />}
       {room.error && (
         <div className="toast" role="alert" onClick={room.dismissError}>
           {room.error}
@@ -89,7 +103,7 @@ export function RoomPage({ code }: { code: string }) {
       {!s ? (
         <p className="muted center">Connecting…</p>
       ) : s.phase === 'lobby' ? (
-        <Lobby state={s} onSave={room.updateSettings} onStart={() => room.send({ type: 'start' })} />
+        <Lobby state={s} onSave={room.updateSettings} onStart={() => room.send({ type: 'start' })} send={room.send} />
       ) : (
         <Table state={s} clockOffset={room.clockOffset} onAct={room.act} send={room.send} />
       )}

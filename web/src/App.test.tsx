@@ -86,4 +86,19 @@ describe('New game with same players', () => {
     expect(FakeSocket.all.at(-1)!.url).toMatch(/\/ws\/NEW222$/)
     expect(await screen.findByText('Room NEW222')).toBeInTheDocument()
   })
+
+  it('shows a removed player that they were voted out, and forgets their seat', async () => {
+    FakeSocket.all = []
+    vi.stubGlobal('WebSocket', FakeSocket)
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => new Response('{"code":"X"}', { status: 200 })))
+    saveToken('OLD111', 'old-token')
+    window.history.pushState(null, '', '/r/OLD111')
+    render(<App />)
+    act(() => {
+      FakeSocket.all[0].receive({ type: 'welcome', playerId: 'p2' })
+      FakeSocket.all[0].receive({ type: 'removed', error: 'removed by a vote' })
+    })
+    expect(await screen.findByRole('heading', { name: 'You were removed' })).toBeInTheDocument()
+    expect(loadToken('OLD111')).toBeNull()
+  })
 })

@@ -27,6 +27,7 @@ func (r *Room) View(viewer string) protocol.State {
 		Now:      r.opts.Now().UnixMilli(),
 	}
 	s.Settings.Variants = slices.Clone(r.settings.Variants)
+	s.KickVotes = r.kickVoteViews()
 	if r.nextCode != "" {
 		s.NextRoom = &protocol.NextRoom{Code: r.nextCode, Token: r.nextTokens[viewer]}
 	}
@@ -59,6 +60,7 @@ func (r *Room) View(viewer string) protocol.State {
 			Profit:     r.Profit(p),
 			Connected:  p.Connections > 0,
 			SittingOut: p.SittingOut,
+			Kicked:     p.Kicked,
 			Mult:       1,
 		}
 		if i := slices.Index(r.handIDs, p.ID); h != nil && i >= 0 {
@@ -96,7 +98,7 @@ func (r *Room) View(viewer string) protocol.State {
 		v.Broke = v.Stack == 0 && (!live || !v.InHand)
 		s.Players = append(s.Players, v)
 
-		s.Leaderboard = append(s.Leaderboard, protocol.Standing{ID: p.ID, Name: p.Name, Profit: r.Profit(p)})
+		s.Leaderboard = append(s.Leaderboard, protocol.Standing{ID: p.ID, Name: p.Name, Profit: r.Profit(p), Kicked: p.Kicked})
 	}
 	slices.SortStableFunc(s.Leaderboard, func(a, b protocol.Standing) int { return cmp.Compare(b.Profit, a.Profit) })
 
