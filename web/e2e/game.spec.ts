@@ -158,7 +158,9 @@ test('Show 2 Play 2: everyone reveals two cards before betting @phone', async ({
     await expect(status(page)).not.toContainText('picking cards')
     await expect(page.locator('.seat:not(.seat-me) .card:not(.card-back)')).toHaveCount(4)
     await expect(page.locator('.seat:not(.seat-me) .card-back')).toHaveCount(4)
-    await expect(page.locator('.dock .shown-card')).toHaveCount(2)
+    const dock = page.getByRole('group', { name: 'Your cards' })
+    await expect(dock.getByRole('group', { name: 'Shown' }).locator('.card')).toHaveCount(2)
+    await expect(dock.getByRole('group', { name: 'Hidden' }).locator('.card')).toHaveCount(2)
   }
 
   await playOutHand(players)

@@ -690,3 +690,71 @@ describe('Rearranging your cards', () => {
     expect(onSort).toHaveBeenCalled()
   })
 })
+
+describe('Show 2 Play 2: shown and hidden cards stay apart', () => {
+  const s2p2 = (over: Partial<ReturnType<typeof state>> = {}, done = false) =>
+    state({
+      phase: 'playing',
+      stage: done ? 'result' : 'hand',
+      players: [
+        player({ id: 'p1', name: 'Ann', inHand: true, holeCount: 4, hole: ['7c', 'As', '2h', 'Kd'], shown: ['As', 'Kd'] }),
+        player({
+          id: 'p2',
+          name: 'Bob',
+          inHand: true,
+          holeCount: 4,
+          shown: ['Qh', 'Qd'],
+          ...(done ? { hole: ['9c', 'Qh', '3s', 'Qd'] } : {}),
+        }),
+      ],
+      hand: { number: 1, variant: 'show2', street: done ? 'Showdown' : 'Flop', boards: [['2c', '7d', '9h']], pot: 40, toAct: 'p2', currentBet: 0, done },
+      ...over,
+    })
+  const names = (el: HTMLElement) => within(el).queryAllByLabelText(/ of |Hidden card/).map((c) => c.getAttribute('aria-label'))
+
+  it('groups your own cards as Shown, then Hidden', () => {
+    render(<Table state={s2p2()} clockOffset={0} onAct={vi.fn()} send={vi.fn()} />)
+    const dock = screen.getByRole('group', { name: 'Your cards' })
+    expect(names(within(dock).getByRole('group', { name: 'Shown' }))).toEqual(['Ace of spades', 'King of diamonds'])
+    expect(names(within(dock).getByRole('group', { name: 'Hidden' }))).toEqual(['Seven of clubs', 'Two of hearts'])
+  })
+
+  it("groups others' shown cards apart from their face-down ones", () => {
+    render(<Table state={s2p2()} clockOffset={0} onAct={vi.fn()} send={vi.fn()} />)
+    const bob = screen.getByLabelText('Seat Bob')
+    expect(names(within(bob).getByLabelText('Shown'))).toEqual(['Queen of hearts', 'Queen of diamonds'])
+    expect(names(within(bob).getByLabelText('Hidden'))).toEqual(['Hidden card', 'Hidden card'])
+  })
+
+  it('keeps the groups at the showdown, when the hidden cards are revealed', () => {
+    render(<Table state={s2p2({}, true)} clockOffset={0} onAct={vi.fn()} send={vi.fn()} />)
+    const bob = screen.getByLabelText('Seat Bob')
+    expect(names(within(bob).getByLabelText('Shown'))).toEqual(['Queen of hearts', 'Queen of diamonds'])
+    expect(names(within(bob).getByLabelText('Hidden'))).toEqual(['Nine of clubs', 'Three of spades'])
+  })
+
+  it('moves cards only within their group', () => {
+    const onSwap = vi.fn()
+    const onMove = vi.fn()
+    render(<HandCards cards={['7c', 'As', '2h', 'Kd']} shown={['As', 'Kd']} nextSort="rank" onMove={onMove} onSwap={onSwap} onSort={vi.fn()} />)
+    const card = (name: string) => screen.getByRole('button', { name })
+    const tap = (el: HTMLElement) => {
+      fireEvent.pointerDown(el, { button: 0 })
+      fireEvent.pointerUp(el, { button: 0 })
+    }
+    // Shown → hidden: the pick just moves to the hidden card.
+    tap(card('Ace of spades'))
+    tap(card('Seven of clubs'))
+    expect(onSwap).not.toHaveBeenCalled()
+    expect(card('Seven of clubs')).toHaveAttribute('aria-pressed', 'true')
+    // Hidden → hidden swaps (indexes into the hand: 7c is 0, 2h is 2).
+    tap(card('Two of hearts'))
+    expect(onSwap).toHaveBeenCalledWith(0, 2)
+    // Arrow keys stay in the group: Ace's right-hand neighbour is the King.
+    tap(card('Ace of spades'))
+    fireEvent.keyDown(card('Ace of spades'), { key: 'ArrowRight' })
+    expect(onMove).toHaveBeenCalledWith(1, 3)
+    fireEvent.keyDown(card('Ace of spades'), { key: 'ArrowLeft' })
+    expect(onMove).toHaveBeenCalledTimes(1) // already first in its group
+  })
+})

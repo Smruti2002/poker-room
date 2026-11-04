@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"pokerroom/internal/cards"
@@ -110,7 +111,18 @@ func (h *Hand) narrate(visible func(Event) bool) []string {
 		case EvReveal:
 			out = append(out, fmt.Sprintf("%s shows %s", name(e.Player), pretty(e.Cards)))
 		case EvShow:
-			out = append(out, fmt.Sprintf("%s shows %s (%s)", name(e.Player), pretty(e.Cards), e.Desc))
+			cs := pretty(e.Cards)
+			if revealed := h.Players[e.Player].Shown; len(revealed) > 0 {
+				// Show 2 Play 2: the cards shown before betting, then the hidden ones.
+				var hidden []cards.Card
+				for _, c := range e.Cards {
+					if !slices.Contains(revealed, c) {
+						hidden = append(hidden, c)
+					}
+				}
+				cs = pretty(revealed) + " + hidden " + pretty(hidden)
+			}
+			out = append(out, fmt.Sprintf("%s shows %s (%s)", name(e.Player), cs, e.Desc))
 		case EvWin:
 			line := fmt.Sprintf("%s wins %d from pot %d", name(e.Player), e.Chips, e.Pot+1)
 			if e.Desc != "" {

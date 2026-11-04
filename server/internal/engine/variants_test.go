@@ -63,6 +63,16 @@ func TestOmahaAndShowTwoScenarios(t *testing.T) {
 				if got := showDesc(h, 1); got != "Two pair, Kings and Nines" {
 					t.Errorf("P1 shows %q", got)
 				}
+				// The showdown says which cards were shown before betting.
+				log := strings.Join(h.Narrate(), "\n")
+				for _, want := range []string{
+					"P0 shows A♠ A♦ + hidden K♣ 5♥ (Full house, Kings full of Aces)",
+					"P1 shows Q♥ Q♦ + hidden 9♥ 3♣ (Two pair, Kings and Nines)",
+				} {
+					if !strings.Contains(log, want) {
+						t.Errorf("log lacks %q:\n%s", want, log)
+					}
+				}
 			},
 		},
 		{
