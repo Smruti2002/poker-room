@@ -270,6 +270,85 @@ input:not([type]) {
   color: var(--fg);
   font-weight: 600;
 }
+/* Where the hand is: Pre-flop · Flop · Turn · River · Showdown */
+.round-steps {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+.round-steps-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.round-step {
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  border: 1px solid transparent;
+}
+.round-step-done {
+  opacity: 0.6;
+}
+.round-step-current {
+  background: var(--accent);
+  color: #1b1b1b;
+  font-weight: 800;
+  animation: step-pulse 0.6s ease-out;
+}
+.round-step-todo {
+  border-color: #2c3b33;
+}
+.round-steps-compact {
+  display: none;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.2rem 0.8rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #1b1b1b;
+  animation: step-pulse 0.6s ease-out;
+}
+.round-steps-now {
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.round-steps-count {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+@keyframes step-pulse {
+  0% {
+    transform: scale(1.18);
+    box-shadow: 0 0 0 0 rgb(242 193 78 / 0.6);
+  }
+  100% {
+    transform: none;
+    box-shadow: 0 0 0 10px rgb(242 193 78 / 0);
+  }
+}
+@media (max-width: 600px) {
+  .round-steps-list {
+    display: none;
+  }
+  .round-steps-compact {
+    display: inline-flex;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .round-step-current,
+  .round-steps-compact {
+    animation: none;
+  }
+}
+
 .board {
   background: radial-gradient(ellipse at center, var(--felt), var(--felt-edge));
   border-radius: 999px;

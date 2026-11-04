@@ -167,7 +167,7 @@ describe('Table', () => {
     expect(within(screen.getByLabelText('Seat Bob')).getAllByLabelText('Hidden card')).toHaveLength(2)
     expect(within(screen.getByLabelText('Seat Cy')).queryAllByLabelText('Hidden card')).toHaveLength(0)
     expect(screen.getByRole('status')).toHaveTextContent('Your turn')
-    expect(screen.getByText(/Hand #3 · Texas Hold'em · Pre-flop/)).toBeInTheDocument()
+    expect(screen.getByText(/Hand #3 · Texas Hold'em/)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Call 10' }))
     expect(onAct).toHaveBeenCalledWith({ type: 'call' })
