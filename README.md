@@ -4,6 +4,7 @@ Play-money multiplayer poker with friends. Create a room, share the link, and ta
 
 - **Rules:** [docs/rules.md](docs/rules.md)
 - **Roadmap & milestones:** [PLAN.md](PLAN.md)
+- **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## Layout
 
