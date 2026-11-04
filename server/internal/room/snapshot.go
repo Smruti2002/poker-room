@@ -2,6 +2,7 @@ package room
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 
 	"pokerroom/internal/engine"
@@ -34,6 +35,8 @@ type Snapshot struct {
 	Chat         []protocol.ChatLine `json:"chat,omitempty"`
 	ChatID       int                 `json:"chatId"`
 	Past         []PastSnapshot      `json:"past,omitempty"`
+	NextCode     string              `json:"nextCode,omitempty"`
+	NextTokens   map[string]string   `json:"nextTokens,omitempty"`
 }
 
 // PlayerSnapshot is a player as saved; the session token lets them resume.
@@ -74,6 +77,8 @@ func (r *Room) Snapshot() Snapshot {
 		HandIDs:      slices.Clone(r.handIDs),
 		Chat:         slices.Clone(r.chat),
 		ChatID:       r.chatID,
+		NextCode:     r.nextCode,
+		NextTokens:   maps.Clone(r.nextTokens),
 	}
 	s.Settings.Variants = slices.Clone(r.settings.Variants)
 	for _, p := range r.players {
@@ -111,6 +116,8 @@ func Restore(s Snapshot, opts Options) (*Room, error) {
 	r.handIDs = s.HandIDs
 	r.chat = s.Chat
 	r.chatID = s.ChatID
+	r.nextCode = s.NextCode
+	r.nextTokens = s.NextTokens
 	for _, p := range s.Players {
 		r.players = append(r.players, &Player{
 			ID: p.ID, Name: p.Name, Token: p.Token, Stack: p.Stack,

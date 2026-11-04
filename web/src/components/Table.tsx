@@ -142,6 +142,21 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
           </div>
         )}
 
+        {state.phase === 'ended' && (
+          <div className="panel game-over">
+            <p>
+              <strong>Game over.</strong> Final standings are in the leaderboard.
+            </p>
+            {isHost ? (
+              <button className="btn btn-primary" onClick={() => send({ type: 'rematch' })}>
+                New game with same players
+              </button>
+            ) : (
+              <p className="muted">{name(state.hostId)} (the host) can start a new game with everyone here.</p>
+            )}
+          </div>
+        )}
+
         <div className="table-controls">
           {me &&
             state.phase === 'playing' &&
@@ -201,7 +216,7 @@ function TableHeader({ state, name }: { state: State; name: (id?: string) => str
   const hand = state.hand
   let status: ReactNode = null
   if (state.phase === 'ended') {
-    status = 'Game over — final standings on the right.'
+    status = 'Game over'
   } else if (state.stage === 'waiting') {
     status = 'Waiting for at least two players with chips…'
   } else if (state.choosing) {

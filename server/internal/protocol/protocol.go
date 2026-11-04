@@ -21,6 +21,7 @@ const (
 	MsgNextHand       = "nextHand"  // any player, once a hand is over
 	MsgSkip           = "skip"      // host only: Target gets the default move
 	MsgClaimHost      = "claimHost" // become host while the host is offline
+	MsgRematch        = "rematch"   // host only, after the game: a new room with the same players
 )
 
 // ClientMsg is sent by the browser. The first message on a connection must
@@ -113,6 +114,16 @@ type State struct {
 	Chat        []ChatLine    `json:"chat"`      // the last messages, oldest first
 	Reactions   []Reaction    `json:"reactions"` // reactions from the last few seconds
 	Now         int64         `json:"now"`       // server time, unix ms
+	// NextRoom is set once the host has started a new game with the same
+	// players; the client moves there.
+	NextRoom *NextRoom `json:"nextRoom,omitempty"`
+}
+
+// NextRoom is where the players went after a game ended. Token is this
+// viewer's own session in the new room, so it only appears in their view.
+type NextRoom struct {
+	Code  string `json:"code"`
+	Token string `json:"token,omitempty"`
 }
 
 // ChatLine is one chat message.

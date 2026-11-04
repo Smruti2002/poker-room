@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getRoom } from '../api.ts'
+import { getRoom, saveToken } from '../api.ts'
 import { Drawer, type DrawerTab } from '../components/Drawer.tsx'
 import { Lobby } from '../components/Lobby.tsx'
 import { Table } from '../components/Table.tsx'
@@ -24,6 +24,16 @@ export function RoomPage({ code }: { code: string }) {
     setDrawer(next)
   }
   useGameSounds(room.state, prefs)
+
+  // The host started a new game with the same players: move there, already
+  // seated. Replace this page in the history so Back doesn't bounce here.
+  const next = room.state?.nextRoom
+  useEffect(() => {
+    if (!next?.token) return
+    saveToken(next.code, next.token)
+    window.history.replaceState(null, '', `/r/${next.code}`)
+    window.dispatchEvent(new PopStateEvent('popstate'))
+  }, [next?.code, next?.token])
 
   useEffect(() => {
     getRoom(code)

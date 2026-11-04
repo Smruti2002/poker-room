@@ -27,6 +27,9 @@ func (r *Room) View(viewer string) protocol.State {
 		Now:      r.opts.Now().UnixMilli(),
 	}
 	s.Settings.Variants = slices.Clone(r.settings.Variants)
+	if r.nextCode != "" {
+		s.NextRoom = &protocol.NextRoom{Code: r.nextCode, Token: r.nextTokens[viewer]}
+	}
 	now := r.opts.Now()
 	s.Reactions = []protocol.Reaction{}
 	for _, x := range r.reactions {
