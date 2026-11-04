@@ -14,3 +14,6 @@ coverage.out
 .env.*
 !.env.example
 sim-failure.json
+
+# Claude Code (local tool settings)
+.claude/
