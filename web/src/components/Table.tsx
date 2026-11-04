@@ -3,6 +3,7 @@ import type { Action, ClientMsg, PlayerView, State } from '../protocol/types.ts'
 import { variantName } from '../variants.ts'
 import { ActionBar } from './ActionBar.tsx'
 import { KickButton } from './KickVotes.tsx'
+import { FinalStandings } from './FinalStandings.tsx'
 import { RaiseBanner, SeatCallout } from './BetCallout.tsx'
 import { RoundSteps } from './RoundSteps.tsx'
 import { HandCards } from './HandCards.tsx'
@@ -36,6 +37,22 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
   const now = useNow(state.reactions.length > 0 ? 500 : 0) + clockOffset
   const reactionOf = (id: string) =>
     state.reactions.findLast((r) => r.playerId === id && now - r.at < REACTION_MS)?.emoji
+
+  // Once the game is over, the final standings take the table's place.
+  if (state.phase === 'ended') {
+    return (
+      <div className="table-layout table-layout-ended">
+        <main className="table">
+          <header className="table-header">
+            <span className="status" role="status">
+              Game over
+            </span>
+          </header>
+          <FinalStandings state={state} send={send} />
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="table-layout">
@@ -158,21 +175,6 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
             <button className="btn btn-primary" onClick={() => send({ type: 'takeLoan' })}>
               Take loan
             </button>
-          </div>
-        )}
-
-        {state.phase === 'ended' && (
-          <div className="panel game-over">
-            <p>
-              <strong>Game over.</strong> Final standings are in the leaderboard.
-            </p>
-            {isHost ? (
-              <button className="btn btn-primary" onClick={() => send({ type: 'rematch' })}>
-                New game with same players
-              </button>
-            ) : (
-              <p className="muted">{name(state.hostId)} (the host) can start a new game with everyone here.</p>
-            )}
           </div>
         )}
 
