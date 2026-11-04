@@ -744,12 +744,105 @@ details[open] > summary {
 .loan p {
   margin-top: 0;
 }
-.game-over {
-  border-color: var(--accent);
+/* Final standings, when the game is over */
+.table-layout-ended {
+  grid-template-columns: 1fr;
+}
+.final {
+  max-width: 34rem;
+  margin: 0.5rem auto 0;
+  padding: 1rem;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: 16px;
   text-align: center;
 }
-.game-over p {
-  margin-top: 0;
+.final h2 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+.final-note {
+  margin: 0.25rem 0 0.75rem;
+  font-size: 0.8rem;
+}
+.final-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.4rem;
+  text-align: left;
+}
+.final-row {
+  display: grid;
+  grid-template-columns: 2.2rem 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.04);
+}
+.final-winner {
+  background: linear-gradient(90deg, rgb(242 193 78 / 0.28), rgb(242 193 78 / 0.08));
+  border: 1px solid var(--accent);
+  animation: winner-glow 1.2s ease-out;
+}
+.final-me {
+  outline: 2px solid rgb(255 255 255 / 0.25);
+}
+.final-rank {
+  font-size: 1.3rem;
+  font-weight: 800;
+  text-align: center;
+  color: var(--muted);
+}
+.final-winner .final-rank {
+  font-size: 1.6rem;
+}
+.final-who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.final-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+.final-detail {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.final-profit {
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+.profit-even {
+  color: var(--muted);
+}
+.final-actions {
+  margin-top: 1rem;
+}
+.final-actions p {
+  margin: 0;
+}
+@keyframes winner-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgb(242 193 78 / 0.7);
+    transform: scale(1.03);
+  }
+  100% {
+    box-shadow: 0 0 0 14px rgb(242 193 78 / 0);
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .final-winner {
+    animation: none;
+  }
 }
 .table-controls {
   display: flex;
