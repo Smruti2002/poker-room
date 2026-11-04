@@ -139,7 +139,7 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
                 legal={hand.legal}
                 bet={me.bet}
                 mult={me.mult}
-                pot={hand.pot}
+                stack={me.stack}
                 onAct={onAct}
               />
             )}

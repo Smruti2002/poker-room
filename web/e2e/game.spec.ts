@@ -529,3 +529,27 @@ test('the betting round is shown on the felt and moves on @phone', async ({ brow
   await expect(current(bob)).toContainText('Flop')
   if (phone) await expect(current(bob)).toContainText('2 of 5')
 })
+
+test('bet chips: tap 100 to raise by 100 @phone', async ({ browser }) => {
+  const { page: ann, link } = await createRoom(browser, 'Ann')
+  const bob = await joinByLink(browser, link, 'Bob')
+  await onlyVariants(ann, ["Texas Hold'em"])
+  await ann.getByRole('button', { name: 'Start game' }).click()
+
+  let actor: Page | undefined
+  await expect
+    .poll(async () => {
+      for (const p of [ann, bob]) if (await p.getByRole('group', { name: 'Bet chips' }).isVisible()) actor = p
+      return actor !== undefined
+    })
+    .toBe(true)
+  const chips = actor!.getByRole('group', { name: 'Bet chips' })
+  await expect(chips.getByRole('button')).toHaveCount(6) // 50 100 150 250 500 all-in
+  await expect(actor!.getByRole('button', { name: 'Pot', exact: true })).toHaveCount(0)
+
+  // Facing the big blind of 20: raise by 100 is a raise to 120.
+  await chips.getByRole('button', { name: 'Chip: raise by 100' }).click()
+  await actor!.getByRole('button', { name: 'Raise to 120' }).click()
+  const other = actor === ann ? bob : ann
+  await expect(other.getByLabel(actor === ann ? 'Seat Ann' : 'Seat Bob')).toContainText('120')
+})

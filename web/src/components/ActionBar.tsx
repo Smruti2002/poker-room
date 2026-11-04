@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Action, Legal } from '../protocol/types.ts'
+import { ChipFace } from './BetChip.tsx'
+
+/** Common bet sizes, in table units: how much to bet, or to raise by. */
+const CHIP_AMOUNTS = [50, 100, 150, 250, 500]
 
 interface Props {
   legal: Legal
@@ -7,12 +11,13 @@ interface Props {
   bet: number
   /** Chips per unit (2 for a Dacoit 6-card player). */
   mult: number
-  pot: number
+  /** Chips behind, to tell an all-in from a pot-limit cap. */
+  stack: number
   onAct: (action: Action) => void
 }
 
 /** Fold / check / call / bet / raise controls for the player to act. */
-export function ActionBar({ legal, bet, mult, pot, onAct }: Props) {
+export function ActionBar({ legal, bet, mult, stack, onAct }: Props) {
   const canRaise = legal.bet || legal.raise
   const clamp = (n: number) => Math.min(Math.max(n, legal.minTo), legal.maxTo)
   // The typed text is kept as-is so it can be cleared and retyped; it is
@@ -24,11 +29,14 @@ export function ActionBar({ legal, bet, mult, pot, onAct }: Props) {
   const allInOnly = canRaise && legal.minTo === legal.maxTo
   const amount = allInOnly ? legal.maxTo : typed
 
-  // Quick sizes, all clamped to what's legal. A pot-sized raise first calls,
-  // then raises by the pot after the call (docs/rules.md §4.0); the pot is in
-  // chips and the raise in units, as in pot-limit Dacoit (§4.3).
-  const called = bet + legal.callUnits
-  const potAfterCall = pot + legal.callUnits * mult
+  // Bet chips: each amount is how much to bet, or how much to raise by on
+  // top of the bet faced, in table units (a 6-card Dacoit player pays
+  // double). Below the minimum a chip is unavailable. Above the maximum it
+  // means all-in, unless the maximum is a pot limit, which caps it.
+  const faced = bet + legal.callUnits
+  const allInTo = bet + Math.floor(stack / mult)
+  const capped = legal.maxTo < allInTo // pot-limit
+  const chipTo = (amount: number) => faced + amount
   // Desktop shortcuts: F fold, C check/call, R jump to the raise box.
   const box = useRef<HTMLInputElement>(null)
   useEffect(() => {
@@ -50,12 +58,6 @@ export function ActionBar({ legal, bet, mult, pot, onAct }: Props) {
     return () => window.removeEventListener('keydown', onKey)
   }, [legal, onAct])
 
-  const presets: [string, number][] = [
-    ['Min', legal.minTo],
-    ['½ pot', called + Math.floor(potAfterCall / 2)],
-    ['Pot', called + potAfterCall],
-    ['All-in', legal.maxTo],
-  ]
 
   return (
     <div className="action-bar" role="group" aria-label="Your action">
@@ -93,12 +95,33 @@ export function ActionBar({ legal, bet, mult, pot, onAct }: Props) {
       </div>
       {canRaise && !allInOnly && (
         <div className="raise">
-          <div className="presets">
-            {presets.map(([label, value]) => (
-              <button key={label} type="button" className="btn btn-small" onClick={() => setText(String(clamp(value)))}>
-                {label}
-              </button>
-            ))}
+          <div className="bet-chips" role="group" aria-label="Bet chips">
+            {CHIP_AMOUNTS.map((amount) => {
+              const to = chipTo(amount)
+              const off = to < legal.minTo || (capped && to > legal.maxTo)
+              const target = clamp(to)
+              const verb = legal.bet ? 'Chip: bet' : 'Chip: raise by'
+              return (
+                <button
+                  key={amount}
+                  type="button"
+                  className={`bet-chip-btn${valid && typed === target && !off ? ' bet-chip-on' : ''}`}
+                  disabled={off}
+                  onClick={() => setText(String(target))}
+                  aria-label={to > legal.maxTo && !capped ? `${verb} ${amount}: all-in` : `${verb} ${amount}`}
+                >
+                  <ChipFace label={String(amount)} color={String(amount)} />
+                </button>
+              )
+            })}
+            <button
+              type="button"
+              className={`bet-chip-btn${valid && typed === legal.maxTo ? ' bet-chip-on' : ''}`}
+              onClick={() => setText(String(legal.maxTo))}
+              aria-label={capped ? 'Chip: pot-limit maximum' : 'Chip: all-in'}
+            >
+              <ChipFace label={capped ? 'MAX' : 'ALL IN'} color="allin" />
+            </button>
           </div>
           <div className="raise-amount">
             <input
