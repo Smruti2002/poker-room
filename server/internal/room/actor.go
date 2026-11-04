@@ -378,14 +378,20 @@ func (m *Manager) actors() []*Actor {
 }
 
 // Sweep closes rooms nobody has been connected to for at least idle, and
-// returns how many it removed. It's housekeeping, not a game timer: a room
-// with anyone connected is never touched.
+// every room past its maximum age (Options.MaxAge) whether or not anyone is
+// in it: hosts forget to end games, and an open tab would keep a room alive
+// for ever. It returns how many it removed. It's housekeeping, not a game
+// timer.
 func (m *Manager) Sweep(idle time.Duration) int {
 	now := m.opts.Now()
 	removed := 0
 	for _, a := range m.actors() {
-		stale := false
-		a.call(func() { stale = len(a.clients) == 0 && now.Sub(a.lastSeen) >= idle })
+		stale, old := false, false
+		a.call(func() {
+			closes := a.room.ClosesAt()
+			old = !closes.IsZero() && !now.Before(closes)
+			stale = old || (len(a.clients) == 0 && now.Sub(a.lastSeen) >= idle)
+		})
 		if !stale {
 			continue
 		}
@@ -394,7 +400,11 @@ func (m *Manager) Sweep(idle time.Duration) int {
 		m.mu.Unlock()
 		a.stop()
 		removed++
-		m.log.Info("room closed after being idle", "room", a.room.Code)
+		if old {
+			m.log.Info("room closed: reached its maximum age", "room", a.room.Code)
+		} else {
+			m.log.Info("room closed after being idle", "room", a.room.Code)
+		}
 	}
 	return removed
 }

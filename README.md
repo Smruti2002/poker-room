@@ -131,6 +131,7 @@ fly scale count 1 --app poker-room-smruti
 | `LOG_LEVEL` | `info` | Set to `debug` to log every request |
 | `SNAPSHOT_PATH` | *(empty)* | File to save rooms to. Rooms are loaded at start, saved every 30s and on shutdown, so a restart or redeploy keeps games going. Empty disables saving. |
 | `ROOM_IDLE` | `12h` | Close rooms nobody has been connected to for this long. |
+| `ROOM_MAX_AGE` | `12h` | Close every room this long after it was created, even with people in it (hosts forget to end games). Players see the closing time during the last hour. |
 | `ROOMS_PER_MINUTE` | `10` | New rooms allowed per IP address per minute. |
 | `TRUST_PROXY` | *(empty)* | Set to `1` behind Fly.io so the client IP comes from `Fly-Client-IP`. |
 | `ALLOWED_ORIGINS` | *(empty)* | Extra browser origins allowed to open WebSockets, comma-separated host patterns (e.g. `localhost:5173`). Same-origin is always allowed. |

@@ -29,6 +29,9 @@ type Options struct {
 	Now      func() time.Time
 	Rand     *mrand.Rand       // picks the first dealer
 	NewSeed  func() cards.Seed // shuffle seed per hand
+	// MaxAge closes a room this long after it was created, however busy it
+	// is (0: never). Players are told when it will close.
+	MaxAge time.Duration
 }
 
 // Player is a person in the room, kept across hands.
@@ -47,6 +50,8 @@ type Player struct {
 // Room is the state of one poker room.
 type Room struct {
 	Code string
+	// CreatedAt is when the room was opened (see Options.MaxAge).
+	CreatedAt time.Time
 
 	opts         Options
 	variantNames []string
@@ -114,7 +119,7 @@ func New(code string, opts Options) *Room {
 	if opts.NewSeed == nil {
 		opts.NewSeed = cards.NewSeed
 	}
-	r := &Room{Code: code, opts: opts, phase: protocol.PhaseLobby}
+	r := &Room{Code: code, opts: opts, phase: protocol.PhaseLobby, CreatedAt: opts.Now()}
 	for name := range opts.Variants {
 		r.variantNames = append(r.variantNames, name)
 	}
@@ -570,3 +575,11 @@ func (r *Room) defaultMove(i int) engine.Action {
 
 // Players returns the players in seat order.
 func (r *Room) Players() []*Player { return r.players }
+
+// ClosesAt is when the room reaches its maximum age, or zero if it has none.
+func (r *Room) ClosesAt() time.Time {
+	if r.opts.MaxAge <= 0 {
+		return time.Time{}
+	}
+	return r.CreatedAt.Add(r.opts.MaxAge)
+}

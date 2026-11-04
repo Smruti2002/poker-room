@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"time"
 
 	"pokerroom/internal/engine"
 	"pokerroom/internal/protocol"
@@ -19,6 +20,7 @@ const snapshotVersion = 1
 type Snapshot struct {
 	Version      int                 `json:"version"`
 	Code         string              `json:"code"`
+	CreatedAt    int64               `json:"createdAt,omitempty"` // unix ms
 	Settings     protocol.Settings   `json:"settings"`
 	Players      []PlayerSnapshot    `json:"players"`
 	HostID       string              `json:"hostId"`
@@ -74,6 +76,7 @@ func (r *Room) Snapshot() Snapshot {
 	s := Snapshot{
 		Version:      snapshotVersion,
 		Code:         r.Code,
+		CreatedAt:    r.CreatedAt.UnixMilli(),
 		Settings:     r.settings,
 		HostID:       r.hostID,
 		Phase:        r.phase,
@@ -119,6 +122,9 @@ func Restore(s Snapshot, opts Options) (*Room, error) {
 		return nil, fmt.Errorf("room %s: snapshot version %d, want %d", s.Code, s.Version, snapshotVersion)
 	}
 	r := New(s.Code, opts)
+	if s.CreatedAt != 0 { // older snapshots don't have it: count from now
+		r.CreatedAt = time.UnixMilli(s.CreatedAt)
+	}
 	r.settings = s.Settings
 	r.hostID = s.HostID
 	r.phase = s.Phase

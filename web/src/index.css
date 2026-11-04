@@ -1354,6 +1354,15 @@ details[open] > summary {
 }
 
 /* The host has gone offline: anyone can take over. */
+/* The room closes soon (rooms have a maximum age). */
+.closing-notice {
+  padding: 0.5rem 1rem;
+  background: #1d2b3a;
+  border-bottom: 1px solid #4a6a8a;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
 /* Votes to remove a player. */
 .kick-votes .banner {
   display: flex;

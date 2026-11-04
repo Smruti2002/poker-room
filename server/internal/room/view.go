@@ -28,6 +28,9 @@ func (r *Room) View(viewer string) protocol.State {
 	}
 	s.Settings.Variants = slices.Clone(r.settings.Variants)
 	s.KickVotes = r.kickVoteViews()
+	if c := r.ClosesAt(); !c.IsZero() {
+		s.ClosesAt = c.UnixMilli()
+	}
 	if r.nextCode != "" {
 		s.NextRoom = &protocol.NextRoom{Code: r.nextCode, Token: r.nextTokens[viewer]}
 	}
