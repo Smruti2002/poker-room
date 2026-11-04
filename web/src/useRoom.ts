@@ -60,6 +60,7 @@ export function useRoom(code: string): RoomConn {
     let stopped = false
     let attempt = 0
     let retry: ReturnType<typeof setTimeout> | undefined
+    let waiting = false // a backoff timer is pending
     let welcomed = false
 
     const connect = () => {
@@ -113,7 +114,9 @@ export function useRoom(code: string): RoomConn {
         // room itself is gone (e.g. the server restarted), stop retrying.
         attempt++
         setStatus('reconnecting')
+        waiting = true
         retry = setTimeout(async () => {
+          waiting = false
           if (attempt >= 2 && (await getRoom(code).catch(() => undefined)) === null) {
             stopped = true
             setStatus('idle')
@@ -124,10 +127,24 @@ export function useRoom(code: string): RoomConn {
         }, Math.min(500 * 2 ** attempt, 8000))
       }
     }
+    // A phone coming back from a locked screen or another app, or getting
+    // its network back, shouldn't sit out the rest of a backoff delay
+    // (up to 8s): try again straight away.
+    const retryNow = () => {
+      if (stopped || !waiting || document.visibilityState === 'hidden') return
+      clearTimeout(retry)
+      waiting = false
+      connect()
+    }
+    document.addEventListener('visibilitychange', retryNow)
+    window.addEventListener('online', retryNow)
+
     connect()
     return () => {
       stopped = true
       clearTimeout(retry)
+      document.removeEventListener('visibilitychange', retryNow)
+      window.removeEventListener('online', retryNow)
       wsRef.current?.close()
     }
   }, [code, token, pendingName])
