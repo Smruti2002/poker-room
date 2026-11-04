@@ -193,7 +193,10 @@ type PlayerView struct {
 	// Picked is how many hole cards the player chose (Dacoit), public.
 	Picked   int    `json:"picked,omitempty"`
 	HandDesc string `json:"handDesc,omitempty"`
-	Won      int64  `json:"won,omitempty"`
+	// LastBet is the player's bet or raise on the current street, until
+	// they act again or the street ends.
+	LastBet *BetCallout `json:"lastBet,omitempty"`
+	Won     int64       `json:"won,omitempty"`
 }
 
 // HandView is the current (or just finished) hand.
@@ -275,6 +278,15 @@ type Standing struct {
 	Name   string `json:"name"`
 	Profit int64  `json:"profit"`
 	Kicked bool   `json:"kicked,omitempty"`
+}
+
+// BetCallout describes a bet or raise for the table to see, in the chips
+// the player actually put in.
+type BetCallout struct {
+	Type  string `json:"type"`  // bet or raise
+	By    int64  `json:"by"`    // how much more than the bet they faced (a bet: its size)
+	To    int64  `json:"to"`    // their total on this street
+	AllIn bool   `json:"allIn"` // the bet or raise put them all-in
 }
 
 // KickVote is an open vote to remove Target from the room. It passes once

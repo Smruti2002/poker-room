@@ -471,3 +471,29 @@ test('rearrange your cards: swap, survive a reload, sort @phone', async ({ brows
   const ranks = (await mine.evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')!.split(' ')[0]))).map((r) => order.indexOf(r))
   expect(ranks).toEqual([...ranks].sort((a, b) => b - a))
 })
+
+test('a raise is called out on the seat and announced to the table @phone', async ({ browser }) => {
+  const { page: ann, link } = await createRoom(browser, 'Ann')
+  const bob = await joinByLink(browser, link, 'Bob')
+  await onlyVariants(ann, ["Texas Hold'em"])
+  await ann.getByRole('button', { name: 'Start game' }).click()
+
+  // Whoever acts first makes the minimum raise: to 40 over the big blind of 20.
+  const pages = [ann, bob]
+  let raiser: Page | undefined
+  await expect
+    .poll(async () => {
+      for (const p of pages) if (await p.getByRole('button', { name: /^Raise to \d+$/ }).isVisible()) raiser = p
+      return raiser !== undefined
+    })
+    .toBe(true)
+  await raiser!.getByRole('button', { name: /^Raise to \d+$/ }).click()
+  const other = raiser === ann ? bob : ann
+  const raiserName = raiser === ann ? 'Ann' : 'Bob'
+
+  await expect(other.getByRole('status').filter({ hasText: `${raiserName} raised 20 (to 40)` })).toBeVisible()
+  await expect(other.getByLabel(`Seat ${raiserName}`)).toContainText('Raised 20 → 40')
+  // The raiser sees it on their seat, without an announcement of their own raise.
+  await expect(raiser!.getByLabel(`Seat ${raiserName}`)).toContainText('Raised 20 → 40')
+  await expect(raiser!.getByText(`${raiserName} raised`)).toHaveCount(0)
+})

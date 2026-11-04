@@ -1100,6 +1100,54 @@ details[open] > summary {
   font-weight: 700;
   animation: pop 0.3s ease-out;
 }
+/* Bets and raises, called out on the seat and announced to the table. */
+.bet-callout-raise {
+  background: #4a2412;
+  color: #ffb36b;
+}
+.raise-banner {
+  margin: 0 auto 0.5rem;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  background: #4a2412;
+  color: #ffd4a8;
+  font-weight: 700;
+  text-align: center;
+  max-height: 4rem;
+  overflow: hidden;
+  animation: banner-fade 3.5s ease-out forwards;
+}
+/* Fades out, then folds away so it leaves no gap above the board. */
+@keyframes banner-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  8%,
+  75% {
+    opacity: 1;
+    transform: none;
+  }
+  90% {
+    opacity: 0;
+    max-height: 4rem;
+    padding-block: 0.3rem;
+    margin-bottom: 0.5rem;
+  }
+  100% {
+    opacity: 0;
+    max-height: 0;
+    padding-block: 0;
+    margin-bottom: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .raise-banner {
+    animation: none;
+  }
+}
 .pot {
   animation: pop 0.3s ease-out;
 }

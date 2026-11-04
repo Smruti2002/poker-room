@@ -311,6 +311,11 @@ export interface PlayerView {
    */
   picked?: number /* int */;
   handDesc?: string;
+  /**
+   * LastBet is the player's bet or raise on the current street, until
+   * they act again or the street ends.
+   */
+  lastBet?: BetCallout;
   won?: number /* int64 */;
 }
 /**
@@ -423,6 +428,16 @@ export interface Standing {
   name: string;
   profit: number /* int64 */;
   kicked?: boolean;
+}
+/**
+ * BetCallout describes a bet or raise for the table to see, in the chips
+ * the player actually put in.
+ */
+export interface BetCallout {
+  type: string; // bet or raise
+  by: number /* int64 */; // how much more than the bet they faced (a bet: its size)
+  to: number /* int64 */; // their total on this street
+  allIn: boolean; // the bet or raise put them all-in
 }
 /**
  * KickVote is an open vote to remove Target from the room. It passes once

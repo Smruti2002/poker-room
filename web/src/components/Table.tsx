@@ -3,6 +3,7 @@ import type { Action, ClientMsg, PlayerView, State } from '../protocol/types.ts'
 import { variantName } from '../variants.ts'
 import { ActionBar } from './ActionBar.tsx'
 import { KickButton } from './KickVotes.tsx'
+import { RaiseBanner, SeatCallout } from './BetCallout.tsx'
 import { HandCards } from './HandCards.tsx'
 import { useCardOrder } from '../cardOrder.ts'
 import { Card, CardBack } from './Card.tsx'
@@ -39,6 +40,7 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
     <div className="table-layout">
       <main className="table">
         <TableHeader state={state} name={name} />
+        <RaiseBanner state={state} />
 
         {hand && (
           <div className="board" aria-label="Board">
@@ -396,10 +398,15 @@ function Seat({
         )}
         {p.folded && 'Folded'}
         {p.allIn && !hand?.done && 'All-in'}
-        {p.bet > 0 && !hand?.done && (
-          <span className="bet-chip" key={p.bet}>
-            Bet {p.bet * p.mult}
-          </span>
+        {p.lastBet ? (
+          <SeatCallout c={p.lastBet} />
+        ) : (
+          p.bet > 0 &&
+          !hand?.done && (
+            <span className="bet-chip" key={p.bet}>
+              Bet {p.bet * p.mult}
+            </span>
+          )
         )}
         {p.handDesc && <HandDesc desc={p.handDesc} />}
         {(p.won ?? 0) > 0 && hand?.done && <span className="won">Won {p.won}</span>}
