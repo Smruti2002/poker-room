@@ -497,3 +497,35 @@ test('a raise is called out on the seat and announced to the table @phone', asyn
   await expect(raiser!.getByLabel(`Seat ${raiserName}`)).toContainText('Raised 20 → 40')
   await expect(raiser!.getByText(`${raiserName} raised`)).toHaveCount(0)
 })
+
+test('the betting round is shown on the felt and moves on @phone', async ({ browser }, testInfo) => {
+  const { page: ann, link } = await createRoom(browser, 'Ann')
+  const bob = await joinByLink(browser, link, 'Bob')
+  await onlyVariants(ann, ["Texas Hold'em"])
+  await ann.getByRole('button', { name: 'Start game' }).click()
+
+  // Desktop shows every step with the current one marked; phones show a
+  // compact pill for the current step.
+  const phone = testInfo.project.name === 'phone'
+  const current = (p: Page) => (phone ? p.locator('.round-steps-compact') : p.getByRole('listitem').and(p.locator('[aria-current="step"]')))
+  await expect(current(ann)).toBeVisible()
+  await expect(current(ann)).toContainText('Pre-flop')
+  if (phone) await expect(current(ann)).toContainText('1 of 5')
+
+  // Both players call or check: the flop comes, and the indicator follows.
+  const flopped = async () => (await ann.locator('.board [aria-label*=" of "]').count()) >= 3 // real cards, not the empty slots
+  await expect
+    .poll(async () => {
+      for (const p of [ann, bob]) {
+        if (await flopped()) return true // stop before anyone acts on the flop
+        const check = p.getByRole('button', { name: 'Check', exact: true })
+        const call = p.getByRole('button', { name: /^Call \d+$/ })
+        if (await check.isVisible()) await check.click()
+        else if (await call.isVisible()) await call.click()
+      }
+      return flopped()
+    })
+    .toBe(true)
+  await expect(current(bob)).toContainText('Flop')
+  if (phone) await expect(current(bob)).toContainText('2 of 5')
+})

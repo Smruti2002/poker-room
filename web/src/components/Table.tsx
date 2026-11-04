@@ -4,6 +4,7 @@ import { variantName } from '../variants.ts'
 import { ActionBar } from './ActionBar.tsx'
 import { KickButton } from './KickVotes.tsx'
 import { RaiseBanner, SeatCallout } from './BetCallout.tsx'
+import { RoundSteps } from './RoundSteps.tsx'
 import { HandCards } from './HandCards.tsx'
 import { useCardOrder } from '../cardOrder.ts'
 import { Card, CardBack } from './Card.tsx'
@@ -42,6 +43,7 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
         <TableHeader state={state} name={name} />
         <RaiseBanner state={state} />
 
+        {hand && <RoundSteps hand={hand} />}
         {hand && (
           <div className="board" aria-label="Board">
             {hand.boards.map((board, b) => (
@@ -278,7 +280,7 @@ function TableHeader({ state, name }: { state: State; name: (id?: string) => str
     <header className="table-header">
       {hand && (
         <span>
-          Hand #{hand.number} · {variantName(hand.variant)} · {hand.street}
+          Hand #{hand.number} · {variantName(hand.variant)}
         </span>
       )}
       <span className="status" role="status">
