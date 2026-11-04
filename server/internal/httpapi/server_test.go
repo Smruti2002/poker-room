@@ -69,6 +69,31 @@ func TestStaticServingWithSPAFallback(t *testing.T) {
 	}
 }
 
+func TestCacheHeaders(t *testing.T) {
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, "index.html"), "<html>app</html>")
+	if err := os.Mkdir(filepath.Join(dir, "assets"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(dir, "assets", "index-abc123.js"), "console.log(1)")
+	srv := newTestServer(t, Config{StaticDir: dir})
+
+	for path, want := range map[string]string{
+		"/":                       "no-cache",
+		"/r/AB12CD":               "no-cache",
+		"/assets/index-abc123.js": "public, max-age=31536000, immutable",
+	} {
+		resp, err := http.Get(srv.URL + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if got := resp.Header.Get("Cache-Control"); got != want {
+			t.Errorf("GET %s: Cache-Control = %q, want %q", path, got, want)
+		}
+	}
+}
+
 func TestNoStaticDirMeans404(t *testing.T) {
 	srv := newTestServer(t, Config{})
 	resp, err := http.Get(srv.URL + "/")

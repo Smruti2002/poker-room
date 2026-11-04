@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -54,9 +55,19 @@ func NewHandler(cfg Config, log *slog.Logger) http.Handler {
 
 // spaHandler serves files from dir and falls back to index.html so client-side
 // routes like /r/AB12CD load the app.
+//
+// Files under /assets/ have content hashes in their names, so browsers may
+// keep them forever. Everything else, index.html above all, is revalidated
+// on every load, so a redeploy never leaves a phone with a page that points
+// at assets that no longer exist.
 func spaHandler(dir string) http.Handler {
 	files := http.FileServer(http.Dir(dir))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/assets/") {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		} else {
+			w.Header().Set("Cache-Control", "no-cache")
+		}
 		path := filepath.Join(dir, filepath.Clean("/"+r.URL.Path))
 		if info, err := os.Stat(path); err != nil || info.IsDir() {
 			http.ServeFile(w, r, filepath.Join(dir, "index.html"))

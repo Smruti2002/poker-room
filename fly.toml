@@ -1,0 +1,48 @@
+# Fly.io config. The app name must be unique across Fly; if it's taken,
+# pick another and change it here (and the URL in .github/workflows/deploy.yml).
+app = "poker-room-smruti"
+primary_region = "bom" # Mumbai
+
+# The server saves every room to the volume when it stops (on deploys and
+# when Fly stops an idle machine), then loads them when it starts again.
+kill_signal = "SIGTERM"
+kill_timeout = "15s"
+
+[env]
+  SNAPSHOT_PATH = "/data/rooms.json"
+  TRUST_PROXY = "1" # rate limits read the real client IP from Fly-Client-IP
+  LOG_LEVEL = "info"
+
+[mounts]
+  source = "rooms"
+  destination = "/data"
+  initial_size = "1gb"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Cost control: stop the machine when nobody is connected and start it on
+  # the next visit (a second or two). Open games keep their WebSocket, so a
+  # table in play is never stopped.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  # Each player is one WebSocket. Past the hard limit Fly refuses new
+  # connections instead of adding machines: this app only ever runs one.
+  [http_service.concurrency]
+    type = "connections"
+    soft_limit = 400
+    hard_limit = 500
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/healthz"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+
+# The smallest machine: about $2/month if it never stopped.
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

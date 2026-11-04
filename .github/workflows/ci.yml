@@ -63,6 +63,27 @@ jobs:
       - name: Build
         run: npm run build
 
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - name: Build image
+        run: docker build --build-arg VERSION=ci -t poker-room .
+      - name: Run it and smoke-test it
+        run: |
+          docker run -d --name app -p 8080:8080 -e SNAPSHOT_PATH=/tmp/rooms.json poker-room
+          (cd server && go run ./cmd/smoke -url http://localhost:8080 -version ci -wait 30s)
+      - name: Rooms are saved on stop
+        run: |
+          docker stop app
+          docker logs app 2>&1 | tail -5
+          docker logs app 2>&1 | grep -q '"rooms saved"'
+
   e2e:
     name: End-to-end (Playwright)
     runs-on: ubuntu-latest

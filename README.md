@@ -69,6 +69,52 @@ Bots play 100,000 hands with invariants checked after every action. If one break
 cd server && go run ./cmd/replay sim-failure.json
 ```
 
+To check a running server end to end (health, page, a room with two players, game start):
+
+```bash
+cd server && go run ./cmd/smoke -url http://localhost:8080
+```
+
+## Deploying (Fly.io)
+
+The app runs as one small machine that stops when nobody is connected and starts again on the next visit. Rooms are saved to a volume, so they survive both. Config is in [fly.toml](fly.toml).
+
+First time (install `flyctl` with `brew install flyctl`):
+
+```bash
+fly auth login
+```
+
+```bash
+fly apps create poker-room-smruti
+```
+
+```bash
+fly volumes create rooms --region bom --size 1 --app poker-room-smruti
+```
+
+```bash
+fly deploy --ha=false
+```
+
+If the app name is taken, choose another and change it in `fly.toml` and `.github/workflows/deploy.yml`.
+
+After that, every push to `main` deploys automatically once CI passes, provided the repository has a `FLY_API_TOKEN` secret:
+
+```bash
+fly tokens create deploy --app poker-room-smruti | gh secret set FLY_API_TOKEN
+```
+
+To stop everything between game nights, and start it again:
+
+```bash
+fly scale count 0 --app poker-room-smruti
+```
+
+```bash
+fly scale count 1 --app poker-room-smruti
+```
+
 ## Configuration (server)
 
 | Env var | Default | Purpose |
