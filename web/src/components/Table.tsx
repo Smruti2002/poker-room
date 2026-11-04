@@ -3,6 +3,8 @@ import type { Action, ClientMsg, PlayerView, State } from '../protocol/types.ts'
 import { variantName } from '../variants.ts'
 import { ActionBar } from './ActionBar.tsx'
 import { KickButton } from './KickVotes.tsx'
+import { HandCards } from './HandCards.tsx'
+import { useCardOrder } from '../cardOrder.ts'
 import { Card, CardBack } from './Card.tsx'
 import { useNow } from './useNow.ts'
 import { ResultBanner } from './ResultBanner.tsx'
@@ -23,6 +25,7 @@ interface Props {
 
 export function Table({ state, clockOffset, onAct, send }: Props) {
   const me = state.players.find((p) => p.id === state.you)
+  const order = useCardOrder(state.code, state.hand?.number ?? 0, me?.hole ?? [])
   const hand = state.hand
   const isHost = state.you === state.hostId
   const name = (id?: string) => state.players.find((p) => p.id === id)?.name ?? '?'
@@ -67,7 +70,15 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
 
         <ul className="seats">
           {state.players.filter((p) => !p.kicked || (p.inHand && hand && !hand.done)).map((p) => (
-            <Seat key={p.id} p={p} state={state} winning={winning} reaction={reactionOf(p.id)} send={send} />
+            <Seat
+              key={p.id}
+              p={p}
+              hole={p.id === state.you && p.hole ? order.cards : p.hole}
+              state={state}
+              winning={winning}
+              reaction={reactionOf(p.id)}
+              send={send}
+            />
           ))}
         </ul>
 
@@ -89,12 +100,15 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
           // always in reach on a phone.
           <div className={`dock${hand?.legal ? ' dock-active' : ''}`}>
             {me.hole && !hand?.legal?.show && !hand?.legal?.allocate && (
-              <div className="dock-cards" aria-label="Your cards">
-                {me.hole.map((c) => (
-                  <span key={c} className={me.shown?.includes(c) ? 'shown-card' : undefined}>
-                    <Card code={c} />
-                  </span>
-                ))}
+              <div className="dock-cards">
+                <HandCards
+                  cards={order.cards}
+                  shown={me.shown}
+                  nextSort={order.nextSort}
+                  onMove={order.move}
+                  onSwap={order.swap}
+                  onSort={order.sort}
+                />
                 {hand?.legal ? (
                   <span className="dock-turn">Your turn</span>
                 ) : me.allocated ? (
@@ -113,8 +127,8 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
               <p className="double-note">You took 6 cards: every bet costs you double.</p>
             )}
             {hand?.legal?.choose && <ChoosePicker max={hand.legal.chooseMax ?? 4} onAct={onAct} />}
-            {hand?.legal?.show && me.hole && <ShowPicker hole={me.hole} count={hand.reveal ?? 2} onAct={onAct} />}
-            {hand?.legal?.allocate && me.hole && <SplitPicker hole={me.hole} boards={hand.boards} onAct={onAct} />}
+            {hand?.legal?.show && me.hole && <ShowPicker hole={order.cards} count={hand.reveal ?? 2} onAct={onAct} />}
+            {hand?.legal?.allocate && me.hole && <SplitPicker hole={order.cards} boards={hand.boards} onAct={onAct} />}
             {hand?.legal && !hand.legal.show && !hand.legal.choose && !hand.legal.allocate && (
               <ActionBar
                 key={`${hand.number}-${hand.street}-${hand.currentBet}`}
@@ -274,12 +288,14 @@ function TableHeader({ state, name }: { state: State; name: (id?: string) => str
 
 function Seat({
   p,
+  hole,
   state,
   winning,
   reaction,
   send,
 }: {
   p: PlayerView
+  hole?: string[] // the player's cards, in your own order for your seat
   state: State
   winning: Set<string>
   reaction?: string
@@ -335,8 +351,8 @@ function Seat({
       <div className="seat-stack">{p.stack} chips</div>
       {p.inHand && (
         <div className="seat-cards">
-          {p.hole
-            ? p.hole.map((c) => <Card key={c} code={c} small highlight={highlightOf(c, winning)} />)
+          {hole
+            ? hole.map((c) => <Card key={c} code={c} small highlight={highlightOf(c, winning)} />)
             : !p.folded && (
                 <>
                   {shown.map((c) => (

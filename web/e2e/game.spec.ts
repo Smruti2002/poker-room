@@ -434,3 +434,38 @@ test('players vote someone out mid-hand @phone', async ({ browser }) => {
   await cy.getByRole('button', { name: 'Join' }).click()
   await expect(cy.getByRole('alert')).toContainText('taken')
 })
+
+test('rearrange your cards: swap, survive a reload, sort @phone', async ({ browser }) => {
+  const { page: ann, link } = await createRoom(browser, 'Ann')
+  await joinByLink(browser, link, 'Bob')
+  await onlyVariants(ann, ['Omaha'])
+  await ann.getByRole('button', { name: 'Start game' }).click()
+
+  const mine = ann.getByRole('group', { name: 'Your cards' }).locator('.card')
+  await expect(mine).toHaveCount(4)
+  const dealt = await mine.evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')))
+
+  // Tap the first card, then the last: they swap.
+  await mine.nth(0).click()
+  await mine.nth(3).click()
+  const swapped = [dealt[3], dealt[1], dealt[2], dealt[0]]
+  await expect.poll(() => mine.evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')))).toEqual(swapped)
+  // Your seat shows the same order.
+  await expect
+    .poll(() => ann.locator('.seat-me .card').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label'))))
+    .toEqual(swapped)
+
+  // A reload keeps it.
+  await ann.reload()
+  await expect.poll(() => mine.evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')))).toEqual(swapped)
+
+  // The Sort button cycles; "Sort by rank" puts them high to low, after
+  // which it offers "Sort by suit". (The deal decides where the cycle starts.)
+  const sort = ann.locator('.hand-sort')
+  for (let i = 0; i < 3 && (await sort.textContent()) !== 'Sort by rank'; i++) await sort.click()
+  await sort.click()
+  await expect(sort).toHaveText('Sort by suit')
+  const order = 'Two Three Four Five Six Seven Eight Nine Ten Jack Queen King Ace'.split(' ')
+  const ranks = (await mine.evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')!.split(' ')[0]))).map((r) => order.indexOf(r))
+  expect(ranks).toEqual([...ranks].sort((a, b) => b - a))
+})
