@@ -12,7 +12,7 @@ import (
 )
 
 func newTestManager() *Manager {
-	return NewManager(Options{ResultDelay: 10 * time.Millisecond, ShowdownDelay: 10 * time.Millisecond}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	return NewManager(Options{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 }
 
 func recv(t *testing.T, c *Client) protocol.ServerMsg {

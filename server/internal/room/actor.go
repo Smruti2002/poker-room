@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
-	"time"
 
 	"pokerroom/internal/protocol"
 )
@@ -45,15 +44,8 @@ type Actor struct {
 	log     *slog.Logger
 }
 
-type actorSched struct{ a *Actor }
-
-func (s actorSched) After(d time.Duration, fire func()) {
-	time.AfterFunc(d, func() { s.a.inbox <- fire })
-}
-
 func newActor(code string, opts Options, log *slog.Logger) *Actor {
 	a := &Actor{inbox: make(chan func(), 256), clients: map[*Client]bool{}, log: log.With("room", code)}
-	opts.Sched = actorSched{a}
 	a.room = New(code, opts)
 	go a.loop()
 	return a

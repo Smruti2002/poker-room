@@ -10,7 +10,7 @@ A browser-based, multiplayer, **play-money** poker room in the style of richup.i
 1. Visitor enters a nickname → **Create room** → gets a share link (`/r/AB12CD`).
 2. Friends open the link, enter nickname, take a seat (or watch as spectators).
 3. Host edits **room settings** in the lobby, then hits **Start**.
-4. Each hand, the dealer button moves one seat clockwise. The **dealer picks the variant** (30 s timer; on timeout the previous variant is reused).
+4. Each hand, the dealer button moves one seat clockwise. The **dealer picks the variant** (no timer; the host can skip a stuck dealer and the previous variant is reused).
 5. Hands run until the host ends the game; a final **leaderboard** shows each player's profit (stack − starting stack − debt).
 
 ### 1.2 Host settings (lobby, locked once the game starts)
@@ -23,7 +23,6 @@ A browser-based, multiplayer, **play-money** poker room in the style of richup.i
 | Penalized loans | 3 | Loans 1..N carry the penalty; loans after N carry none |
 | Small / big blind | 10 / 20 | Optional: blinds increase every X hands |
 | Betting structure | No-limit | Pot-limit option for Omaha-style variants |
-| Turn timer | 30 s | Auto check, or fold on timeout |
 | Allowed variants | all 6 | Host can turn variants off |
 | Max players | 8 | Each variant also has its own card limit (see §2.7) |
 | Show-down muck allowed | yes | |
@@ -57,7 +56,7 @@ All variants use one 52-card deck, blinds, and the usual betting rounds: pre-flo
 ### 2.4 Double Texas (house)
 - 4 hole cards each. **Two separate 5-card boards**, dealt from the same deck and revealed street by street together.
 - **One shared pot, one betting line** for both boards.
-- **Allocation phase after the river:** every player still in the hand splits their 4 cards into 2+2, one pair per board. There is a timer; on timeout the server picks the strongest split.
+- **Allocation phase after the river:** every player still in the hand splits their 4 cards into 2+2, one pair per board. No timer; a skipped player gets the strongest default split.
 - Each board is judged like Texas Hold'em: best 5 of that pair + that board.
 - **Scoring:** each board awards 1 point to its winner. If players tie on a board, **each of them gets a full point** (the point is not divided). The player with the most points wins the whole pot. Players tied on points split it equally.
   - A wins board 1 and B wins board 2 → 1–1 → A and B split 50/50.
@@ -256,6 +255,7 @@ Each milestone ends with a **demo** and a **green test gate**. Don't start the n
 - **Tests:** Vitest component tests, Playwright visual snapshots of key screens, manual cross-browser pass (Chrome, Safari iOS, Firefox).
 - **Gate:** playtest session with 5+ friends. Fix everything ranked "confusing" or worse.
 - **Done:** chat and emoji reactions, hand history (last 20 hands), timer rings, deal/bet/pot/reaction animations, sounds and vibration (toggleable, per device), four-colour deck, keyboard shortcuts, current-hand hints (host setting), phone layout with a bottom dock and a phone E2E project.
+- **Changed after playtesting (2026-11-04):** all timers removed. The table waits for players; the result stays until anyone taps "Next hand"; the host can skip a stuck player (default move). The turn-timer setting is gone.
 - **Deferred:** oval seat layout (the grid reads better on phones with up to 10 players) and screenshot-diff tests (baselines differ between macOS and CI Linux). The 5+ friends playtest is still to do.
 
 ### M8 — Hardening (≈1 week)
@@ -288,7 +288,7 @@ About **7–8 weeks** for one developer working part-time-to-full-time. M0–M3 
 | House rules ambiguity | Decisions recorded in §2.8; worked examples in `docs/rules.md` used directly as test fixtures |
 | Deck runs out (Triple Texas, Dacoit) | Capacity checks in `CanStart` and in the Dacoit choice phase |
 | State lost on redeploy | Redis snapshots (M8), deploy during low traffic, graceful-shutdown drain |
-| Slow/AFK players | Turn timers, auto-actions, host kick |
+| Slow/AFK players | No timers (by choice): the host can skip whoever the table is waiting on |
 
 ---
 

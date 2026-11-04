@@ -1,9 +1,8 @@
 import type { HandView, State, WinnerView } from '../protocol/types.ts'
 import { Card } from './Card.tsx'
-import { Countdown } from './Countdown.tsx'
 
 /** Who won the last hand and with what, shown until the next hand starts. */
-export function ResultBanner({ state, hand, clockOffset }: { state: State; hand: HandView; clockOffset: number }) {
+export function ResultBanner({ state, hand, onNext }: { state: State; hand: HandView; onNext: () => void }) {
   const winners = hand.winners ?? []
   if (!hand.done || winners.length === 0) return null
   const name = (id: string) => (id === state.you ? 'You' : (state.players.find((p) => p.id === id)?.name ?? '?'))
@@ -44,11 +43,11 @@ export function ResultBanner({ state, hand, clockOffset }: { state: State; hand:
           </div>
         )
       })}
-      {hand.deadline && state.stage === 'result' ? (
-        <p className="muted small result-next">
-          Next hand in <Countdown deadline={hand.deadline} clockOffset={clockOffset} />
-        </p>
-      ) : null}
+      {state.stage === 'result' && (
+        <button className="btn btn-primary result-next" onClick={onNext}>
+          Next hand
+        </button>
+      )}
     </section>
   )
 }

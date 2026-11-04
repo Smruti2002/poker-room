@@ -14,28 +14,10 @@ import (
 	"pokerroom/internal/protocol"
 )
 
-// fakeSched collects timers; tests fire them explicitly. Firing a stale
-// timer is harmless because the room ignores old generations.
-type fakeSched struct{ pending []func() }
-
-func (f *fakeSched) After(_ time.Duration, fire func()) { f.pending = append(f.pending, fire) }
-
-// fire runs the most recent timer, which is the only live one.
-func (f *fakeSched) fire(t *testing.T) {
-	t.Helper()
-	if len(f.pending) == 0 {
-		t.Fatal("no timer scheduled")
-	}
-	fn := f.pending[len(f.pending)-1]
-	f.pending = nil
-	fn()
-}
-
 type harness struct {
-	t     *testing.T
-	r     *Room
-	sched *fakeSched
-	ps    []*Player
+	t  *testing.T
+	r  *Room
+	ps []*Player
 }
 
 func newHarness(t *testing.T, names ...string) *harness {
@@ -45,14 +27,13 @@ func newHarness(t *testing.T, names ...string) *harness {
 
 func newHarnessOpts(t *testing.T, opts Options, names ...string) *harness {
 	t.Helper()
-	h := &harness{t: t, sched: &fakeSched{}}
+	h := &harness{t: t}
 	seed := uint64(0)
 	// Hold'em only unless a test says otherwise, so hands deal without the
 	// dealer having to pick a variant.
 	if opts.Variants == nil {
 		opts.Variants = map[string]engine.Variant{"holdem": engine.Holdem}
 	}
-	opts.Sched = h.sched
 	opts.Now = func() time.Time { return time.UnixMilli(1_000_000) }
 	opts.Rand = mrand.New(mrand.NewPCG(1, 2))
 	opts.NewSeed = func() cards.Seed { seed++; return cards.SeedFromUint64(seed) }
@@ -76,6 +57,38 @@ func (h *harness) must(p *Player, m protocol.ClientMsg) {
 	if err := h.do(p, m); err != nil {
 		h.t.Fatalf("%s %s: %v", p.Name, m.Type, err)
 	}
+}
+
+// advance does what the table now waits for a person to do: tap "Next
+// hand" after a result, or the host skipping whoever the game is waiting on
+// (the dealer choosing, the player to act, or everyone still splitting).
+func (h *harness) advance() {
+	h.t.Helper()
+	if err := h.tryAdvance(); err != nil {
+		h.t.Fatalf("advance in stage %q: %v", h.r.stage, err)
+	}
+}
+
+func (h *harness) tryAdvance() error {
+	host := h.r.hostID
+	skip := func(id string) error { return h.r.Handle(host, protocol.ClientMsg{Type: protocol.MsgSkip, Target: id}) }
+	switch h.r.stage {
+	case protocol.StageResult:
+		return h.r.Handle(host, protocol.ClientMsg{Type: protocol.MsgNextHand})
+	case protocol.StageChoosing:
+		return skip(h.r.dealerID)
+	case protocol.StageHand:
+		if h.r.hand.Allocating {
+			for _, i := range h.r.hand.Pending() {
+				if err := skip(h.r.handIDs[i]); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+		return skip(h.r.handIDs[h.r.hand.ToAct])
+	}
+	return errors.New("nothing to advance")
 }
 
 func (h *harness) start() {
@@ -173,7 +186,6 @@ func TestSettings(t *testing.T) {
 		"stack too small":    func(s *protocol.Settings) { s.StartingStack = 50 },
 		"negative penalty":   func(s *protocol.Settings) { s.LoanPenalty = -1 },
 		"big below small":    func(s *protocol.Settings) { s.BigBlind = 5 },
-		"timer too short":    func(s *protocol.Settings) { s.TurnSeconds = 5 },
 		"no variants":        func(s *protocol.Settings) { s.Variants = nil },
 		"unknown variant":    func(s *protocol.Settings) { s.Variants = []string{"go-fish"} },
 		"duplicate variant":  func(s *protocol.Settings) { s.Variants = []string{"holdem", "holdem"} },
@@ -232,7 +244,7 @@ func TestHandsPlayAndDealerRotates(t *testing.T) {
 		if got := h.totalStacks(); got != 6000 {
 			t.Fatalf("chips not conserved: %d", got)
 		}
-		h.sched.fire(t) // result pause -> next hand
+		h.advance() // result pause -> next hand
 	}
 	// The button moves one seat clockwise every hand.
 	order := []string{"p1", "p2", "p3"}
@@ -282,14 +294,14 @@ func TestTurnTimeoutChecksOrFolds(t *testing.T) {
 	h := newHarness(t, "Ann", "Bob", "Cy")
 	h.start()
 	first := h.r.hand.ToAct
-	h.sched.fire(t) // facing the big blind: fold
+	h.advance() // facing the big blind: fold
 	if !h.r.hand.Players[first].Folded {
 		t.Fatal("timed-out player facing a bet should fold")
 	}
 	// Small blind calls; big blind times out with the option: check.
 	h.must(h.toAct(), protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "call"}})
 	bb := h.r.hand.ToAct
-	h.sched.fire(t)
+	h.advance()
 	if h.r.hand.Players[bb].Folded || h.r.hand.Street != engine.Flop {
 		t.Fatalf("big blind should have checked to the flop; street %v", h.r.hand.Street)
 	}
@@ -303,7 +315,7 @@ func TestDealerChoosesVariant(t *testing.T) {
 		t.Fatalf("stage = %q", h.r.stage)
 	}
 	v := h.r.View(h.ps[0].ID)
-	if v.Choosing == nil || v.Choosing.DealerID != h.r.dealerID || len(v.Choosing.Options) != 2 || v.Choosing.Deadline == 0 {
+	if v.Choosing == nil || v.Choosing.DealerID != h.r.dealerID || len(v.Choosing.Options) != 2 {
 		t.Fatalf("choosing view = %+v", v.Choosing)
 	}
 
@@ -335,11 +347,11 @@ func TestDealerChoosesVariant(t *testing.T) {
 
 	// Next dealer times out: the previous variant is kept.
 	h.playPassively()
-	h.sched.fire(t)
+	h.advance()
 	if h.r.stage != protocol.StageChoosing {
 		t.Fatalf("stage = %q", h.r.stage)
 	}
-	h.sched.fire(t)
+	h.advance()
 	if h.r.stage != protocol.StageHand || h.r.variant != "alt" {
 		t.Fatalf("timeout should reuse alt; got %q", h.r.variant)
 	}
@@ -378,7 +390,7 @@ func TestBrokePlayersAndWaiting(t *testing.T) {
 	// Simulate a bust between hands.
 	winner.Stack += loser.Stack
 	loser.Stack = 0
-	h.sched.fire(t)
+	h.advance()
 	if h.r.stage != protocol.StageWaiting {
 		t.Fatalf("stage = %q, want waiting", h.r.stage)
 	}
@@ -398,13 +410,13 @@ func TestSitOutAndIn(t *testing.T) {
 	cy := h.ps[2]
 	h.must(cy, protocol.ClientMsg{Type: protocol.MsgSitOut})
 	h.playPassively()
-	h.sched.fire(t)
+	h.advance()
 	if slices.Contains(h.r.handIDs, cy.ID) {
 		t.Fatal("sitting-out player was dealt in")
 	}
 	h.must(h.ps[1], protocol.ClientMsg{Type: protocol.MsgSitOut})
 	h.playPassively()
-	h.sched.fire(t)
+	h.advance()
 	if h.r.stage != protocol.StageWaiting {
 		t.Fatalf("stage %q, want waiting with one active player", h.r.stage)
 	}
@@ -425,7 +437,7 @@ func TestLateJoinerPlaysNextHand(t *testing.T) {
 		t.Fatal("late joiner dealt into a hand in progress")
 	}
 	h.playPassively()
-	h.sched.fire(t)
+	h.advance()
 	if !slices.Contains(h.r.handIDs, dee.ID) {
 		t.Fatal("late joiner not dealt the next hand")
 	}
@@ -441,8 +453,7 @@ func TestEndGame(t *testing.T) {
 	if h.r.phase != protocol.PhasePlaying {
 		t.Fatal("game must not end mid-hand")
 	}
-	h.playPassively()
-	h.sched.fire(t)
+	h.playPassively() // the game ends as soon as that hand is over
 	if h.r.phase != protocol.PhaseEnded {
 		t.Fatalf("phase = %q after the hand", h.r.phase)
 	}
@@ -543,7 +554,7 @@ func TestProfitsSumToMinusPenalties(t *testing.T) {
 				}
 			}
 			if h.r.stage != protocol.StageHand {
-				h.sched.fire(t)
+				h.advance()
 			}
 		}
 	}
@@ -608,9 +619,7 @@ func FuzzRoom(f *testing.F) {
 			case 7:
 				m.Type = protocol.MsgSitIn
 			case 8:
-				if len(h.sched.pending) > 0 {
-					h.sched.fire(t)
-				}
+				_ = h.tryAdvance()
 				continue
 			case 9:
 				if op > 250 {
@@ -638,15 +647,10 @@ func FuzzRoom(f *testing.F) {
 	})
 }
 
-// Finished hands report who won, how, and when the next hand starts; a
-// showdown pauses longer than a hand won by folds.
-func TestWinnersAndResultPause(t *testing.T) {
-	var delays []time.Duration
+// Finished hands report who won and how, and stay up until a player taps
+// "Next hand": nothing moves on by itself.
+func TestWinnersAndNextHand(t *testing.T) {
 	h := newHarness(t, "Ann", "Bob", "Cy")
-	h.r.opts.Sched = schedFunc(func(d time.Duration, fire func()) {
-		delays = append(delays, d)
-		h.sched.After(d, fire)
-	})
 	h.start()
 
 	// Hand 1: everyone folds to the big blind, whose unmatched 10 comes back.
@@ -657,17 +661,23 @@ func TestWinnersAndResultPause(t *testing.T) {
 	if len(hv.Winners) != 1 || hv.Winners[0].Desc != "" || hv.Winners[0].Cards != nil || hv.Winners[0].Chips != 20 {
 		t.Fatalf("fold win = %+v", hv.Winners)
 	}
-	if hv.Deadline == 0 || delays[len(delays)-1] != h.r.opts.ResultDelay {
-		t.Fatalf("fold win pause %v deadline %d", delays[len(delays)-1], hv.Deadline)
+	if h.r.stage != protocol.StageResult {
+		t.Fatalf("stage %q", h.r.stage)
+	}
+
+	// Any player, not just the host, starts the next hand; only once.
+	bob := h.ps[1]
+	h.must(bob, protocol.ClientMsg{Type: protocol.MsgNextHand})
+	if h.r.stage != protocol.StageHand || h.r.handNo != 2 {
+		t.Fatalf("stage %q hand %d", h.r.stage, h.r.handNo)
+	}
+	if err := h.do(bob, protocol.ClientMsg{Type: protocol.MsgNextHand}); err == nil {
+		t.Fatal("next hand mid-hand should fail")
 	}
 
 	// Hand 2: checked down to a showdown.
-	h.sched.fire(t)
 	h.playPassively()
 	hv = h.r.View(h.ps[0].ID).Hand
-	if delays[len(delays)-1] != h.r.opts.ShowdownDelay || h.r.opts.ShowdownDelay <= h.r.opts.ResultDelay {
-		t.Fatalf("showdown pause %v", delays[len(delays)-1])
-	}
 	if len(hv.Winners) == 0 {
 		t.Fatal("no winners")
 	}
@@ -682,10 +692,6 @@ func TestWinnersAndResultPause(t *testing.T) {
 		t.Fatalf("winners got %d of a %d pot", paid, hv.Pot)
 	}
 }
-
-type schedFunc func(time.Duration, func())
-
-func (f schedFunc) After(d time.Duration, fire func()) { f(d, fire) }
 
 func TestShowTwoInARoom(t *testing.T) {
 	h := newHarnessOpts(t, Options{Variants: map[string]engine.Variant{"show2": engine.ShowTwo}}, "Ann", "Bob", "Cy")
@@ -730,14 +736,14 @@ func TestShowTwoInARoom(t *testing.T) {
 	second := h.toAct()
 	idx := slices.Index(h.r.handIDs, second.ID)
 	want := h.r.hand.DefaultShow(idx).Cards
-	h.sched.fire(t)
+	h.advance()
 	if !slices.Equal(h.r.hand.Players[idx].Shown, want) {
 		t.Fatalf("timed-out reveal = %v, want %v", h.r.hand.Players[idx].Shown, want)
 	}
 
 	// Last reveal, then betting starts and the hand plays out.
 	third := h.toAct()
-	h.sched.fire(t)
+	h.advance()
 	if h.r.hand.Showing {
 		t.Fatalf("still showing after %s", third.Name)
 	}
@@ -780,7 +786,7 @@ func TestSitOutWhileDealerChooses(t *testing.T) {
 			h.must(p, protocol.ClientMsg{Type: protocol.MsgSitOut})
 		}
 	}
-	h.sched.fire(t) // dealer's time runs out with nobody left to play
+	h.advance() // dealer's time runs out with nobody left to play
 	if h.r.stage != protocol.StageWaiting {
 		t.Fatalf("stage %q, want waiting", h.r.stage)
 	}
@@ -791,7 +797,7 @@ func TestSitOutWhileDealerChooses(t *testing.T) {
 	}
 	dealer := h.r.player(h.r.dealerID)
 	h.must(dealer, protocol.ClientMsg{Type: protocol.MsgSitOut})
-	h.sched.fire(t)
+	h.advance()
 	if h.r.dealerID == dealer.ID || h.r.stage != protocol.StageChoosing {
 		t.Fatalf("dealer %s stage %q", h.r.dealerID, h.r.stage)
 	}
@@ -825,7 +831,7 @@ func TestDacoitInARoom(t *testing.T) {
 
 	// The next player times out and takes 4; the dealer is fixed at 4, so
 	// the hand is dealt.
-	h.sched.fire(t)
+	h.advance()
 	if h.r.hand.Picking {
 		t.Fatal("still picking after the last choice")
 	}
@@ -866,12 +872,7 @@ func TestViewListsAreNeverNull(t *testing.T) {
 }
 
 func TestDoubleTexasInARoom(t *testing.T) {
-	var delays []time.Duration
 	h := newHarnessOpts(t, Options{Variants: map[string]engine.Variant{"double": engine.DoubleTexas}}, "Ann", "Bob", "Cy")
-	h.r.opts.Sched = schedFunc(func(d time.Duration, fire func()) {
-		delays = append(delays, d)
-		h.sched.After(d, fire)
-	})
 	h.start()
 	// Check it down to the river.
 	for !h.r.hand.Allocating {
@@ -882,10 +883,6 @@ func TestDoubleTexasInARoom(t *testing.T) {
 		}
 		h.must(h.toAct(), protocol.ClientMsg{Type: protocol.MsgAction, Action: a})
 	}
-	if got := delays[len(delays)-1]; got != 2*time.Duration(h.r.settings.TurnSeconds)*time.Second {
-		t.Fatalf("split clock %v", got)
-	}
-	timers := len(delays)
 
 	// Everyone may split now, in any order.
 	for _, p := range h.ps {
@@ -898,9 +895,6 @@ func TestDoubleTexasInARoom(t *testing.T) {
 	idx := slices.Index(h.r.handIDs, last.ID)
 	hole := cardStrings(h.r.hand.Players[idx].Hole)
 	h.must(last, protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "allocate", Cards: hole}})
-	if len(delays) != timers {
-		t.Fatal("a lock-in must not restart the split clock")
-	}
 	for _, viewer := range h.ps {
 		for _, pv := range h.r.View(viewer.ID).Players {
 			if pv.ID != last.ID {
@@ -915,9 +909,9 @@ func TestDoubleTexasInARoom(t *testing.T) {
 		}
 	}
 
-	// Time runs out: the other two get the default split, and the showdown
-	// shows every split and who won each board.
-	h.sched.fire(t)
+	// The host skips the other two: they get the default split, and the
+	// showdown shows every split and who won each board.
+	h.advance()
 	if h.r.stage != protocol.StageResult {
 		t.Fatalf("stage %q", h.r.stage)
 	}
@@ -932,5 +926,78 @@ func TestDoubleTexasInARoom(t *testing.T) {
 	}
 	if got := h.totalStacks(); got != 6000 {
 		t.Fatalf("chips = %d", got)
+	}
+}
+
+// The host can move the game on when it's waiting for someone; nobody else
+// can, and only for the player the game is actually waiting on.
+func TestHostSkip(t *testing.T) {
+	opts := Options{Variants: map[string]engine.Variant{"holdem": engine.Holdem, "dacoit": engine.Dacoit}}
+	h := newHarnessOpts(t, opts, "Ann", "Bob", "Cy")
+	h.r.settings.Variants = []string{"holdem", "dacoit"} // a skipped dealer gets the first
+	ann := h.ps[0]
+	skip := func(by *Player, target string) error {
+		return h.do(by, protocol.ClientMsg{Type: protocol.MsgSkip, Target: target})
+	}
+	if err := skip(ann, "p2"); err == nil {
+		t.Fatal("nothing to skip in the lobby")
+	}
+	h.start()
+
+	// Dealer is choosing: only the dealer can be skipped, only by the host.
+	var other *Player
+	for _, p := range h.ps[1:] {
+		if p.ID != h.r.dealerID {
+			other = p
+		}
+	}
+	if err := skip(other, h.r.dealerID); !errors.Is(err, ErrNotHost) {
+		t.Fatalf("non-host skip: %v", err)
+	}
+	if err := skip(ann, other.ID); err == nil {
+		t.Fatal("skipping someone the game isn't waiting on should fail")
+	}
+	h.must(ann, protocol.ClientMsg{Type: protocol.MsgSkip, Target: h.r.dealerID})
+	if h.r.stage != protocol.StageHand || h.r.variant != "holdem" {
+		t.Fatalf("skipped choice: stage %q variant %q", h.r.stage, h.r.variant)
+	}
+
+	// Facing the big blind, a skipped player folds; later, checks.
+	first := h.r.hand.ToAct
+	h.must(ann, protocol.ClientMsg{Type: protocol.MsgSkip, Target: h.r.handIDs[first]})
+	if !h.r.hand.Players[first].Folded {
+		t.Fatal("skipped player facing a bet should fold")
+	}
+	h.must(h.toAct(), protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "call"}})
+	bb := h.r.hand.ToAct
+	h.must(ann, protocol.ClientMsg{Type: protocol.MsgSkip, Target: h.r.handIDs[bb]})
+	if h.r.hand.Players[bb].Folded || h.r.hand.Street != engine.Flop {
+		t.Fatal("skipped big blind with the option should check")
+	}
+
+	// Nobody moves on by itself: the table waits indefinitely.
+	before := h.r.hand.ToAct
+	h.r.View(ann.ID)
+	if h.r.hand.ToAct != before || h.r.stage != protocol.StageHand {
+		t.Fatal("the hand moved without anyone acting")
+	}
+
+	// After the hand there's nobody to skip; Next hand is for everyone.
+	h.playPassively()
+	if err := skip(ann, h.ps[1].ID); err == nil {
+		t.Fatal("skip during the result should fail")
+	}
+	h.must(h.ps[2], protocol.ClientMsg{Type: protocol.MsgNextHand})
+
+	// Dacoit: a skipped chooser takes 4 cards.
+	if h.r.stage == protocol.StageChoosing {
+		h.must(h.r.player(h.r.dealerID), protocol.ClientMsg{Type: protocol.MsgChooseVariant, Variant: "dacoit"})
+	}
+	if h.r.variant == "dacoit" {
+		chooser := h.r.hand.ToAct
+		h.must(ann, protocol.ClientMsg{Type: protocol.MsgSkip, Target: h.r.handIDs[chooser]})
+		if h.r.hand.Players[chooser].Picked != 4 {
+			t.Fatalf("skipped chooser picked %d", h.r.hand.Players[chooser].Picked)
+		}
 	}
 }

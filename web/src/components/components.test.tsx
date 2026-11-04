@@ -151,7 +151,6 @@ describe('Table', () => {
       pot: 30,
       toAct: 'p1',
       currentBet: 20,
-      deadline: Date.now() + 20_000,
       legal: { fold: true, check: false, call: true, callUnits: 10, bet: false, raise: true, minTo: 40, maxTo: 1990 },
       done: false,
     },
@@ -190,7 +189,7 @@ describe('Table', () => {
     const s = state({
       phase: 'playing',
       stage: 'choosing',
-      choosing: { dealerId: 'p1', options: ['holdem', 'omaha'], deadline: Date.now() + 30_000 },
+      choosing: { dealerId: 'p1', options: ['holdem', 'omaha'] },
     })
     render(<Table state={s} clockOffset={0} onAct={vi.fn()} send={send} />)
     fireEvent.click(screen.getByRole('button', { name: 'Omaha' }))
@@ -388,7 +387,7 @@ describe('ResultBanner', () => {
         { playerId: 'p2', chips: 20, desc: 'Pair of Queens | Pair of Sevens', cards: [['Qc', '9s', '5s', 'Ac', 'Qh'], ['Js', 'Kc', '7c', 'Tc', '7s']] },
       ],
     }
-    render(<ResultBanner state={s} hand={hand} clockOffset={0} />)
+    render(<ResultBanner state={s} hand={hand} onNext={vi.fn()} />)
     const banner = screen.getByLabelText('Hand result')
     expect(banner).toHaveTextContent('You win 20 (split pot)Board 2: Two pair, Kings and Sevens')
     expect(banner).toHaveTextContent('Bob wins 20 (split pot)Board 1: Pair of Queens')
@@ -454,7 +453,7 @@ describe('Drawer', () => {
 })
 
 describe('Table polish', () => {
-  it('shows reactions over seats, the hand hint and a timer ring', () => {
+  it('shows reactions over seats, the hand hint, and who the table is waiting on', () => {
     const now = Date.now()
     const s = state({
       phase: 'playing',
@@ -470,14 +469,15 @@ describe('Table polish', () => {
       ],
       hand: {
         number: 1, variant: 'holdem', street: 'Flop', boards: [['Ac', '7d', '2s']], pot: 40, toAct: 'p2', currentBet: 0,
-        deadline: now + 20_000, done: false, hint: 'Three of a kind, Aces',
+        done: false, hint: 'Three of a kind, Aces',
       },
     })
     render(<Table state={s} clockOffset={0} onAct={vi.fn()} send={vi.fn()} />)
     expect(screen.getByLabelText('Bob reacts 😂')).toBeInTheDocument()
     expect(screen.queryByLabelText('Ann reacts 🔥')).toBeNull()
     expect(screen.getByText('Three of a kind, Aces')).toBeInTheDocument()
-    expect(within(screen.getByLabelText('Seat Bob')).getByLabelText(/seconds left/)).toBeInTheDocument()
+    expect(within(screen.getByLabelText('Seat Bob')).getByLabelText('Waiting for Bob')).toBeInTheDocument()
+    expect(screen.queryByText(/\d+s$/)).toBeNull() // no countdowns anywhere
   })
 })
 
@@ -495,5 +495,52 @@ describe('ActionBar shortcuts', () => {
     expect(box).toHaveFocus()
     fireEvent.keyDown(box, { key: 'c' }) // typing in the box is not a shortcut
     expect(onAct).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('No timers: Next hand and Skip', () => {
+  const waitingOnBob = (you: string) =>
+    state({
+      phase: 'playing',
+      stage: 'hand',
+      you,
+      players: [
+        player({ id: 'p1', name: 'Ann', inHand: true, holeCount: 2, hole: you === 'p1' ? ['As', 'Ad'] : undefined }),
+        player({ id: 'p2', name: 'Bob', inHand: true, holeCount: 2, hole: you === 'p2' ? ['Kc', 'Kd'] : undefined }),
+      ],
+      hand: { number: 1, variant: 'holdem', street: 'Flop', boards: [['2c', '7d', '9h']], pot: 40, toAct: 'p2', currentBet: 0, done: false },
+    })
+
+  it('lets the host skip the player the table is waiting on, after confirming', () => {
+    const send = vi.fn()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<Table state={waitingOnBob('p1')} clockOffset={0} onAct={vi.fn()} send={send} />)
+    expect(within(screen.getByLabelText('Seat Ann')).queryByRole('button', { name: 'Skip' })).toBeNull()
+    fireEvent.click(within(screen.getByLabelText('Seat Bob')).getByRole('button', { name: 'Skip' }))
+    expect(confirm).toHaveBeenCalled()
+    expect(send).toHaveBeenCalledWith({ type: 'skip', target: 'p2' })
+    confirm.mockRestore()
+  })
+
+  it('does not offer Skip to other players', () => {
+    render(<Table state={{ ...waitingOnBob('p2'), hostId: 'p1' }} clockOffset={0} onAct={vi.fn()} send={vi.fn()} />)
+    expect(screen.queryByRole('button', { name: 'Skip' })).toBeNull()
+  })
+
+  it('anyone can start the next hand from the result', () => {
+    const send = vi.fn()
+    const s = state({
+      phase: 'playing',
+      stage: 'result',
+      you: 'p2',
+      players: [player({ id: 'p1', name: 'Ann', inHand: true, won: 40 }), player({ id: 'p2', name: 'Bob', inHand: true })],
+      hand: {
+        number: 1, variant: 'holdem', street: 'Showdown', boards: [['2c', '7d', '9h', 'Js', 'Qc']], pot: 40, currentBet: 0, done: true,
+        winners: [{ playerId: 'p1', chips: 40 }],
+      },
+    })
+    render(<Table state={s} clockOffset={0} onAct={vi.fn()} send={send} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Next hand' }))
+    expect(send).toHaveBeenCalledWith({ type: 'nextHand' })
   })
 })

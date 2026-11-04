@@ -26,9 +26,7 @@ func newTestServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	s := &Server{Rooms: room.NewManager(room.Options{
-		Variants:      map[string]engine.Variant{"holdem": engine.Holdem},
-		ResultDelay:   50 * time.Millisecond,
-		ShowdownDelay: 50 * time.Millisecond,
+		Variants: map[string]engine.Variant{"holdem": engine.Holdem},
 	}, log), Log: log}
 	srv := httptest.NewServer(httpapi.NewHandler(httpapi.Config{Routes: s.Register}, log))
 	t.Cleanup(srv.Close)
@@ -234,7 +232,8 @@ func TestPlayAHandOverWebSockets(t *testing.T) {
 		t.Fatalf("unexpected final hand %+v", final.Hand)
 	}
 
-	// The room moves on to hand 2 by itself.
+	// Nothing moves on by itself: any player starts the next hand.
+	bob.send(protocol.ClientMsg{Type: protocol.MsgNextHand})
 	bob.waitState(func(s *protocol.State) bool { return s.Hand != nil && s.Hand.Number == 2 })
 
 	for _, c := range clients {

@@ -14,10 +14,12 @@ const (
 	MsgTakeLoan       = "takeLoan"       // broke player, between hands
 	MsgSitOut         = "sitOut"
 	MsgSitIn          = "sitIn"
-	MsgEndGame        = "endGame" // host only
-	MsgChat           = "chat"    // Text: a chat message to the table
-	MsgReact          = "react"   // Emoji: a quick reaction shown over your seat
-	MsgHistory        = "history" // ask for the recent hand history (sent only to you)
+	MsgEndGame        = "endGame"  // host only
+	MsgChat           = "chat"     // Text: a chat message to the table
+	MsgReact          = "react"    // Emoji: a quick reaction shown over your seat
+	MsgHistory        = "history"  // ask for the recent hand history (sent only to you)
+	MsgNextHand       = "nextHand" // any player, once a hand is over
+	MsgSkip           = "skip"     // host only: Target gets the default move
 )
 
 // ClientMsg is sent by the browser. The first message on a connection must
@@ -31,6 +33,7 @@ type ClientMsg struct {
 	Action   *Action   `json:"action,omitempty"`
 	Text     string    `json:"text,omitempty"`
 	Emoji    string    `json:"emoji,omitempty"`
+	Target   string    `json:"target,omitempty"` // player ID, for skip
 }
 
 // Action is a betting action. To is the street total for bet/raise, in units.
@@ -70,7 +73,6 @@ type Settings struct {
 	SmallBlind     int64    `json:"smallBlind"`
 	BigBlind       int64    `json:"bigBlind"`
 	PotLimit       bool     `json:"potLimit"` // pot-limit for Omaha, Dacoit and S2P2
-	TurnSeconds    int      `json:"turnSeconds"`
 	Variants       []string `json:"variants"`
 	MaxPlayers     int      `json:"maxPlayers"`
 	// Hints shows each player the name of their current best hand.
@@ -195,11 +197,8 @@ type HandView struct {
 	Pots       []PotView  `json:"pots,omitempty"`
 	ToAct      string     `json:"toAct,omitempty"`
 	CurrentBet int64      `json:"currentBet"`
-	// Deadline is when the player to act times out or, once the hand is
-	// done, when the next hand starts (unix ms).
-	Deadline int64  `json:"deadline,omitempty"`
-	Legal    *Legal `json:"legal,omitempty"` // only for the player to act
-	Done     bool   `json:"done"`
+	Legal      *Legal     `json:"legal,omitempty"` // only for the player to act
+	Done       bool       `json:"done"`
 	// Hint names the viewer's current best hand, when the host allows hints
 	// and there are enough cards to make one.
 	Hint string `json:"hint,omitempty"`
@@ -247,7 +246,6 @@ type Legal struct {
 type ChoosingView struct {
 	DealerID string   `json:"dealerId"`
 	Options  []string `json:"options"`
-	Deadline int64    `json:"deadline"`
 }
 
 // Standing is one leaderboard row.

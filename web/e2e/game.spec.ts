@@ -111,10 +111,12 @@ test('three friends create a room, join by link and play a hand @phone', async (
     await expect(page.locator('.leaderboard li')).toHaveCount(3)
     // Everyone sees who won and with what, and when the next hand starts.
     await expect(page.locator('.result')).toContainText(/wins? \d+( \(split pot\))? with /)
-    await expect(page.locator('.result')).toContainText('Next hand in')
+    // No timers: the result stays until someone taps Next hand.
+    await expect(page.getByRole('button', { name: 'Next hand', exact: true })).toBeVisible()
+    await expect(page.getByText(/\d+s\b/)).toHaveCount(0)
   }
 
-  // After the pause, the next dealer picks again.
+  await cy.getByRole('button', { name: 'Next hand', exact: true }).click()
   await dealerPicks(players, 'Omaha')
   await expect(bob.getByText(/Hand #2 · Omaha/)).toBeVisible()
   await expect(bob.locator('.seat-me .card:not(.card-back)')).toHaveCount(4)

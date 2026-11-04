@@ -8,7 +8,6 @@ export const settings: Settings = {
   smallBlind: 10,
   bigBlind: 20,
   potLimit: false,
-  turnSeconds: 30,
   variants: ['holdem'],
   maxPlayers: 8,
   hints: true,

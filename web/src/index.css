@@ -373,13 +373,6 @@ input:not([type]) {
   color: var(--ok);
   font-weight: 700;
 }
-.countdown {
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
-}
-.countdown-low {
-  color: var(--bad);
-}
 
 /* Your cards and actions, pinned to the bottom of the screen. */
 .dock {
@@ -1029,38 +1022,6 @@ details[open] > summary {
     opacity: 0;
   }
 }
-.timer-ring {
-  position: relative;
-  display: inline-grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-}
-.timer-ring svg {
-  position: absolute;
-  inset: 0;
-  transform: rotate(-90deg);
-}
-.timer-track {
-  fill: none;
-  stroke: var(--line);
-  stroke-width: 3;
-}
-.timer-fill {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 3;
-  stroke-linecap: round;
-  transition: stroke-dashoffset 0.25s linear;
-}
-.timer-ring.countdown-low .timer-fill {
-  stroke: var(--bad);
-}
-.timer-num {
-  font-size: 0.7rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
 .hint {
   margin: 0;
   font-size: 0.85rem;
@@ -1120,4 +1081,48 @@ details[open] > summary {
 }
 .four-color .card.suit-d {
   color: #1f5fbf;
+}
+
+/* No timers: who the table waits on, and the host's Skip. */
+.thinking {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+  height: 1rem;
+}
+.thinking span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: think 1.2s infinite ease-in-out;
+}
+.thinking span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.thinking span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes think {
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+.btn-skip {
+  padding: 0.1rem 0.5rem;
+  font-size: 0.75rem;
+  border-color: var(--bad);
+  color: var(--bad);
+  background: transparent;
+}
+.result-next {
+  justify-self: start;
+  min-width: 8rem;
 }

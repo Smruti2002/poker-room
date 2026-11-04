@@ -12,9 +12,9 @@ All chips are virtual. Chip amounts are always whole numbers.
 2. The host sets the [room settings](#2-room-settings) in the lobby and presses **Start**. Settings are locked from then on.
 3. Each hand:
    1. The dealer button moves one seat clockwise to the next seated player who is not sitting out. On the first hand, the button goes to a random seat.
-   2. The **dealer picks the variant** from the host's allowed list (30 s timer; on timeout the previous variant is reused, or Texas Hold'em on the first hand). Variants the current table can't support (§4.7) can't be picked.
+   2. The **dealer picks the variant** from the host's allowed list. There is no timer; if the table is waiting on the dealer, the host can skip them, and the previous variant is reused (or the first allowed one on the first hand). Variants the current table can't support (§4.7) can't be picked.
    3. The hand runs according to the chosen variant.
-   4. When the hand ends, the result (who won, how much, and with which five cards) stays on screen for about 9 seconds after a showdown, or 4 seconds when everyone else folded, before the next hand.
+   4. When the hand ends, the result (who won, how much, and with which five cards) stays on screen until any player taps **Next hand**.
 4. Between hands, broke players may take a [loan](#3-loans).
 5. The host ends the game whenever they want. The leaderboard ranks players by **profit = stack − starting stack − debt**. 0 means the player broke even, a positive number means they are up, and a negative one means they are down.
 
@@ -28,7 +28,6 @@ All chips are virtual. Chip amounts are always whole numbers.
 | Penalized loans | 3 | 0 – 100 |
 | Small / big blind | 10 / 20 | SB ≥ 1, BB ≥ SB |
 | Betting structure | No-limit | No-limit, or pot-limit (Omaha, Dacoit, S2P2) |
-| Turn timer | 30 s | 10 – 120 s |
 | Allowed variants | all 6 | at least 1 |
 | Max players | 8 | 2 – 10 |
 
@@ -66,7 +65,7 @@ All chips are virtual. Chip amounts are always whole numbers.
 - *Minimum bet* is the big blind. *Minimum raise* is the size of the last full bet or raise on this street.
 - An all-in for less than a full raise does **not** reopen betting for players who have already acted on this street.
 - If a bet is not fully called, the uncalled part goes back to the bettor.
-- **Turn timeout:** check if possible, otherwise fold.
+- **No timers.** The table waits for each player. If someone is holding it up (away, or disconnected), the **host can skip them**: they check if possible, otherwise fold. In the variants' own steps a skipped player gets the default described there.
 
 **Showdown & pots**
 - If everyone else folds, the last player wins every pot they're part of and doesn't have to show.
@@ -100,7 +99,7 @@ A full house (K K K Q Q) would need 0 hole cards, so it doesn't count. Best: K�
 ### 4.3 Dacoit (house variant)
 
 - **Phases:** **Choice**, Blinds, Deal 4/6, Bet, Flop, Bet, Turn, Bet, River, Bet, Showdown.
-- **Choice:** before any cards are dealt, each player except the dealer picks **4 or 6 cards**, in seat order starting left of the dealer. Everyone sees earlier picks. The **dealer always gets 4**. Timeout picks 4.
+- **Choice:** before any cards are dealt, each player except the dealer picks **4 or 6 cards**, in seat order starting left of the dealer. Everyone sees earlier picks. The **dealer always gets 4**. A skipped player takes 4.
 - **Deck limit:** "6" can't be picked if `cards already chosen + 6 + 4 × (players still to choose, including the dealer) + 5 > 52`.
 - **Multiplier:** each player has a multiplier *m*: 1 for 4 cards, 2 for 6 cards. All betting is in **units**, and a player pays `m` chips per unit. That covers blinds, bets, calls, raises and pot-limit maximums.
   - A 6-card player's largest possible bet is `floor(stack / 2)` units. One leftover odd chip just stays in their stack.
@@ -132,7 +131,7 @@ A full house (K K K Q Q) would need 0 hole cards, so it doesn't count. Best: K�
 - **Phases:** Blinds, Deal 4, Bet, Flop×2, Bet, Turn×2, Bet, River×2, Bet, **Allocate**, Showdown.
 - There are **two boards** of 5 cards, dealt from one deck and revealed together street by street.
 - There is **one pot and one betting line** for both boards.
-- **Allocate:** after the river betting (or once the boards run out after an all-in), every player still in the hand splits their 4 cards into two pairs, one pair per board. Everyone splits at the same time, with twice the normal turn timer. Others only see that a player has locked in; the splits are shown at the showdown. On timeout, the server picks the split whose **weakest** board hand is strongest. Ties go to the stronger second-weakest hand, then to the lowest board number.
+- **Allocate:** after the river betting (or once the boards run out after an all-in), every player still in the hand splits their 4 cards into two pairs, one pair per board. Everyone splits at the same time. Others only see that a player has locked in; the splits are shown at the showdown. A skipped player gets the split whose **weakest** board hand is strongest. Ties go to the stronger second-weakest hand, then to the lowest board number.
 - Each board is judged on its own as Texas Hold'em: best 5 of that pair + that board's 5 cards.
 - **Scoring:**
   - Each board gives **1 point** to its winner.
@@ -162,7 +161,7 @@ A full house (K K K Q Q) would need 0 hole cards, so it doesn't count. Best: K�
 ### 4.6 Show 2 Play 2 (house variant)
 
 - **Phases:** Blinds, Deal 4, **Show**, Bet, Flop, Bet, Turn, Bet, River, Bet, Showdown.
-- **Show:** in seat order, starting left of the dealer, each player picks 2 of their 4 cards and shows them to everyone. Each reveal is visible before the next player picks. On timeout, the server reveals the player's 2 lowest-ranked cards.
+- **Show:** in seat order, starting left of the dealer, each player picks 2 of their 4 cards and shows them to everyone. Each reveal is visible before the next player picks. A skipped player reveals their 2 lowest-ranked cards.
 - **Final hand:** **exactly 3** board cards + **exactly 1** shown card + **exactly 1** hidden card.
 
 **Example 4.6-a:** shown A♠ A♦, hidden K♣ 5♥, board A♣ K♦ K♥ 9♠ 2♣.

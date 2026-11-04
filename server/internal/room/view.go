@@ -109,7 +109,6 @@ func (r *Room) View(viewer string) protocol.State {
 		s.Choosing = &protocol.ChoosingView{
 			DealerID: r.dealerID,
 			Options:  slices.Clone(r.options),
-			Deadline: r.deadline.UnixMilli(),
 		}
 	}
 	return s
@@ -149,12 +148,8 @@ func (r *Room) handView(viewer string) *protocol.HandView {
 			}
 			hv.BoardWinners = append(hv.BoardWinners, names)
 		}
-		if r.stage == protocol.StageResult {
-			hv.Deadline = r.deadline.UnixMilli()
-		}
 		return hv
 	}
-	hv.Deadline = r.deadline.UnixMilli()
 	if h.ToAct >= 0 {
 		hv.ToAct = r.handIDs[h.ToAct]
 	}

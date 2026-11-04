@@ -23,24 +23,12 @@ import (
 	"pokerroom/internal/protocol"
 )
 
-// Scheduler runs fire after d. Inside an Actor, fire runs on the room's
-// goroutine; tests use a fake that fires on demand.
-type Scheduler interface {
-	After(d time.Duration, fire func())
-}
-
 // Options configure a room. Zero values get sensible defaults.
 type Options struct {
-	Variants    map[string]engine.Variant // default: every engine variant
-	Now         func() time.Time
-	Sched       Scheduler
-	Rand        *mrand.Rand       // picks the first dealer
-	NewSeed     func() cards.Seed // shuffle seed per hand
-	ChooseDelay time.Duration     // dealer's time to pick a variant
-	ResultDelay time.Duration     // pause after a hand won by folds
-	// ShowdownDelay is the longer pause after a showdown, so everyone can
-	// see who won and with what.
-	ShowdownDelay time.Duration
+	Variants map[string]engine.Variant // default: every engine variant
+	Now      func() time.Time
+	Rand     *mrand.Rand       // picks the first dealer
+	NewSeed  func() cards.Seed // shuffle seed per hand
 }
 
 // Player is a person in the room, kept across hands.
@@ -75,12 +63,7 @@ type Room struct {
 	dealerID string
 	options  []string // variants the dealer may choose from
 
-	deadline     time.Time
-	timerGen     int
 	endAfterHand bool
-	// allocTimer is set once the split timer for this hand is running, so
-	// each player's lock-in doesn't restart everyone's clock.
-	allocTimer bool
 
 	chat      []protocol.ChatLine
 	chatID    int
@@ -122,15 +105,6 @@ func New(code string, opts Options) *Room {
 	}
 	if opts.NewSeed == nil {
 		opts.NewSeed = cards.NewSeed
-	}
-	if opts.ChooseDelay == 0 {
-		opts.ChooseDelay = 30 * time.Second
-	}
-	if opts.ResultDelay == 0 {
-		opts.ResultDelay = 4 * time.Second
-	}
-	if opts.ShowdownDelay == 0 {
-		opts.ShowdownDelay = 9 * time.Second
 	}
 	r := &Room{Code: code, opts: opts, phase: protocol.PhaseLobby}
 	for name := range opts.Variants {
@@ -245,6 +219,10 @@ func (r *Room) Handle(pid string, m protocol.ClientMsg) error {
 		return r.say(p, m.Text)
 	case protocol.MsgReact:
 		return r.react(p, m.Emoji)
+	case protocol.MsgNextHand:
+		return r.startNextHand()
+	case protocol.MsgSkip:
+		return r.skip(p, m.Target)
 	}
 	return ErrUnknownMsg
 }
@@ -305,7 +283,6 @@ func (r *Room) endGame(p *Player) error {
 func (r *Room) end() {
 	r.phase = protocol.PhaseEnded
 	r.stage = ""
-	r.cancelTimer()
 }
 
 // nextHand picks the next dealer and either asks them for a variant or deals
@@ -315,7 +292,6 @@ func (r *Room) nextHand() {
 		r.end()
 		return
 	}
-	r.cancelTimer()
 	eligible := r.eligible()
 	if len(eligible) < 2 {
 		r.stage = protocol.StageWaiting
@@ -337,7 +313,6 @@ func (r *Room) nextHand() {
 		r.deal(r.options[0])
 	default:
 		r.stage = protocol.StageChoosing
-		r.schedule(r.opts.ChooseDelay)
 	}
 }
 
@@ -410,25 +385,16 @@ func (r *Room) deal(variant string) {
 		panic(fmt.Sprintf("room %s: dealing %s: %v", r.Code, variant, err))
 	}
 	r.hand = h
-	r.allocTimer = false
 	r.handNo++
 	r.variant = variant
 	r.stage = protocol.StageHand
 	r.afterHandChange()
 }
 
-// afterHandChange settles a finished hand or starts the next turn timer.
+// afterHandChange settles a hand once it's done. There are no timers: the
+// table waits for players, and the host can skip anyone holding it up.
 func (r *Room) afterHandChange() {
-	if r.hand.Allocating {
-		// One shared clock for splitting; it gets twice the turn time.
-		if !r.allocTimer {
-			r.allocTimer = true
-			r.schedule(2 * time.Duration(r.settings.TurnSeconds) * time.Second)
-		}
-		return
-	}
 	if !r.hand.Done {
-		r.schedule(time.Duration(r.settings.TurnSeconds) * time.Second)
 		return
 	}
 	for i, id := range r.handIDs {
@@ -438,12 +404,22 @@ func (r *Room) afterHandChange() {
 	if len(r.past) > historySize {
 		r.past = r.past[len(r.past)-historySize:]
 	}
-	r.stage = protocol.StageResult
-	delay := r.opts.ResultDelay
-	if slices.ContainsFunc(r.hand.Events, func(e engine.Event) bool { return e.Kind == engine.EvShow }) {
-		delay = r.opts.ShowdownDelay
+	if r.endAfterHand {
+		// The host asked to end the game during this hand.
+		r.end()
+		return
 	}
-	r.schedule(delay)
+	// The result stays up until someone taps "Next hand".
+	r.stage = protocol.StageResult
+}
+
+// startNextHand moves on from a finished hand; any player may ask.
+func (r *Room) startNextHand() error {
+	if r.stage != protocol.StageResult {
+		return errors.New("the hand isn't over yet")
+	}
+	r.nextHand()
+	return nil
 }
 
 func (r *Room) act(p *Player, a *protocol.Action) error {
@@ -500,62 +476,53 @@ func (r *Room) Profit(p *Player) int64 {
 	return p.Stack - r.settings.StartingStack - p.Debt
 }
 
-func (r *Room) schedule(d time.Duration) {
-	r.timerGen++
-	gen := r.timerGen
-	r.deadline = r.opts.Now().Add(d)
-	if r.opts.Sched != nil {
-		r.opts.Sched.After(d, func() { r.onTimer(gen) })
-	}
-}
-
-func (r *Room) cancelTimer() {
-	r.timerGen++
-	r.deadline = time.Time{}
-}
-
-// onTimer handles an expired deadline; stale timers are ignored.
-func (r *Room) onTimer(gen int) {
-	if gen != r.timerGen {
-		return
+// skip lets the host move the game on when it's waiting for someone: the
+// dealer picking a variant, the player to act, or a player who still has to
+// split their cards. They get the default move (docs/rules.md §1): the
+// previous variant, a 4-card Dacoit choice, their lowest cards to reveal, a
+// check if possible and otherwise a fold, or the default split.
+func (r *Room) skip(p *Player, target string) error {
+	if p.ID != r.hostID {
+		return ErrNotHost
 	}
 	switch r.stage {
 	case protocol.StageChoosing:
-		// Keep last hand's variant if possible, else the first option.
+		if target != r.dealerID {
+			return errors.New("the game isn't waiting for that player")
+		}
 		v := r.options[0]
 		if slices.Contains(r.options, r.variant) {
 			v = r.variant
 		}
 		r.deal(v)
+		return nil
 	case protocol.StageHand:
-		if r.hand.Allocating {
-			// Time's up: everyone still splitting gets the default split.
-			for _, i := range r.hand.Pending() {
-				if err := r.hand.Apply(i, r.hand.DefaultSplit(i)); err != nil {
-					panic(fmt.Sprintf("room %s: default split: %v", r.Code, err))
-				}
-			}
-			r.afterHandChange()
-			return
+		i := slices.Index(r.handIDs, target)
+		if i < 0 || r.hand.Legal(i) == (engine.Legal{}) {
+			return errors.New("the game isn't waiting for that player")
 		}
-		// Timeout: take 4 cards in a Dacoit choice, show the lowest cards
-		// during a reveal; otherwise check if possible, else fold.
-		a := engine.Action{Type: engine.Fold}
-		switch l := r.hand.Legal(r.hand.ToAct); {
-		case l.Choose:
-			a = r.hand.DefaultChoose()
-		case l.Show:
-			a = r.hand.DefaultShow(r.hand.ToAct)
-		case l.Check:
-			a.Type = engine.Check
-		}
-		if err := r.hand.Apply(r.hand.ToAct, a); err != nil {
-			panic(fmt.Sprintf("room %s: timeout action: %v", r.Code, err))
+		if err := r.hand.Apply(i, r.defaultMove(i)); err != nil {
+			return fmt.Errorf("skipping: %w", err)
 		}
 		r.afterHandChange()
-	case protocol.StageResult:
-		r.nextHand()
+		return nil
 	}
+	return errors.New("nobody to skip right now")
+}
+
+// defaultMove is what player i does when skipped.
+func (r *Room) defaultMove(i int) engine.Action {
+	switch l := r.hand.Legal(i); {
+	case l.Allocate:
+		return r.hand.DefaultSplit(i)
+	case l.Choose:
+		return r.hand.DefaultChoose()
+	case l.Show:
+		return r.hand.DefaultShow(i)
+	case l.Check:
+		return engine.Action{Type: engine.Check}
+	}
+	return engine.Action{Type: engine.Fold}
 }
 
 // Players returns the players in seat order.

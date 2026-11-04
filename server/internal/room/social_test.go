@@ -95,7 +95,7 @@ func TestHistory(t *testing.T) {
 	folder := h.toAct()
 	h.must(folder, protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "fold"}})
 	h.playPassively()
-	h.sched.fire(t)
+	h.advance()
 	h.playPassively()
 
 	for _, viewer := range h.ps {
@@ -114,7 +114,7 @@ func TestHistory(t *testing.T) {
 	}
 
 	for range historySize + 5 {
-		h.sched.fire(t)
+		h.advance()
 		h.playPassively()
 	}
 	if got := len(h.r.History(h.ps[0].ID)); got != historySize {

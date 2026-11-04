@@ -3,7 +3,7 @@ import type { Action, ClientMsg, PlayerView, State } from '../protocol/types.ts'
 import { variantName } from '../variants.ts'
 import { ActionBar } from './ActionBar.tsx'
 import { Card, CardBack } from './Card.tsx'
-import { Countdown, TimerRing, useNow } from './Countdown.tsx'
+import { useNow } from './useNow.ts'
 import { ResultBanner } from './ResultBanner.tsx'
 import { ChoosePicker } from './ChoosePicker.tsx'
 import { ShowPicker } from './ShowPicker.tsx'
@@ -34,7 +34,7 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
   return (
     <div className="table-layout">
       <main className="table">
-        <TableHeader state={state} clockOffset={clockOffset} name={name} />
+        <TableHeader state={state} name={name} />
 
         {hand && (
           <div className="board" aria-label="Board">
@@ -62,11 +62,11 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
           </div>
         )}
 
-        {hand && <ResultBanner state={state} hand={hand} clockOffset={clockOffset} />}
+        {hand && <ResultBanner state={state} hand={hand} onNext={() => send({ type: 'nextHand' })} />}
 
         <ul className="seats">
           {state.players.map((p) => (
-            <Seat key={p.id} p={p} state={state} clockOffset={clockOffset} winning={winning} reaction={reactionOf(p.id)} />
+            <Seat key={p.id} p={p} state={state} winning={winning} reaction={reactionOf(p.id)} send={send} />
           ))}
         </ul>
 
@@ -197,15 +197,7 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
   )
 }
 
-function TableHeader({
-  state,
-  clockOffset,
-  name,
-}: {
-  state: State
-  clockOffset: number
-  name: (id?: string) => string
-}) {
+function TableHeader({ state, name }: { state: State; name: (id?: string) => string }) {
   const hand = state.hand
   let status: ReactNode = null
   if (state.phase === 'ended') {
@@ -215,8 +207,7 @@ function TableHeader({
   } else if (state.choosing) {
     status = (
       <>
-        {name(state.choosing.dealerId)} is picking the game{' '}
-        <Countdown deadline={state.choosing.deadline} clockOffset={clockOffset} />
+        {name(state.choosing.dealerId)} is picking the game
       </>
     )
   } else if (hand?.allocating) {
@@ -226,8 +217,7 @@ function TableHeader({
       <>
         {hand.legal?.allocate
           ? 'Split your cards across the boards'
-          : `Waiting for ${waiting.map((p) => p.name).join(', ')} to split`}{' '}
-        {hand.deadline ? <Countdown deadline={hand.deadline} clockOffset={clockOffset} /> : null}
+          : `Waiting for ${waiting.map((p) => p.name).join(', ')} to split`}
       </>
     )
   } else if (hand && !hand.done && hand.toAct) {
@@ -243,8 +233,7 @@ function TableHeader({
             : `${name(hand.toAct)} is picking cards to show`
           : hand.toAct === state.you
             ? 'Your turn'
-            : `${name(hand.toAct)} to act`}{' '}
-        {hand.deadline ? <Countdown deadline={hand.deadline} clockOffset={clockOffset} /> : null}
+            : `${name(hand.toAct)} to act`}
       </>
     )
   } else if (hand?.done) {
@@ -267,23 +256,36 @@ function TableHeader({
 function Seat({
   p,
   state,
-  clockOffset,
   winning,
   reaction,
+  send,
 }: {
   p: PlayerView
   state: State
-  clockOffset: number
   winning: Set<string>
   reaction?: string
+  send: (m: ClientMsg) => void
 }) {
   const hand = state.hand
   const acting = hand && !hand.done && hand.toAct === p.id
+  // Who the table is waiting on: the dealer picking the game, the player to
+  // act, or anyone still splitting their cards. There are no timers, so the
+  // host can skip them.
+  const waiting =
+    state.choosing?.dealerId === p.id ||
+    acting ||
+    (hand?.allocating && p.inHand && !p.folded && !p.allocated)
+  const canSkip = waiting && state.you === state.hostId && p.id !== state.you
+  const skip = () => {
+    if (window.confirm(`Skip ${p.name}? They'll get the default move: check if possible, otherwise fold (or the default pick or split).`)) {
+      send({ type: 'skip', target: p.id })
+    }
+  }
   const holeCount = p.holeCount ?? 0 // 0 before the deal (Dacoit choices)
   const shown = p.shown ?? []
   const classes = [
     'seat',
-    acting && 'seat-acting',
+    waiting && 'seat-acting',
     p.folded && 'seat-folded',
     p.id === state.you && 'seat-me',
     (p.won ?? 0) > 0 && hand?.done && 'seat-won',
@@ -328,9 +330,18 @@ function Seat({
         </div>
       )}
       <div className="seat-status">
-        {acting && hand?.deadline ? (
-          <TimerRing deadline={hand.deadline} total={state.settings.turnSeconds * 1000} clockOffset={clockOffset} />
-        ) : null}
+        {waiting && (
+          <span className="thinking" aria-label={`Waiting for ${p.name}`}>
+            <span />
+            <span />
+            <span />
+          </span>
+        )}
+        {canSkip && (
+          <button className="btn btn-small btn-skip" onClick={skip}>
+            Skip
+          </button>
+        )}
         {p.folded && 'Folded'}
         {p.allIn && !hand?.done && 'All-in'}
         {p.bet > 0 && !hand?.done && (

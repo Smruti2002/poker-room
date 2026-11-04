@@ -17,7 +17,6 @@ const FIELDS: { key: NumberField; label: string; min: number; max: number; hint?
   { key: 'penalizedLoans', label: 'Penalized loans', min: 0, max: 100, hint: 'Loans after this many carry no penalty' },
   { key: 'smallBlind', label: 'Small blind', min: 1, max: 1_000_000 },
   { key: 'bigBlind', label: 'Big blind', min: 1, max: 1_000_000 },
-  { key: 'turnSeconds', label: 'Turn timer (s)', min: 10, max: 120 },
   { key: 'maxPlayers', label: 'Max players', min: 2, max: 10 },
 ]
 

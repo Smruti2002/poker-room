@@ -62,6 +62,14 @@ export const MsgReact = "react"; // Emoji: a quick reaction shown over your seat
  */
 export const MsgHistory = "history"; // ask for the recent hand history (sent only to you)
 /**
+ * Client message types.
+ */
+export const MsgNextHand = "nextHand"; // any player, once a hand is over
+/**
+ * Client message types.
+ */
+export const MsgSkip = "skip"; // host only: Target gets the default move
+/**
  * ClientMsg is sent by the browser. The first message on a connection must
  * be join or resume.
  */
@@ -74,6 +82,7 @@ export interface ClientMsg {
   action?: Action;
   text?: string;
   emoji?: string;
+  target?: string; // player ID, for skip
 }
 /**
  * Action is a betting action. To is the street total for bet/raise, in units.
@@ -128,7 +137,6 @@ export interface Settings {
   smallBlind: number /* int64 */;
   bigBlind: number /* int64 */;
   potLimit: boolean; // pot-limit for Omaha, Dacoit and S2P2
-  turnSeconds: number /* int */;
   variants: string[];
   maxPlayers: number /* int */;
   /**
@@ -296,11 +304,6 @@ export interface HandView {
   pots?: PotView[];
   toAct?: string;
   currentBet: number /* int64 */;
-  /**
-   * Deadline is when the player to act times out or, once the hand is
-   * done, when the next hand starts (unix ms).
-   */
-  deadline?: number /* int64 */;
   legal?: Legal; // only for the player to act
   done: boolean;
   /**
@@ -368,7 +371,6 @@ export interface Legal {
 export interface ChoosingView {
   dealerId: string;
   options: string[];
-  deadline: number /* int64 */;
 }
 /**
  * Standing is one leaderboard row.

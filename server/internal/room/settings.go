@@ -16,7 +16,6 @@ func DefaultSettings(variants []string) protocol.Settings {
 		PenalizedLoans: 3,
 		SmallBlind:     10,
 		BigBlind:       20,
-		TurnSeconds:    30,
 		Variants:       slices.Clone(variants),
 		MaxPlayers:     8,
 		Hints:          true,
@@ -39,7 +38,6 @@ func validateSettings(s protocol.Settings, known []string) error {
 		between("penalized loans", int64(s.PenalizedLoans), 0, 100),
 		between("small blind", s.SmallBlind, 1, s.StartingStack),
 		between("big blind", s.BigBlind, s.SmallBlind, s.StartingStack),
-		between("turn timer", int64(s.TurnSeconds), 10, 120),
 		between("max players", int64(s.MaxPlayers), 2, 10),
 	}
 	for _, err := range checks {
