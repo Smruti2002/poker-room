@@ -557,10 +557,48 @@ input:not([type]) {
   color: var(--bad);
   font-size: 0.85rem;
 }
-.presets {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.35rem;
+/* Bet chips: 50 · 100 · 150 · 250 · 500 · All-in */
+.bet-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.3rem;
+}
+.bet-chip-btn {
+  width: 3rem; /* 48px: easy to tap; six fit across a 375px phone */
+  height: 3rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+.chip-face {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.5));
+}
+.bet-chip-btn:active:not(:disabled) {
+  transform: translateY(2px) scale(0.96);
+}
+.bet-chip-on {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+.bet-chip-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.bet-chip-btn:focus-visible {
+  outline: 3px solid var(--fg);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bet-chip-btn {
+    transition: none;
+  }
 }
 
 /* Hand result */

@@ -34,7 +34,7 @@ describe('ActionBar', () => {
 
   it('offers fold, call and raise when facing a bet', () => {
     const onAct = vi.fn()
-    render(<ActionBar legal={facingBet} bet={0} mult={1} pot={30} onAct={onAct} />)
+    render(<ActionBar legal={facingBet} bet={0} mult={1} stack={1000} onAct={onAct} />)
     fireEvent.click(screen.getByRole('button', { name: 'Fold' }))
     fireEvent.click(screen.getByRole('button', { name: 'Call 20' }))
     fireEvent.click(screen.getByRole('button', { name: 'Raise to 40' }))
@@ -42,18 +42,9 @@ describe('ActionBar', () => {
     expect(screen.queryByRole('button', { name: 'Check' })).toBeNull()
   })
 
-  it('pot preset is a pot-sized raise', () => {
-    const onAct = vi.fn()
-    render(<ActionBar legal={facingBet} bet={0} mult={1} pot={30} onAct={onAct} />)
-    // Call 20 to make the pot 50, then raise by 50: to 70.
-    fireEvent.click(screen.getByRole('button', { name: 'Pot' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Raise to 70' }))
-    expect(onAct).toHaveBeenCalledWith({ type: 'raise', to: 70 })
-  })
-
   it('the amount box can be cleared and retyped freely', () => {
     const onAct = vi.fn()
-    render(<ActionBar legal={facingBet} bet={0} mult={1} pot={30} onAct={onAct} />)
+    render(<ActionBar legal={facingBet} bet={0} mult={1} stack={1000} onAct={onAct} />)
     const box = screen.getByLabelText('raise to')
 
     fireEvent.change(box, { target: { value: '' } })
@@ -76,7 +67,7 @@ describe('ActionBar', () => {
 
   it('out-of-range amounts disable raising and snap into range on blur', () => {
     const onAct = vi.fn()
-    render(<ActionBar legal={facingBet} bet={0} mult={1} pot={30} onAct={onAct} />)
+    render(<ActionBar legal={facingBet} bet={0} mult={1} stack={1000} onAct={onAct} />)
     const box = screen.getByLabelText('raise to')
     fireEvent.change(box, { target: { value: '99999' } })
     expect(screen.getByRole('button', { name: 'Raise' })).toBeDisabled()
@@ -89,7 +80,7 @@ describe('ActionBar', () => {
   it('offers check and bet when nobody has bet', () => {
     const onAct = vi.fn()
     const legal: Legal = { fold: false, check: true, call: false, callUnits: 0, bet: true, raise: false, minTo: 20, maxTo: 500 }
-    render(<ActionBar legal={legal} bet={0} mult={1} pot={60} onAct={onAct} />)
+    render(<ActionBar legal={legal} bet={0} mult={1} stack={1000} onAct={onAct} />)
     fireEvent.click(screen.getByRole('button', { name: 'Check' }))
     fireEvent.click(screen.getByRole('button', { name: 'Bet 20' }))
     expect(onAct.mock.calls).toEqual([[{ type: 'check' }], [{ type: 'bet', to: 20 }]])
@@ -98,7 +89,7 @@ describe('ActionBar', () => {
 
   it('shows a single all-in button when that is the only raise, in chips for double-pay players', () => {
     const legal: Legal = { ...facingBet, minTo: 30, maxTo: 30 }
-    render(<ActionBar legal={legal} bet={0} mult={2} pot={30} onAct={vi.fn()} />)
+    render(<ActionBar legal={legal} bet={0} mult={2} stack={1000} onAct={vi.fn()} />)
     expect(screen.getByRole('button', { name: 'All-in 60' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Call 40' })).toBeInTheDocument()
     expect(screen.queryByRole('slider')).toBeNull()
@@ -487,7 +478,7 @@ describe('ActionBar shortcuts', () => {
   it('F folds, C calls, R focuses the raise box, but not while typing', () => {
     const onAct = vi.fn()
     const legal: Legal = { fold: true, check: false, call: true, callUnits: 20, bet: false, raise: true, minTo: 40, maxTo: 1000 }
-    render(<ActionBar legal={legal} bet={0} mult={1} pot={30} onAct={onAct} />)
+    render(<ActionBar legal={legal} bet={0} mult={1} stack={1000} onAct={onAct} />)
     fireEvent.keyDown(window, { key: 'c' })
     fireEvent.keyDown(window, { key: 'F' })
     expect(onAct.mock.calls).toEqual([[{ type: 'call' }], [{ type: 'fold' }]])
