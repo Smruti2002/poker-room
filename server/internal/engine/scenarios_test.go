@@ -226,10 +226,22 @@ func TestScenarios(t *testing.T) {
 			wantFinal: []int64{940, 1080, 980},
 		},
 
+		{
+			// Nobody raised, so the big blind could check for free, but may
+			// still fold (docs/rules.md §1): they lose their blind.
+			name:    "folding when you could check",
+			stacks:  thousand3,
+			actions: []string{"0 call", "1 call", "2 fold"},
+			check: func(t *testing.T, h *Hand) {
+				if !h.Players[2].Folded || h.Players[2].Stack != 980 || h.Done {
+					t.Fatalf("big blind folded = %v, stack %d, hand done %v", h.Players[2].Folded, h.Players[2].Stack, h.Done)
+				}
+			},
+		},
+
 		// --- Illegal actions --------------------------------------------
 		{name: "acting out of turn", stacks: thousand3, actions: []string{"1 call"}, wantErr: ErrNotYourTurn},
 		{name: "checking when facing a bet", stacks: thousand3, actions: []string{"0 check"}, wantErr: ErrIllegalAction},
-		{name: "folding when you can check", stacks: thousand3, actions: []string{"0 call", "1 call", "2 fold"}, wantErr: ErrIllegalAction},
 		{name: "raise below the minimum", stacks: thousand3, actions: []string{"0 raise 39"}, wantErr: ErrIllegalAction},
 		{name: "re-raise below the last raise size", stacks: thousand3, actions: []string{"0 raise 60", "1 raise 99"}, wantErr: ErrIllegalAction},
 		{name: "bet below the big blind", stacks: thousand3, actions: []string{"0 call", "1 call", "2 check", "1 bet 10"}, wantErr: ErrIllegalAction},

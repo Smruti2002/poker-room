@@ -147,7 +147,8 @@ func TestLegal(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	want = Legal{Check: true, Raise: true, MinTo: 40, MaxTo: 1000}
+	// Folding is offered even when checking is free.
+	want = Legal{Fold: true, Check: true, Raise: true, MinTo: 40, MaxTo: 1000}
 	if got := h.Legal(2); got != want {
 		t.Fatalf("BB option = %+v, want %+v", got, want)
 	}
