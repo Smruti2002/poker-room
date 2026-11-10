@@ -6,6 +6,7 @@ import type { ClientMsg, PlayerView, State } from '../protocol/types.ts'
  */
 export function KickButton({ p, state, send }: { p: PlayerView; state: State; send: (m: ClientMsg) => void }) {
   const open = state.kickVotes.some((v) => v.target === p.id)
+  if (p.bot) return <RemoveBot p={p} state={state} send={send} />
   if (p.id === state.you || p.kicked || state.phase === 'ended' || open) return null
   const start = () => {
     if (window.confirm(`Start a vote to remove ${p.name}? They're removed if most players here agree.`)) {
@@ -58,5 +59,31 @@ export function KickVotes({ state, send }: { state: State; send: (m: ClientMsg) 
         )
       })}
     </div>
+  )
+}
+
+/** The host can remove a bot at any time; mid-game it leaves like a kicked player. */
+function RemoveBot({ p, state, send }: { p: PlayerView; state: State; send: (m: ClientMsg) => void }) {
+  if (state.you !== state.hostId || p.kicked || state.phase === 'ended') return null
+  const remove = () => {
+    if (state.phase === 'lobby' || window.confirm(`Remove ${p.name}? It folds out of this hand and stays on the leaderboard.`)) {
+      send({ type: 'removeBot', target: p.id })
+    }
+  }
+  return (
+    <button className="btn btn-small btn-link btn-kick" onClick={remove} aria-label={`Remove ${p.name}`}>
+      Remove
+    </button>
+  )
+}
+
+/** The host seats a computer player that plays by itself. */
+export function AddBot({ state, send }: { state: State; send: (m: ClientMsg) => void }) {
+  const seated = state.players.filter((p) => !p.kicked).length
+  if (state.you !== state.hostId || state.phase === 'ended' || seated >= state.settings.maxPlayers) return null
+  return (
+    <button className="btn btn-small" onClick={() => send({ type: 'addBot' })}>
+      🤖 Add bot
+    </button>
   )
 }

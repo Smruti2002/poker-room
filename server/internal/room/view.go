@@ -62,9 +62,10 @@ func (r *Room) View(viewer string) protocol.State {
 			Debt:       p.Debt,
 			Loans:      p.Loans,
 			Profit:     r.Profit(p),
-			Connected:  p.Connections > 0,
+			Connected:  p.Connections > 0 || p.Bot,
 			SittingOut: p.SittingOut,
 			Kicked:     p.Kicked,
+			Bot:        p.Bot,
 			Mult:       1,
 		}
 		if i := slices.Index(r.handIDs, p.ID); h != nil && i >= 0 {

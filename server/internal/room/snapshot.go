@@ -60,6 +60,7 @@ type PlayerSnapshot struct {
 	Loans      int    `json:"loans"`
 	SittingOut bool   `json:"sittingOut,omitempty"`
 	Kicked     bool   `json:"kicked,omitempty"`
+	Bot        bool   `json:"bot,omitempty"`
 }
 
 // PastSnapshot is a finished hand kept for the history panel.
@@ -97,7 +98,7 @@ func (r *Room) Snapshot() Snapshot {
 	for _, p := range r.players {
 		s.Players = append(s.Players, PlayerSnapshot{
 			ID: p.ID, Name: p.Name, Token: p.Token, Stack: p.Stack,
-			Debt: p.Debt, Loans: p.Loans, SittingOut: p.SittingOut, Kicked: p.Kicked,
+			Debt: p.Debt, Loans: p.Loans, SittingOut: p.SittingOut, Kicked: p.Kicked, Bot: p.Bot,
 		})
 	}
 	for _, v := range r.kickVotes {
@@ -143,7 +144,7 @@ func Restore(s Snapshot, opts Options) (*Room, error) {
 	for _, p := range s.Players {
 		r.players = append(r.players, &Player{
 			ID: p.ID, Name: p.Name, Token: p.Token, Stack: p.Stack,
-			Debt: p.Debt, Loans: p.Loans, SittingOut: p.SittingOut, Kicked: p.Kicked,
+			Debt: p.Debt, Loans: p.Loans, SittingOut: p.SittingOut, Kicked: p.Kicked, Bot: p.Bot,
 		})
 	}
 	for _, v := range s.KickVotes {
