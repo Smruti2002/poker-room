@@ -64,3 +64,24 @@ export function clearToken(code: string) {
     // ignore
   }
 }
+
+/**
+ * Downloads a finished game's every hand as a JSON file. The session token
+ * proves the player was in the room; it goes in a header, not the URL.
+ */
+export async function downloadHistory(code: string): Promise<void> {
+  const token = loadToken(code)
+  const res = await fetch(`/api/rooms/${encodeURIComponent(code)}/history`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!res.ok) throw new Error(await errorMessage(res))
+  const url = URL.createObjectURL(await res.blob())
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `poker-room-${code}.json`
+  document.body.append(a)
+  a.click()
+  a.remove()
+  // Give the browser a moment to start the download before letting go.
+  setTimeout(() => URL.revokeObjectURL(url), 10_000)
+}

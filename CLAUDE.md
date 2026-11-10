@@ -21,6 +21,7 @@ Go backend (`server/`) and React + TypeScript frontend (`web/`), deployed as one
 - `engine`: one hand as a pure state machine. `hand.go` (betting, phases: Dacoit picking, S2P2 showing, multi-board allocating), `pots.go` (side pots in units, a per-player multiplier for Dacoit's 6-card players), `variant.go`, `events.go` (events and narration), `invariants.go`. No I/O, no goroutines.
 - `room`: a room around the engine: lobby, settings, seats, dealer rotation, loans, leaderboard, host handoff, kick votes (`kick.go`), rematch (`rematch.go`), bet callouts (`callout.go`), per-viewer views (`view.go`), snapshots (`snapshot.go`).
   - `actor.go`: each room runs on one goroutine (an inbox of closures, no locks). `Manager` creates, finds, sweeps, saves and loads rooms.
+- `history`: the hand archive: every finished hand of a room appended to `<HISTORY_DIR>/<ROOM>.jsonl`, and `Replay` to turn it into readable hands. Downloads (`GET /api/rooms/{code}/history`) are only for the room's players once the game has ended, since they show everyone's cards.
 - `protocol`: the JSON messages. **These Go types are the source of truth**; `web/src/protocol/types.ts` is generated from them with `make protocol`, and CI fails if it's stale.
 - `ws`: REST (`/api/rooms`) and the WebSocket (`/ws/{code}`), rate limits, pings.
 - `httpapi`: `/healthz`, static files, cache headers.
@@ -30,6 +31,7 @@ Go backend (`server/`) and React + TypeScript frontend (`web/`), deployed as one
 - `server`: the server binary.
 - `smoke`: the end-to-end check run after every deploy.
 - `sim`, `replay`: stress-test and debugging tools.
+- `history`: exports a room's archive file as readable JSON, even after the room has closed.
 
 **web/src**
 - `useRoom.ts`: the WebSocket: reconnects, resumes by token, follows a rematch to the new room.
