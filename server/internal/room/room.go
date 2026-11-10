@@ -401,7 +401,7 @@ func (r *Room) deal(variant string) {
 			dealer = i
 		}
 	}
-	cfg := engine.Config{SmallBlind: r.settings.SmallBlind, BigBlind: r.settings.BigBlind}
+	cfg := engine.Config{SmallBlind: r.settings.SmallBlind, BigBlind: r.settings.BigBlind, Order: engine.OrderLastRaiser}
 	if r.settings.PotLimit && slices.Contains(potLimitVariants, variant) {
 		cfg.Structure = engine.PotLimit
 	}

@@ -103,6 +103,8 @@ type Hand struct {
 	CurrentBet int64
 	// MinRaise is the size of the last full bet or raise on this street.
 	MinRaise int64
+	// Aggressor is who bet or raised last on this street, or -1.
+	Aggressor int
 
 	Done bool
 	// Pots is filled in when the hand ends.
@@ -135,10 +137,11 @@ func NewHand(cfg Config, v Variant, seats []SeatSpec, dealer int, opts Options) 
 	}
 
 	h := &Hand{
-		Config:  cfg,
-		Variant: v,
-		Dealer:  dealer,
-		Boards:  make([][]cards.Card, v.Boards()),
+		Config:    cfg,
+		Variant:   v,
+		Dealer:    dealer,
+		Aggressor: -1,
+		Boards:    make([][]cards.Card, v.Boards()),
 		log: Log{
 			Variant: v.Name(), Config: cfg, Seats: slices.Clone(seats),
 			Dealer: dealer, Seed: opts.Seed, Deck: opts.Deck,
@@ -388,6 +391,7 @@ func (h *Hand) Apply(i int, a Action) error {
 		}
 		p.commit(a.To - p.Street)
 		h.CurrentBet = a.To
+		h.Aggressor = i
 	default:
 		return illegal("unknown action")
 	}
@@ -646,8 +650,10 @@ func (h *Hand) endStreet() error {
 	for _, p := range h.Players {
 		p.Street, p.acted, p.faced = 0, false, 0
 	}
+	lead := h.streetLead()
 	h.CurrentBet = 0
 	h.MinRaise = h.Config.BigBlind
+	h.Aggressor = -1
 
 	if h.Street == River {
 		return h.finish()
@@ -668,8 +674,20 @@ func (h *Hand) endStreet() error {
 	if able < 2 {
 		return h.endStreet()
 	}
-	h.ToAct = h.nextToAct(h.Dealer)
+	// nextToAct starts looking after its argument: start just before lead.
+	h.ToAct = h.nextToAct((lead + len(h.Players) - 1) % len(h.Players))
 	return nil
+}
+
+// streetLead is who should start the next betting round (Config.Order).
+func (h *Hand) streetLead() int {
+	if h.Config.Order == OrderLastRaiser {
+		if h.Aggressor >= 0 {
+			return h.Aggressor
+		}
+		return h.BigBlind
+	}
+	return h.next(h.Dealer)
 }
 
 // returnUncalled gives back the part of the top bet nobody matched.

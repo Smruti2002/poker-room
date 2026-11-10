@@ -62,8 +62,10 @@ All chips are virtual. Chip amounts are always whole numbers.
 
 **Blinds & action order**
 - Small blind is the first player left of the dealer, big blind the next.
-- **Heads-up:** the dealer posts the small blind and acts first pre-flop and last on later streets.
-- Pre-flop action starts with the player left of the big blind. On later streets it starts with the first active player left of the dealer.
+- **Heads-up:** the dealer posts the small blind and acts first pre-flop.
+- Pre-flop action starts with the player left of the big blind.
+- **Later rounds (house rule):** each betting round after the first starts with **whoever bet or raised last in the previous round**. If nobody bet or raised in it, the round starts with the **big blind**. If that player has folded or is all-in, the next player clockwise who can still act starts.
+  - *Example* (Ann deals, Bob small blind, Cy big blind, Dee): pre-flop Dee raises and everyone calls, so Dee starts the flop. On the flop Bob bets and Ann raises, so Ann starts the turn. If everyone checks the turn, the river starts with Cy.
 - A player who can't cover a blind posts what they have and is all-in.
 
 **Betting**
