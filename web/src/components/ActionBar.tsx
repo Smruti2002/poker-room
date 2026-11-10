@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Action, Legal } from '../protocol/types.ts'
 import { ChipFace } from './BetChip.tsx'
 
@@ -37,6 +37,13 @@ export function ActionBar({ legal, bet, mult, stack, onAct }: Props) {
   const allInTo = bet + Math.floor(stack / mult)
   const capped = legal.maxTo < allInTo // pot-limit
   const chipTo = (amount: number) => faced + amount
+  // Folding is allowed even when checking is free; that's rarely meant, so
+  // it asks first.
+  const canCheck = legal.check
+  const fold = useCallback(() => {
+    if (canCheck && !window.confirm('Fold? Nobody has bet, so you could check for free.')) return
+    onAct({ type: 'fold' })
+  }, [canCheck, onAct])
   // Desktop shortcuts: F fold, C check/call, R jump to the raise box.
   const box = useRef<HTMLInputElement>(null)
   useEffect(() => {
@@ -44,7 +51,7 @@ export function ActionBar({ legal, bet, mult, stack, onAct }: Props) {
       const typing = e.target instanceof Element && e.target.closest('input, textarea, select')
       if (e.metaKey || e.ctrlKey || e.altKey || typing) return
       const key = e.key.toLowerCase()
-      if (key === 'f' && legal.fold) onAct({ type: 'fold' })
+      if (key === 'f' && legal.fold) fold()
       else if (key === 'c' && legal.check) onAct({ type: 'check' })
       else if (key === 'c' && legal.call) onAct({ type: 'call' })
       else if (key === 'r' && box.current) {
@@ -56,14 +63,14 @@ export function ActionBar({ legal, bet, mult, stack, onAct }: Props) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [legal, onAct])
+  }, [legal, onAct, fold])
 
 
   return (
     <div className="action-bar" role="group" aria-label="Your action">
       <div className="action-main">
         {legal.fold && (
-          <button className="btn btn-fold" onClick={() => onAct({ type: 'fold' })}>
+          <button className="btn btn-fold" onClick={fold}>
             Fold
           </button>
         )}

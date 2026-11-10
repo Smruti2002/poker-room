@@ -279,8 +279,11 @@ func (h *Hand) Legal(i int) Legal {
 	p := h.Players[i]
 	var l Legal
 	toCall := h.CurrentBet - p.Street
+	// Folding is always allowed on your turn, even when you could check
+	// (docs/rules.md §1).
+	l.Fold = true
 	if toCall > 0 {
-		l.Fold, l.Call = true, true
+		l.Call = true
 		l.CallUnits = min(toCall, p.maxUnits())
 	} else {
 		l.Check = true
@@ -361,7 +364,7 @@ func (h *Hand) Apply(i int, a Action) error {
 	switch a.Type {
 	case Fold:
 		if !l.Fold {
-			return illegal("nothing to call, check instead")
+			return illegal("you can't fold now")
 		}
 		p.Folded = true
 	case Check:

@@ -67,6 +67,7 @@ All chips are virtual. Chip amounts are always whole numbers.
 - A player who can't cover a blind posts what they have and is all-in.
 
 **Betting**
+- **Folding is always allowed** on your turn, even when nobody has bet and you could check for free. The app asks you to confirm a free fold.
 - *No-limit:* a bet or raise can be anything up to the player's whole stack.
 - *Pot-limit:* the largest raise is the pot size after the player calls.
 - *Minimum bet* is the big blind. *Minimum raise* is the size of the last full bet or raise on this street.
