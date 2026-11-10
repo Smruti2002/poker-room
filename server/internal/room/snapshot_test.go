@@ -87,9 +87,15 @@ func (h *harness) tryAdvanceWithMoves(rng *mrand.Rand) error {
 	if hand.Allocating {
 		i = hand.Pending()[0]
 	}
+	if hand.Drawing {
+		i = hand.DrawPending()[0]
+	}
 	l := hand.Legal(i)
 	var a *protocol.Action
 	switch {
+	case l.Draw:
+		hole := cardStrings(hand.Players[i].Hole)
+		a = &protocol.Action{Type: "draw", Cards: hole[:rng.IntN(len(hole)+1)]}
 	case l.Allocate:
 		a = &protocol.Action{Type: "allocate", Cards: cardStrings(hand.DefaultSplit(i).Cards)}
 	case l.Choose:

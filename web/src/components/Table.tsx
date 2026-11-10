@@ -13,6 +13,7 @@ import { useNow } from './useNow.ts'
 import { ResultBanner } from './ResultBanner.tsx'
 import { ChoosePicker } from './ChoosePicker.tsx'
 import { ShowPicker } from './ShowPicker.tsx'
+import { DrawPicker } from './DrawPicker.tsx'
 import { SplitPicker } from './SplitPicker.tsx'
 import { winningCards } from './winning.ts'
 
@@ -120,7 +121,7 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
           // Pinned to the bottom of the screen so your cards and actions are
           // always in reach on a phone.
           <div className={`dock${hand?.legal ? ' dock-active' : ''}`}>
-            {me.hole && !hand?.legal?.show && !hand?.legal?.allocate && (
+            {me.hole && !hand?.legal?.show && !hand?.legal?.allocate && !hand?.legal?.draw && (
               <div className="dock-cards">
                 <HandCards
                   cards={order.cards}
@@ -149,8 +150,11 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
             )}
             {hand?.legal?.choose && <ChoosePicker max={hand.legal.chooseMax ?? 4} onAct={onAct} />}
             {hand?.legal?.show && me.hole && <ShowPicker hole={order.cards} count={hand.reveal ?? 2} onAct={onAct} />}
+            {hand?.legal?.draw && me.hole && (
+              <DrawPicker key={hand.drawRound ?? 0} hole={order.cards} round={(hand.drawRound ?? 0) + 1} onAct={onAct} />
+            )}
             {hand?.legal?.allocate && me.hole && <SplitPicker hole={order.cards} boards={hand.boards} onAct={onAct} />}
-            {hand?.legal && !hand.legal.show && !hand.legal.choose && !hand.legal.allocate && (
+            {hand?.legal && !hand.legal.show && !hand.legal.choose && !hand.legal.allocate && !hand.legal.draw && (
               <ActionBar
                 key={`${hand.number}-${hand.street}-${hand.currentBet}`}
                 legal={hand.legal}
@@ -249,6 +253,12 @@ function TableHeader({ state, name }: { state: State; name: (id?: string) => str
         {name(state.choosing.dealerId)} is picking the game
       </>
     )
+  } else if (hand?.drawing) {
+    // Everyone exchanges at once: say who we're still waiting for.
+    const waiting = state.players.filter((p) => p.exchanging && p.id !== state.you)
+    status = hand.legal?.draw
+      ? `Exchange ${(hand.drawRound ?? 0) + 1}: choose cards to give back`
+      : `Waiting for ${waiting.map((p) => p.name).join(', ')} to exchange`
   } else if (hand?.allocating) {
     // Everyone splits at once: say who we're still waiting for.
     const waiting = state.players.filter((p) => p.inHand && !p.folded && !p.allocated && p.id !== state.you)
@@ -315,7 +325,8 @@ function Seat({
   const waiting =
     state.choosing?.dealerId === p.id ||
     acting ||
-    (hand?.allocating && p.inHand && !p.folded && !p.allocated)
+    (hand?.allocating && p.inHand && !p.folded && !p.allocated) ||
+    (hand?.drawing && p.exchanging)
   const canSkip = waiting && state.you === state.hostId && p.id !== state.you
   const skip = () => {
     if (window.confirm(`Skip ${p.name}? They'll get the default move: check if possible, otherwise fold (or the default pick or split).`)) {
@@ -350,6 +361,11 @@ function Seat({
           </span>
         )}
         {p.allocated && <span className="tag tag-locked">locked in</span>}
+        {p.inHand && !hand?.drawing && (p.draws?.length ?? 0) > 0 && (
+          <span className="tag" title={`Cards exchanged: ${p.draws!.join(', ')}`}>
+            {p.draws!.at(-1) === 0 ? 'kept all' : `took ${p.draws!.at(-1)}`}
+          </span>
+        )}
         {p.id === state.hostId && <span className="tag">host</span>}
         {p.kicked ? <span className="tag tag-muted">removed</span> : !p.connected && <span className="tag tag-muted">offline</span>}
         <KickButton p={p} state={state} send={send} />

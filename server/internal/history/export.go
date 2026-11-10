@@ -33,6 +33,7 @@ type Seat struct {
 	Hole       []string   `json:"hole"`
 	Shown      []string   `json:"shownBeforeBetting,omitempty"` // Show 2 Play 2
 	Split      [][]string `json:"split,omitempty"`              // Double/Triple Texas
+	Draws      []int      `json:"draws,omitempty"`              // BB: cards exchanged in each exchange
 	Folded     bool       `json:"folded"`
 	AllIn      bool       `json:"allIn"`
 	Won        int64      `json:"won"`
@@ -41,17 +42,18 @@ type Seat struct {
 // Event is one thing that happened, in order: blinds, actions, boards,
 // showdowns, wins.
 type Event struct {
-	Kind   string     `json:"kind"`
-	Player string     `json:"player,omitempty"`
-	Action string     `json:"action,omitempty"`
-	Units  int64      `json:"units,omitempty"` // street total after an action, in table units
-	Chips  int64      `json:"chips,omitempty"` // the same in this player's chips
-	Cards  []string   `json:"cards,omitempty"`
-	Board  int        `json:"board,omitempty"`
-	Pot    int        `json:"pot,omitempty"`
-	Desc   string     `json:"desc,omitempty"`
-	Best   [][]string `json:"best,omitempty"`
-	Count  int        `json:"count,omitempty"`
+	Kind     string     `json:"kind"`
+	Player   string     `json:"player,omitempty"`
+	Action   string     `json:"action,omitempty"`
+	Units    int64      `json:"units,omitempty"` // street total after an action, in table units
+	Chips    int64      `json:"chips,omitempty"` // the same in this player's chips
+	Cards    []string   `json:"cards,omitempty"`
+	Board    int        `json:"board,omitempty"`
+	Pot      int        `json:"pot,omitempty"`
+	Desc     string     `json:"desc,omitempty"`
+	Best     [][]string `json:"best,omitempty"`
+	Count    int        `json:"count,omitempty"`
+	Discards []string   `json:"discards,omitempty"` // BB: cards given back in an exchange
 }
 
 var playerID = regexp.MustCompile(`\bp\d+\b`)
@@ -80,7 +82,7 @@ func Replay(records []Record) ([]Hand, error) {
 			s := Seat{
 				Name: name(i), Dealer: i == h.Dealer, StartStack: start, EndStack: p.Stack, Net: p.Stack - start,
 				Mult: p.Mult, Picked: p.Picked, Hole: strs(p.Hole), Shown: strs(p.Shown),
-				Folded: p.Folded, AllIn: p.AllIn, Won: p.Won,
+				Folded: p.Folded, AllIn: p.AllIn, Won: p.Won, Draws: p.Draws,
 			}
 			for _, pair := range p.Split {
 				s.Split = append(s.Split, strs(pair))
@@ -94,6 +96,7 @@ func Replay(records []Record) ([]Hand, error) {
 			ev := Event{
 				Kind: string(e.Kind), Player: name(e.Player), Units: e.Units, Chips: e.Chips,
 				Cards: strs(e.Cards), Board: e.Board, Pot: e.Pot, Desc: e.Desc, Count: e.Count,
+				Discards: strs(e.Discards),
 			}
 			if e.Kind == engine.EvAction {
 				ev.Action = e.Action.Type.String()

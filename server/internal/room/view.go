@@ -79,6 +79,8 @@ func (r *Room) View(viewer string) protocol.State {
 			v.LastBet = callouts[i]
 			v.HoleCount = len(hp.Hole)
 			v.Picked = hp.Picked
+			v.Draws = hp.Draws // how many, not which: public
+			v.Exchanging = slices.Contains(h.DrawPending(), i)
 			// Others only learn that a split is locked in; the pairs are
 			// shown with the hand at the showdown.
 			v.Allocated = h.Allocating && hp.Split != nil
@@ -133,12 +135,15 @@ func (r *Room) handView(viewer string) *protocol.HandView {
 		Showing:    h.Showing,
 		Picking:    h.Picking,
 		Allocating: h.Allocating,
+		Drawing:    h.Drawing,
+		DrawRound:  h.DrawRound,
 		Reveal:     h.Variant.Reveal(),
 		Pot:        h.PotChips(),
 		CurrentBet: h.CurrentBet,
 		Hint:       r.hint(h, viewer),
 		Done:       h.Done,
 	}
+	hv.Boards = [][]string{} // a list even with no board (BB), never null
 	for _, b := range h.Boards {
 		hv.Boards = append(hv.Boards, cardStrings(b))
 	}
@@ -170,8 +175,8 @@ func (r *Room) handView(viewer string) *protocol.HandView {
 		hv.Legal = &protocol.Legal{
 			Show:   l.Show,
 			Choose: l.Choose, ChooseMax: l.ChooseMax,
-			Allocate: l.Allocate,
-			Fold:     l.Fold, Check: l.Check, Call: l.Call, CallUnits: l.CallUnits,
+			Allocate: l.Allocate, Draw: l.Draw,
+			Fold: l.Fold, Check: l.Check, Call: l.Call, CallUnits: l.CallUnits,
 			Bet: l.Bet, Raise: l.Raise, MinTo: l.MinTo, MaxTo: l.MaxTo,
 		}
 	}

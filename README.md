@@ -1,6 +1,6 @@
 # Poker Room
 
-Play-money multiplayer poker with friends. Create a room, share the link, and take turns as dealer picking the variant: Texas Hold'em, Omaha, Dacoit, Double Texas, Triple Texas, or Show 2 Play 2.
+Play-money multiplayer poker with friends. Create a room, share the link, and take turns as dealer picking the variant: Texas Hold'em, Omaha, Dacoit, Double Texas, Triple Texas, Show 2 Play 2, or BB.
 
 - **Rules:** [docs/rules.md](docs/rules.md)
 - **Roadmap & milestones:** [PLAN.md](PLAN.md)

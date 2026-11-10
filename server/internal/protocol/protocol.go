@@ -196,6 +196,10 @@ type PlayerView struct {
 	// Picked is how many hole cards the player chose (Dacoit), public.
 	Picked   int    `json:"picked,omitempty"`
 	HandDesc string `json:"handDesc,omitempty"`
+	// Draws is how many cards the player exchanged in each BB exchange so
+	// far; Exchanging is true while they're still choosing this exchange.
+	Draws      []int `json:"draws,omitempty"`
+	Exchanging bool  `json:"exchanging,omitempty"`
 	// LastBet is the player's bet or raise on the current street, until
 	// they act again or the street ends.
 	LastBet *BetCallout `json:"lastBet,omitempty"`
@@ -217,6 +221,10 @@ type HandView struct {
 	BoardWinners [][]string `json:"boardWinners,omitempty"`
 	// Picking is true while players choose 4 or 6 cards, before the deal (Dacoit).
 	Picking bool `json:"picking,omitempty"`
+	// Drawing is true during a BB exchange: everyone still in chooses which
+	// cards to exchange, all at once. DrawRound counts the exchanges done.
+	Drawing   bool `json:"drawing,omitempty"`
+	DrawRound int  `json:"drawRound,omitempty"`
 	// Reveal is how many cards each player shows in this variant.
 	Reveal     int        `json:"reveal,omitempty"`
 	Boards     [][]string `json:"boards"`
@@ -258,7 +266,9 @@ type Legal struct {
 	Choose    bool `json:"choose,omitempty"`
 	ChooseMax int  `json:"chooseMax,omitempty"`
 	// Allocate: split your cards, two per board, in board order.
-	Allocate  bool  `json:"allocate,omitempty"`
+	Allocate bool `json:"allocate,omitempty"`
+	// Draw: choose which of your cards (0-5) to exchange (BB).
+	Draw      bool  `json:"draw,omitempty"`
 	Fold      bool  `json:"fold"`
 	Check     bool  `json:"check"`
 	Call      bool  `json:"call"`

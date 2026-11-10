@@ -13,7 +13,7 @@ async function player(browser: Browser, link: string | null, name: string): Prom
 test('after the game, any player downloads every hand @phone', async ({ browser }) => {
   const ann = await player(browser, null, 'Ann')
   const bob = await player(browser, ann.url(), 'Bob')
-  for (const label of ['Omaha', 'Show 2 Play 2', 'Dacoit', 'Double Texas', 'Triple Texas']) {
+  for (const label of ['Omaha', 'Show 2 Play 2', 'Dacoit', 'Double Texas', 'Triple Texas', 'BB']) {
     const box = ann.getByRole('checkbox', { name: label, exact: true })
     if (await box.isChecked()) await box.click()
   }

@@ -162,3 +162,33 @@ func (v multiTexas) Rank(p *Player, boards [][]cards.Card) ([]eval.Hand, error) 
 	}
 	return out, nil
 }
+
+// BB is five-card draw with three exchanges (docs/rules.md §4.8): five hole
+// cards, no board, four betting rounds with an exchange before each of the
+// last three, and the best five cards in hand win.
+var BB = register(bb{})
+
+type bb struct{}
+
+func (bb) Name() string      { return "bb" }
+func (bb) HoleCards() int    { return 5 }
+func (bb) Boards() int       { return 0 }
+func (bb) Reveal() int       { return 0 }
+func (bb) Choices() []Choice { return nil }
+func (bb) Draws() int        { return 3 }
+
+func (bb) Rank(p *Player, _ [][]cards.Card) ([]eval.Hand, error) {
+	h, err := eval.BestOf(eval.Group{Cards: p.Hole, Take: 5})
+	return []eval.Hand{h}, err
+}
+
+// drawer is a variant with card exchanges between its betting rounds.
+type drawer interface{ Draws() int }
+
+// draws is how many exchanges v has: 0 for board games.
+func draws(v Variant) int {
+	if d, ok := v.(drawer); ok {
+		return d.Draws()
+	}
+	return 0
+}

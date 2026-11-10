@@ -16,7 +16,7 @@ test('when the host ends the game, everyone sees the final standings without scr
   const cy = await player(browser, link, 'Cy')
 
   // Two variants, so the game stops at the dealer's choice and ends at once.
-  for (const label of ['Show 2 Play 2', 'Dacoit', 'Double Texas', 'Triple Texas']) {
+  for (const label of ['Show 2 Play 2', 'Dacoit', 'Double Texas', 'Triple Texas', 'BB']) {
     const box = ann.getByRole('checkbox', { name: label, exact: true })
     if (await box.isChecked()) await box.click()
   }

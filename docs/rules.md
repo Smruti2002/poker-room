@@ -188,3 +188,22 @@ A full house (K K K Q Q) would need 0 hole cards, so it doesn't count. Best: K�
 | Dacoit | Σ picks + 5 | 10, with "6" restricted by the deck limit |
 | Double Texas | 4n + 10 | 10 |
 | Triple Texas | 6n + 15 | **6** |
+| BB | 5n (exchanges reuse returned cards) | 10 (room max) |
+
+### 4.8 BB (house variant)
+
+Five-card draw with three exchanges. There is **no board**.
+
+1. Blinds as usual, then each player is dealt **5 cards**, face down.
+2. **Bet 1:** a betting round, starting left of the big blind.
+3. **Exchange 1:** everyone still in chooses which of their cards to give back: **0 to 5**, all at the same time.
+   - When everyone has chosen, the given-back cards, the cards of players who have folded and the undealt cards are **shuffled together**, and each player gets as many new cards as they gave back, dealt in seat order starting left of the dealer.
+   - **How many** cards each player exchanged is public ("Ann exchanges 2"). **Which** cards stays private.
+4. **Bet 2**, **Exchange 2**, **Bet 3**, **Exchange 3**, **Bet 4**: four betting rounds in all, with an exchange between each. Each betting round after the first starts by the house order (§4.0).
+5. **Showdown:** the best five-card hand **in hand** wins (normal hand ranking).
+
+**All-in:** a player who goes all-in gets **one more exchange**, then keeps their hand. All-in before Exchange 1: they take Exchange 1 only. All-in during Bet 2: they take Exchange 2 but not Exchange 3. Everyone else keeps exchanging as normal, even when no more betting is possible.
+
+**Skipped by the host:** during an exchange, a skipped player keeps all their cards.
+
+*Example.* Ann deals, Bob is small blind, Cy big blind. Everyone calls Bet 1. In Exchange 1 Ann gives back 2♣, Bob gives back 9♥ and Cy keeps all five. Then Bob gets one new card, Ann gets one, and the table sees "Ann exchanges 1", "Bob exchanges 1", "Cy keeps their cards". Nobody raised in Bet 1, so Cy (the big blind) starts Bet 2.
