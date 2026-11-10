@@ -1,6 +1,6 @@
 # Poker Room: notes for Claude
 
-Play-money multiplayer poker for friends: a host creates a room and shares a link; each hand's dealer picks the variant (Texas Hold'em, Omaha, Dacoit, Double Texas, Triple Texas, Show 2 Play 2). The full rules, with worked examples, are in [docs/rules.md](docs/rules.md); that file is the source of truth for game behaviour.
+Play-money multiplayer poker for friends: a host creates a room and shares a link; each hand's dealer picks the variant (Texas Hold'em, Omaha, Dacoit, Double Texas, Triple Texas, Show 2 Play 2, BB). The full rules, with worked examples, are in [docs/rules.md](docs/rules.md); that file is the source of truth for game behaviour.
 
 Go backend (`server/`) and React + TypeScript frontend (`web/`), deployed as one small Fly.io machine. Setup and commands are in [README.md](README.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -18,7 +18,7 @@ Go backend (`server/`) and React + TypeScript frontend (`web/`), deployed as one
 **server/internal**
 - `cards`: cards, decks, seeds (ChaCha8).
 - `eval`: hand evaluation; `BestOf` covers every variant's "use exactly N hole cards" rule.
-- `engine`: one hand as a pure state machine. `hand.go` (betting, phases: Dacoit picking, S2P2 showing, multi-board allocating), `pots.go` (side pots in units, a per-player multiplier for Dacoit's 6-card players), `variant.go`, `events.go` (events and narration), `invariants.go`. No I/O, no goroutines.
+- `engine`: one hand as a pure state machine. `hand.go` (betting, phases: Dacoit picking, S2P2 showing, multi-board allocating), `draw.go` (BB's card exchanges), `pots.go` (side pots in units, a per-player multiplier for Dacoit's 6-card players), `variant.go`, `events.go` (events and narration), `invariants.go`. No I/O, no goroutines.
 - `room`: a room around the engine: lobby, settings, seats, dealer rotation, loans, leaderboard, host handoff, kick votes (`kick.go`), rematch (`rematch.go`), bet callouts (`callout.go`), per-viewer views (`view.go`), snapshots (`snapshot.go`).
   - `actor.go`: each room runs on one goroutine (an inbox of closures, no locks). `Manager` creates, finds, sweeps, saves and loads rooms.
 - `history`: the hand archive: every finished hand of a room appended to `<HISTORY_DIR>/<ROOM>.jsonl`, and `Replay` to turn it into readable hands. Downloads (`GET /api/rooms/{code}/history`) are only for the room's players once the game has ended, since they show everyone's cards.

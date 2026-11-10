@@ -317,6 +317,12 @@ export interface PlayerView {
   picked?: number /* int */;
   handDesc?: string;
   /**
+   * Draws is how many cards the player exchanged in each BB exchange so
+   * far; Exchanging is true while they're still choosing this exchange.
+   */
+  draws?: number /* int */[];
+  exchanging?: boolean;
+  /**
    * LastBet is the player's bet or raise on the current street, until
    * they act again or the street ends.
    */
@@ -348,6 +354,12 @@ export interface HandView {
    * Picking is true while players choose 4 or 6 cards, before the deal (Dacoit).
    */
   picking?: boolean;
+  /**
+   * Drawing is true during a BB exchange: everyone still in chooses which
+   * cards to exchange, all at once. DrawRound counts the exchanges done.
+   */
+  drawing?: boolean;
+  drawRound?: number /* int */;
   /**
    * Reveal is how many cards each player shows in this variant.
    */
@@ -409,6 +421,10 @@ export interface Legal {
    * Allocate: split your cards, two per board, in board order.
    */
   allocate?: boolean;
+  /**
+   * Draw: choose which of your cards (0-5) to exchange (BB).
+   */
+  draw?: boolean;
   fold: boolean;
   check: boolean;
   call: boolean;

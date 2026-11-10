@@ -21,6 +21,8 @@ const (
 	EvReveal   EventKind = "reveal"   // Player showed Cards before betting (Show 2 Play 2), to everyone
 	EvChoose   EventKind = "choose"   // Player took Count hole cards, paying Mult chips per unit (Dacoit)
 	EvAllocate EventKind = "allocate" // Player locked in their split; the split itself stays hidden until the showdown
+	EvDraw     EventKind = "draw"     // Player exchanged Count cards (BB), public
+	EvDrawn    EventKind = "drawn"    // Player gave back Discards and got Cards (BB), private
 	EvWin      EventKind = "win"      // Player won Chips from Pot
 )
 
@@ -43,6 +45,8 @@ type Event struct {
 	// Count and Mult are a choose event's hole cards and chips per unit.
 	Count int   `json:"count,omitempty"`
 	Mult  int64 `json:"mult,omitempty"`
+	// Discards are the cards given back in a BB exchange (drawn events).
+	Discards []cards.Card `json:"discards,omitempty"`
 }
 
 func (h *Hand) emit(e Event) { h.Events = append(h.Events, e) }
@@ -54,7 +58,7 @@ func (h *Hand) Narrate() []string { return h.narrate(func(Event) bool { return t
 // NarrateFor renders the events player `viewer` may see: their own hole
 // cards but nobody else's. Use -1 for a spectator.
 func (h *Hand) NarrateFor(viewer int) []string {
-	return h.narrate(func(e Event) bool { return e.Kind != EvHole || e.Player == viewer })
+	return h.narrate(func(e Event) bool { return (e.Kind != EvHole && e.Kind != EvDrawn) || e.Player == viewer })
 }
 
 func (h *Hand) narrate(visible func(Event) bool) []string {
@@ -108,6 +112,14 @@ func (h *Hand) narrate(visible func(Event) bool) []string {
 			out = append(out, line)
 		case EvAllocate:
 			out = append(out, fmt.Sprintf("%s locked in their split", name(e.Player)))
+		case EvDraw:
+			if e.Count == 0 {
+				out = append(out, fmt.Sprintf("%s keeps their cards", name(e.Player)))
+			} else {
+				out = append(out, fmt.Sprintf("%s exchanges %d", name(e.Player), e.Count))
+			}
+		case EvDrawn:
+			out = append(out, fmt.Sprintf("%s gives back %s and gets %s", name(e.Player), pretty(e.Discards), pretty(e.Cards)))
 		case EvReveal:
 			out = append(out, fmt.Sprintf("%s shows %s", name(e.Player), pretty(e.Cards)))
 		case EvShow:

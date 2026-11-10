@@ -464,7 +464,7 @@ func (r *Room) act(p *Player, a *protocol.Action) error {
 		return errors.New("missing action")
 	}
 	idx := slices.Index(r.handIDs, p.ID)
-	if idx < 0 || (idx != r.hand.ToAct && !r.hand.Allocating) {
+	if idx < 0 || (idx != r.hand.ToAct && !r.hand.Allocating && !r.hand.Drawing) {
 		return ErrNotYourTurn
 	}
 	var typ engine.ActionType
@@ -572,6 +572,8 @@ func (r *Room) defaultMove(i int) engine.Action {
 		return r.hand.DefaultChoose()
 	case l.Show:
 		return r.hand.DefaultShow(i)
+	case l.Draw:
+		return r.hand.DefaultDraw()
 	case l.Check:
 		return engine.Action{Type: engine.Check}
 	}

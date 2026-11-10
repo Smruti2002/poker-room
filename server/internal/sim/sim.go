@@ -107,6 +107,10 @@ func Run(cfg Config) (Stats, error) {
 				pending := h.Pending()
 				player = pending[r.IntN(len(pending))]
 			}
+			if h.Drawing {
+				pending := h.DrawPending()
+				player = pending[r.IntN(len(pending))]
+			}
 			a := bot.Act(h, player, r)
 			if err := h.Apply(player, a); err != nil {
 				return st, fail(fmt.Errorf("bot action %v rejected: %w", a, err))
@@ -174,6 +178,12 @@ func (RandomBot) Act(h *engine.Hand, i int, r *rand.Rand) engine.Action {
 		hole := slices.Clone(h.Players[i].Hole)
 		r.Shuffle(len(hole), func(a, b int) { hole[a], hole[b] = hole[b], hole[a] })
 		return engine.Action{Type: engine.Allocate, Cards: hole}
+	}
+	if l.Draw {
+		// Exchange a random 0-5 cards.
+		hole := slices.Clone(h.Players[i].Hole)
+		r.Shuffle(len(hole), func(a, b int) { hole[a], hole[b] = hole[b], hole[a] })
+		return engine.Action{Type: engine.Draw, Cards: hole[:r.IntN(len(hole)+1)]}
 	}
 	if l.Choose {
 		if l.ChooseMax > 4 && r.IntN(2) == 0 {

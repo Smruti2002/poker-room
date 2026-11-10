@@ -78,8 +78,8 @@ func (h *harness) tryAdvance() error {
 	case protocol.StageChoosing:
 		return skip(h.r.dealerID)
 	case protocol.StageHand:
-		if h.r.hand.Allocating {
-			for _, i := range h.r.hand.Pending() {
+		if h.r.hand.Allocating || h.r.hand.Drawing {
+			for _, i := range append(h.r.hand.Pending(), h.r.hand.DrawPending()...) {
 				if err := skip(h.r.handIDs[i]); err != nil {
 					return err
 				}
@@ -110,6 +110,12 @@ func (h *harness) toAct() *Player {
 func (h *harness) playPassively() {
 	h.t.Helper()
 	for h.r.stage == protocol.StageHand && !h.r.hand.Done {
+		if h.r.hand.Drawing {
+			for _, i := range h.r.hand.DrawPending() {
+				h.must(h.r.player(h.r.handIDs[i]), protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "draw"}})
+			}
+			continue
+		}
 		if h.r.hand.Allocating {
 			for _, i := range h.r.hand.Pending() {
 				split := cardStrings(h.r.hand.DefaultSplit(i).Cards)
@@ -600,6 +606,12 @@ func FuzzRoom(f *testing.F) {
 						m.Action = &protocol.Action{Type: "allocate", Cards: cardStrings(h.r.hand.Players[idx].Hole)}
 					}
 				}
+				if h.r.hand != nil && h.r.hand.Drawing {
+					if idx := slices.Index(h.r.handIDs, p.ID); idx >= 0 {
+						hole := cardStrings(h.r.hand.Players[idx].Hole)
+						m.Action = &protocol.Action{Type: "draw", Cards: hole[:int(op)%(len(hole)+1)]}
+					}
+				}
 				if h.r.hand != nil && h.r.hand.Picking {
 					m.Action = &protocol.Action{Type: "choose", Count: 4 + 2*int(op%2)}
 				}
@@ -862,17 +874,20 @@ func TestDacoitInARoom(t *testing.T) {
 
 // Regression: before any event (Dacoit's choice phase) the log must still be
 // an empty JSON array, not null; null crashed the web client.
+// BB has no board at all: boards must still be [].
 func TestViewListsAreNeverNull(t *testing.T) {
-	h := newHarnessOpts(t, Options{Variants: map[string]engine.Variant{"dacoit": engine.Dacoit}}, "Ann", "Bob")
-	h.start()
-	for _, viewer := range h.ps {
-		b, err := json.Marshal(h.r.View(viewer.ID))
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, field := range []string{`"log":null`, `"leaderboard":null`, `"players":null`, `"variants":null`, `"boards":null`, `"chat":null`, `"reactions":null`} {
-			if strings.Contains(string(b), field) {
-				t.Fatalf("%s in %s", field, b)
+	for name, v := range map[string]engine.Variant{"dacoit": engine.Dacoit, "bb": engine.BB} {
+		h := newHarnessOpts(t, Options{Variants: map[string]engine.Variant{name: v}}, "Ann", "Bob")
+		h.start()
+		for _, viewer := range h.ps {
+			b, err := json.Marshal(h.r.View(viewer.ID))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, field := range []string{`"log":null`, `"leaderboard":null`, `"players":null`, `"variants":null`, `"boards":null`, `"chat":null`, `"reactions":null`} {
+				if strings.Contains(string(b), field) {
+					t.Fatalf("%s: %s in %s", name, field, b)
+				}
 			}
 		}
 	}

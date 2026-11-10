@@ -45,6 +45,11 @@ func (h *Hand) CheckInvariants() error {
 		}
 	}
 	for _, p := range h.Players {
+		// In BB a folded hand goes back into the deck at the next exchange,
+		// so its cards may be dealt again.
+		if p.Folded && draws(h.Variant) > 0 {
+			continue
+		}
 		check(p.Hole)
 	}
 	for _, b := range h.Boards {
@@ -71,6 +76,10 @@ func (h *Hand) CheckInvariants() error {
 			if h.ToAct != -1 || len(h.Pending()) == 0 {
 				fail("allocating with ToAct %d and %d players pending", h.ToAct, len(h.Pending()))
 			}
+		} else if h.Drawing {
+			if h.ToAct != -1 || len(h.DrawPending()) == 0 {
+				fail("exchanging with ToAct %d and %d players pending", h.ToAct, len(h.DrawPending()))
+			}
 		} else if h.Picking {
 			if h.ToAct < 0 || h.ToAct >= len(h.Players) || h.ToAct == h.Dealer || h.Players[h.ToAct].Picked != 0 {
 				fail("ToAct %d is not a player who still has to choose", h.ToAct)
@@ -92,6 +101,16 @@ func (h *Hand) CheckInvariants() error {
 			if want := [...]int{0, 3, 4, 5, 5}[h.Street]; len(b) != want {
 				fail("%v board has %d cards, want %d", h.Street, len(b), want)
 			}
+		}
+	}
+	if draws(h.Variant) > 0 {
+		for i, p := range h.Players {
+			if !p.Folded && len(p.Hole) != h.Variant.HoleCards() {
+				fail("player %d holds %d cards, want %d", i, len(p.Hole), h.Variant.HoleCards())
+			}
+		}
+		if h.DrawRound > int(h.Street) || h.DrawRound > draws(h.Variant) {
+			fail("%d exchanges done by %v", h.DrawRound, h.Street)
 		}
 	}
 	return errors.Join(errs...)

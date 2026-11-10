@@ -950,6 +950,17 @@ details[open] > summary {
   gap: 0.25rem;
 }
 
+/* BB: choosing cards to exchange */
+.card-discard {
+  opacity: 0.45;
+  outline: 2px dashed var(--muted);
+  outline-offset: 2px;
+}
+.draw-picker {
+  display: grid;
+  gap: 0.6rem;
+}
+
 /* Dacoit: choosing 4 or 6 cards */
 .choose-picker {
   display: grid;

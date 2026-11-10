@@ -14,7 +14,7 @@ import (
 // genHand draws a random table: 2-10 players, stacks from tiny to deep,
 // some players paying double, random blinds, structure and dealer.
 func genHand(t *rapid.T) *Hand {
-	v := rapid.SampledFrom([]Variant{Holdem, Omaha, ShowTwo, Dacoit, DoubleTexas, TripleTexas}).Draw(t, "variant")
+	v := rapid.SampledFrom([]Variant{Holdem, Omaha, ShowTwo, Dacoit, DoubleTexas, TripleTexas, BB}).Draw(t, "variant")
 	maxPlayers := MaxPlayers
 	for cardsNeeded(v, maxPlayers) > cards.NumCards {
 		maxPlayers--
@@ -59,6 +59,11 @@ func drawAction(t *rapid.T, h *Hand, player int) Action {
 	}
 	if l.Choose {
 		return Action{Type: Choose, Count: rapid.SampledFrom([]int{4, l.ChooseMax}).Draw(t, "cards")}
+	}
+	if l.Draw {
+		// Exchange a random number of random cards, 0 to all 5.
+		perm := rapid.Permutation(h.Players[player].Hole).Draw(t, "exchangeOrder")
+		return Action{Type: Draw, Cards: perm[:rapid.IntRange(0, len(perm)).Draw(t, "exchange")]}
 	}
 	if l.Show {
 		// Reveal a random pair of hole cards.
@@ -113,6 +118,10 @@ func TestPropertyRandomHands(t *testing.T) {
 			if h.Allocating {
 				// Splits come in any order.
 				player = rapid.SampledFrom(h.Pending()).Draw(t, "allocator")
+			}
+			if h.Drawing {
+				// So do exchanges.
+				player = rapid.SampledFrom(h.DrawPending()).Draw(t, "drawer")
 			}
 			a := drawAction(t, h, player)
 			if err := h.Apply(player, a); err != nil {

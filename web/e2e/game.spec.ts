@@ -32,7 +32,7 @@ const status = (page: Page) => page.locator('.table-header .status')
 
 /** Host leaves only the given variants enabled and saves. */
 async function onlyVariants(host: Page, keep: string[]) {
-  for (const label of ["Texas Hold'em", 'Omaha', 'Show 2 Play 2', 'Dacoit', 'Double Texas', 'Triple Texas']) {
+  for (const label of ["Texas Hold'em", 'Omaha', 'Show 2 Play 2', 'Dacoit', 'Double Texas', 'Triple Texas', 'BB']) {
     const box = host.getByRole('checkbox', { name: label, exact: true })
     if ((await box.isChecked()) !== keep.includes(label)) await box.click()
   }

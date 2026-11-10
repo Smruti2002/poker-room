@@ -32,11 +32,16 @@ type Player struct {
 	// allocate (Double/Triple Texas).
 	Split [][]cards.Card `json:"split,omitempty"`
 
-	Folded bool  `json:"folded"`
-	AllIn  bool  `json:"allIn"`
-	Street int64 `json:"street"` // units committed on the current street
-	Total  int64 `json:"total"`  // units committed this hand
-	Won    int64 `json:"won"`    // chips won when the hand ends
+	// Draws is how many cards the player took in each BB exchange (public).
+	Draws      []int        `json:"draws,omitempty"`
+	drew       bool         // chose this exchange
+	discards   []cards.Card // this exchange's discards, dealt for once everyone has chosen
+	allInDraws int          // exchanges taken while all-in (docs/rules.md §4.8)
+	Folded     bool         `json:"folded"`
+	AllIn      bool         `json:"allIn"`
+	Street     int64        `json:"street"` // units committed on the current street
+	Total      int64        `json:"total"`  // units committed this hand
+	Won        int64        `json:"won"`    // chips won when the hand ends
 
 	acted bool  // has acted on the current street
 	faced int64 // the current bet when this player last acted
@@ -97,6 +102,13 @@ type Hand struct {
 	// across the boards, all at once and in any order. ToAct is -1.
 	Allocating bool
 	allocated  bool // the allocation phase has finished
+	// Drawing is true during a BB exchange: every player still drawing
+	// chooses their discards, all at once. ToAct is -1. DrawRound counts the
+	// exchanges done.
+	Drawing   bool
+	DrawRound int
+	nextLead  int          // who starts the betting round after the exchange
+	muck      []cards.Card // folded cards, shuffled back in at the next exchange
 	// ToAct is the index of the player to act, or -1.
 	ToAct int
 	// CurrentBet is the street total (units) players must match.
@@ -264,6 +276,12 @@ func (h *Hand) Legal(i int) Legal {
 		}
 		return Legal{}
 	}
+	if h.Drawing {
+		if slices.Contains(h.DrawPending(), i) {
+			return Legal{Draw: true}
+		}
+		return Legal{}
+	}
 	if h.Done || i != h.ToAct {
 		return Legal{}
 	}
@@ -344,6 +362,9 @@ func (h *Hand) Apply(i int, a Action) error {
 	if h.Allocating {
 		return h.allocate(i, a)
 	}
+	if h.Drawing {
+		return h.draw(i, a)
+	}
 	if i != h.ToAct {
 		return ErrNotYourTurn
 	}
@@ -370,6 +391,7 @@ func (h *Hand) Apply(i int, a Action) error {
 			return illegal("you can't fold now")
 		}
 		p.Folded = true
+		h.muck = append(h.muck, p.Hole...)
 	case Check:
 		if !l.Check {
 			return illegal(fmt.Sprintf("facing a bet of %d", h.CurrentBet))
@@ -658,6 +680,15 @@ func (h *Hand) endStreet() error {
 	if h.Street == River {
 		return h.finish()
 	}
+	if h.drawsLeft() > 0 {
+		return h.startDraw(lead)
+	}
+	return h.nextStreet(lead)
+}
+
+// nextStreet deals the next street and starts its betting with lead, or
+// moves straight on when fewer than two players can still bet.
+func (h *Hand) nextStreet(lead int) error {
 	h.Street++
 	for b := range h.Boards {
 		c := h.deal(h.Street.boardCards())
@@ -772,7 +803,7 @@ func (h *Hand) finish() error {
 // (docs/rules.md §4.4).
 func (h *Hand) potWinners(eligible []int) []int {
 	points := make(map[int]int, len(eligible))
-	for b := range h.Boards {
+	for b := range max(len(h.Boards), 1) { // a board-less hand (BB) is scored once
 		var best eval.HandRank
 		for _, i := range eligible {
 			best = max(best, h.ranks[i][b].Rank)
@@ -853,7 +884,7 @@ func (h *Hand) BoardWinners() [][]int {
 // a Show 2 Play 2 reveal, or a multi-board hand before the split.
 func (h *Hand) Hint(i int) string {
 	p := h.Players[i]
-	if p.Folded || len(p.Hole) == 0 || len(h.Boards[0]) < 3 {
+	if p.Folded || len(p.Hole) == 0 || (len(h.Boards) > 0 && len(h.Boards[0]) < 3) {
 		return ""
 	}
 	if h.Variant.Reveal() > 0 && p.Shown == nil {
