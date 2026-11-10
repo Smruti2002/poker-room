@@ -91,11 +91,25 @@ const (
 	PotLimit
 )
 
+// Order is who starts each betting round after the first.
+type Order uint8
+
+const (
+	// OrderClassic: the first active player left of the dealer. Hands logged
+	// before the house rule existed replay with this, their zero value.
+	OrderClassic Order = iota
+	// OrderLastRaiser (house rule, docs/rules.md §4.0): whoever bet or
+	// raised last in the previous round starts; if nobody did, the big
+	// blind; if that player can't act, the next one who can.
+	OrderLastRaiser
+)
+
 // Config holds the per-hand table settings, in units.
 type Config struct {
 	SmallBlind int64     `json:"smallBlind"`
 	BigBlind   int64     `json:"bigBlind"`
 	Structure  Structure `json:"structure"`
+	Order      Order     `json:"order,omitempty"`
 }
 
 // SeatSpec describes a player entering a hand. Players are listed in

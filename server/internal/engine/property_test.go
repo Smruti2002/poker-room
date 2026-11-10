@@ -25,6 +25,7 @@ func genHand(t *rapid.T) *Hand {
 		SmallBlind: rapid.Int64Range(1, bb).Draw(t, "smallBlind"),
 		BigBlind:   bb,
 		Structure:  rapid.SampledFrom([]Structure{NoLimit, PotLimit}).Draw(t, "structure"),
+		Order:      rapid.SampledFrom([]Order{OrderClassic, OrderLastRaiser}).Draw(t, "order"),
 	}
 	seats := make([]SeatSpec, n)
 	for i := range seats {

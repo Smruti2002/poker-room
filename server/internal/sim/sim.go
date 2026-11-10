@@ -91,6 +91,7 @@ func Run(cfg Config) (Stats, error) {
 		}
 		h, err := engine.NewHand(engine.Config{
 			SmallBlind: cfg.SmallBlind, BigBlind: cfg.BigBlind, Structure: cfg.Structure,
+			Order: engine.OrderLastRaiser, // the order rooms use
 		}, variant, seats, dealer, engine.Options{Seed: seed})
 		if err != nil {
 			return st, fmt.Errorf("hand %d setup: %w", n, err)
