@@ -23,7 +23,7 @@ export default defineConfig({
   ],
   webServer: {
     // Many tests create rooms from one address, so lift the per-IP limit.
-    command: `cd .. && make build >/dev/null && PORT=${port} STATIC_DIR=web/dist ROOMS_PER_MINUTE=1000 ./bin/server`,
+    command: `cd .. && make build >/dev/null && PORT=${port} STATIC_DIR=web/dist ROOMS_PER_MINUTE=1000 HISTORY_DIR=$(mktemp -d) ./bin/server`,
     url: `http://localhost:${port}/healthz`,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

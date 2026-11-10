@@ -134,6 +134,20 @@ fly scale count 0 --app poker-room-smruti
 fly scale count 1 --app poker-room-smruti
 ```
 
+## Hand histories
+
+With `HISTORY_DIR` set (it is on Fly), every finished hand is archived. When a game ends, any of its players can tap **Download hand history** on the final standings to get every hand as JSON: each player's cards, every action and bet, the boards, and who won what.
+
+The archives outlive their rooms (they're kept 30 days), so a game can be exported later from the server:
+
+```bash
+fly ssh sftp get /data/history/ROOMCODE.jsonl ROOMCODE.jsonl --app poker-room-smruti
+```
+
+```bash
+cd server && go run ./cmd/history ../ROOMCODE.jsonl > ../ROOMCODE.json
+```
+
 ## Configuration (server)
 
 | Env var | Default | Purpose |
@@ -144,6 +158,8 @@ fly scale count 1 --app poker-room-smruti
 | `SNAPSHOT_PATH` | *(empty)* | File to save rooms to. Rooms are loaded at start, saved every 30s and on shutdown, so a restart or redeploy keeps games going. Empty disables saving. |
 | `ROOM_IDLE` | `12h` | Close rooms nobody has been connected to for this long. |
 | `ROOM_MAX_AGE` | `12h` | Close every room this long after it was created, even with people in it (hosts forget to end games). Players see the closing time during the last hour. |
+| `HISTORY_DIR` | *(empty)* | Folder to archive every finished hand in, one file per room. Players can then download a whole game from the final standings, and archives outlive their rooms. Empty disables it. |
+| `HISTORY_KEEP` | `720h` | Delete hand archives this long after their last hand (30 days). |
 | `ROOMS_PER_MINUTE` | `10` | New rooms allowed per IP address per minute. |
 | `TRUST_PROXY` | *(empty)* | Set to `1` behind Fly.io so the client IP comes from `Fly-Client-IP`. |
 | `ALLOWED_ORIGINS` | *(empty)* | Extra browser origins allowed to open WebSockets, comma-separated host patterns (e.g. `localhost:5173`). Same-origin is always allowed. |

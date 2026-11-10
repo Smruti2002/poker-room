@@ -20,6 +20,7 @@ import (
 
 	"pokerroom/internal/cards"
 	"pokerroom/internal/engine"
+	"pokerroom/internal/history"
 	"pokerroom/internal/protocol"
 )
 
@@ -32,6 +33,9 @@ type Options struct {
 	// MaxAge closes a room this long after it was created, however busy it
 	// is (0: never). Players are told when it will close.
 	MaxAge time.Duration
+	// Archive, if set, receives every finished hand, so the whole game can
+	// be downloaded afterwards (rooms themselves keep only the last few).
+	Archive func(history.Record)
 }
 
 // Player is a person in the room, kept across hands.
@@ -430,6 +434,7 @@ func (r *Room) afterHandChange() {
 		r.player(id).Stack = r.hand.Players[i].Stack
 	}
 	r.past = append(r.past, pastHand{number: r.handNo, variant: r.variant, hand: r.hand, ids: r.handIDs})
+	r.archive()
 	if len(r.past) > historySize {
 		r.past = r.past[len(r.past)-historySize:]
 	}

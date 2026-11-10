@@ -10,6 +10,7 @@ kill_timeout = "15s"
 
 [env]
   SNAPSHOT_PATH = "/data/rooms.json"
+  HISTORY_DIR = "/data/history" # every hand of every game, kept 30 days
   TRUST_PROXY = "1" # rate limits read the real client IP from Fly-Client-IP
   LOG_LEVEL = "info"
 

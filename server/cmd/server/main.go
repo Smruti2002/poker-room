@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"pokerroom/internal/history"
 	"pokerroom/internal/httpapi"
 	"pokerroom/internal/room"
 	"pokerroom/internal/ws"
@@ -39,6 +40,18 @@ func run(log *slog.Logger) error {
 	addr := ":" + envOr("PORT", "8080")
 	maxAge := envDuration(log, "ROOM_MAX_AGE", 12*time.Hour)
 	manager := room.NewManager(room.Options{MaxAge: maxAge}, log)
+	// Every finished hand is archived when HISTORY_DIR is set, so whole
+	// games can be downloaded; archives are deleted after HISTORY_KEEP.
+	var archive *history.Store
+	if dir := os.Getenv("HISTORY_DIR"); dir != "" {
+		var err error
+		if archive, err = history.NewStore(dir); err != nil {
+			return fmt.Errorf("hand history: %w", err)
+		}
+		manager.KeepHistory(archive)
+		log.Info("keeping hand histories", "dir", dir)
+	}
+	keep := envDuration(log, "HISTORY_KEEP", 30*24*time.Hour)
 	rooms := &ws.Server{
 		Rooms:          manager,
 		OriginPatterns: splitList(os.Getenv("ALLOWED_ORIGINS")),
@@ -72,7 +85,7 @@ func run(log *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	go housekeeping(ctx, log, manager, snapshot, idle)
+	go housekeeping(ctx, log, manager, snapshot, idle, archive, keep)
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -102,9 +115,9 @@ func run(log *slog.Logger) error {
 }
 
 // housekeeping saves rooms regularly (so a crash loses at most a few
-// seconds), closes rooms nobody has used for a long time, and closes every
-// room once it reaches its maximum age.
-func housekeeping(ctx context.Context, log *slog.Logger, m *room.Manager, snapshot string, idle time.Duration) {
+// seconds), closes rooms nobody has used for a long time, closes every room
+// once it reaches its maximum age, and deletes old hand archives.
+func housekeeping(ctx context.Context, log *slog.Logger, m *room.Manager, snapshot string, idle time.Duration, archive *history.Store, keep time.Duration) {
 	save := time.NewTicker(30 * time.Second)
 	defer save.Stop()
 	sweep := time.NewTicker(5 * time.Minute)
@@ -122,6 +135,13 @@ func housekeeping(ctx context.Context, log *slog.Logger, m *room.Manager, snapsh
 		case <-sweep.C:
 			if n := m.Sweep(idle); n > 0 {
 				log.Info("rooms closed", "count", n)
+			}
+			if archive != nil {
+				if n, err := archive.Prune(keep, time.Now()); err != nil {
+					log.Error("pruning hand histories", "err", err)
+				} else if n > 0 {
+					log.Info("old hand histories deleted", "count", n)
+				}
 			}
 		}
 	}

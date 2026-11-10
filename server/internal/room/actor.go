@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"pokerroom/internal/history"
 	"pokerroom/internal/protocol"
 )
 
@@ -282,6 +283,9 @@ type Manager struct {
 	log   *slog.Logger
 	// MaxRooms bounds memory use; creating more fails.
 	MaxRooms int
+	// History, if set, is where every finished hand is archived (see
+	// Options.Archive), for downloading whole games.
+	History *history.Store
 }
 
 // ErrTooManyRooms is returned when the server is full.
@@ -293,6 +297,17 @@ func NewManager(opts Options, log *slog.Logger) *Manager {
 		opts.Now = time.Now
 	}
 	return &Manager{rooms: map[string]*Actor{}, opts: opts, log: log, MaxRooms: 2000}
+}
+
+// KeepHistory archives every finished hand of every room in store, so
+// whole games can be downloaded. Call it before creating or loading rooms.
+func (m *Manager) KeepHistory(store *history.Store) {
+	m.History = store
+	m.opts.Archive = func(r history.Record) {
+		if err := store.Append(r); err != nil {
+			m.log.Error("archiving hand", "room", r.Room, "hand", r.Number, "err", err)
+		}
+	}
 }
 
 // codeAlphabet avoids look-alike characters (0/O, 1/I/L).

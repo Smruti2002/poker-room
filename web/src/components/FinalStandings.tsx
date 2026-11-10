@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { downloadHistory } from '../api.ts'
 import type { ClientMsg, State } from '../protocol/types.ts'
 
 const fmt = (n: number) => n.toLocaleString()
@@ -55,6 +57,7 @@ export function FinalStandings({ state, send }: { state: State; send: (m: Client
         })}
       </ol>
       <div className="final-actions">
+        <DownloadHistory code={state.code} />
         {isHost ? (
           <button className="btn btn-primary" onClick={() => send({ type: 'rematch' })}>
             New game with same players
@@ -64,5 +67,34 @@ export function FinalStandings({ state, send }: { state: State; send: (m: Client
         )}
       </div>
     </section>
+  )
+}
+
+/** Every hand of the game (everyone's cards, every bet) as a JSON file. */
+function DownloadHistory({ code }: { code: string }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const download = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      await downloadHistory(code)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Download failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div className="final-download">
+      <button className="btn" onClick={download} disabled={busy}>
+        {busy ? 'Preparing…' : 'Download hand history'}
+      </button>
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
   )
 }

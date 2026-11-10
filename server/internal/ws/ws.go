@@ -6,8 +6,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -55,6 +57,7 @@ const (
 func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/rooms", s.createRoom)
 	mux.HandleFunc("GET /api/rooms/{code}", s.getRoom)
+	mux.HandleFunc("GET /api/rooms/{code}/history", s.getHistory)
 	mux.HandleFunc("GET /ws/{code}", s.serveWS)
 }
 
@@ -103,6 +106,33 @@ func (s *Server) getRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, a.Summary())
+}
+
+// getHistory downloads a finished game's every hand. The player proves they
+// were in the room with their session token (Authorization: Bearer), kept
+// out of the URL so it doesn't end up in logs or browser history.
+func (s *Server) getHistory(w http.ResponseWriter, r *http.Request) {
+	a := s.Rooms.Get(r.PathValue("code"))
+	if a == nil {
+		httpError(w, http.StatusNotFound, "room not found")
+		return
+	}
+	token, _ := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	export, err := a.HandHistory(token)
+	switch {
+	case errors.Is(err, room.ErrNotYourRoom):
+		httpError(w, http.StatusForbidden, err.Error())
+	case errors.Is(err, room.ErrNotOver):
+		httpError(w, http.StatusConflict, err.Error())
+	case errors.Is(err, room.ErrNoArchive), errors.Is(err, room.ErrRoomClosed):
+		httpError(w, http.StatusNotFound, err.Error())
+	case err != nil:
+		s.Log.Error("hand history", "room", r.PathValue("code"), "err", err)
+		httpError(w, http.StatusInternalServerError, "couldn't read the hand history")
+	default:
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="poker-room-%s.json"`, export.Room))
+		writeJSON(w, http.StatusOK, export)
+	}
 }
 
 func (s *Server) serveWS(w http.ResponseWriter, r *http.Request) {
