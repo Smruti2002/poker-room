@@ -23,7 +23,8 @@ All chips are virtual. Chip amounts are always whole numbers.
    - is never dealt in again and can't rejoin the room under that name,
    - stays on the leaderboard, marked "removed", so the profits still add up,
    - hands the host role to the next connected player if they were the host.
-8. After the game, the host can tap **New game with same players**. It opens a new room with the same settings and everyone except removed players already seated, with fresh stacks and no debt, and moves every player there. Anyone who was away is moved when they next open the old link.
+8. **Bots:** the host can add computer players (**🤖 Add bot**, in the lobby or between hands) to fill seats, and **Remove** them at any time. Bots play every variant by themselves using only their own cards and what's public. They pick the game when they deal, and borrow when broke like anyone else (same loan and penalty rules). They act immediately: there are no timers, so they don't pause to "think". Bots don't vote on removing players and never become host. A bot removed mid-game folds out of the hand like a removed player and stays on the leaderboard.
+9. After the game, the host can tap **New game with same players**. It opens a new room with the same settings and everyone except removed players (bots included) already seated, with fresh stacks and no debt, and moves every player there. Anyone who was away is moved when they next open the old link.
 
 ## 2. Room settings
 

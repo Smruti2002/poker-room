@@ -48,6 +48,7 @@ type Player struct {
 	Loans       int
 	SittingOut  bool
 	Kicked      bool // voted out of the room (kick.go)
+	Bot         bool // a computer player (bots.go)
 	Connections int
 }
 
@@ -213,6 +214,12 @@ func (r *Room) Handle(pid string, m protocol.ClientMsg) error {
 	if p.Kicked {
 		return ErrKicked
 	}
+	err := r.handle(p, m)
+	r.runBots() // bots move whenever the game is waiting on them
+	return err
+}
+
+func (r *Room) handle(p *Player, m protocol.ClientMsg) error {
 	switch m.Type {
 	case protocol.MsgUpdateSettings:
 		return r.updateSettings(p, m.Settings)
@@ -249,6 +256,10 @@ func (r *Room) Handle(pid string, m protocol.ClientMsg) error {
 		return r.voteKick(p, m.Target, m.Yes)
 	case protocol.MsgCancelKick:
 		return r.cancelKick(p, m.Target)
+	case protocol.MsgAddBot:
+		return r.addBot(p)
+	case protocol.MsgRemoveBot:
+		return r.removeBot(p, m.Target)
 	}
 	return ErrUnknownMsg
 }

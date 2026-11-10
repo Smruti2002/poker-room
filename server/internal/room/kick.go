@@ -137,18 +137,19 @@ func (r *Room) kick(p *Player) {
 	case protocol.StageHand:
 		r.afterHandChange() // plays their turn if the hand is waiting on them
 	}
+	r.runBots()
 }
 
 // nextHost picks a new host: the first connected player still in the room,
 // else the first one still in it.
 func (r *Room) nextHost() string {
 	for _, q := range r.players {
-		if !q.Kicked && q.Connections > 0 {
+		if !q.Kicked && !q.Bot && q.Connections > 0 {
 			return q.ID
 		}
 	}
 	for _, q := range r.players {
-		if !q.Kicked {
+		if !q.Kicked && !q.Bot {
 			return q.ID
 		}
 	}

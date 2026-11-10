@@ -61,6 +61,16 @@ func (a *Actor) rematch(pid string) error {
 	if err != nil {
 		return err
 	}
+	// Bots come along as bots.
+	if na := a.mgr.Get(code); na != nil {
+		na.call(func() {
+			for i, q := range seats {
+				if np := na.room.PlayerByToken(tokens[i]); np != nil && q.Bot {
+					np.Bot = true
+				}
+			}
+		})
+	}
 	a.room.nextCode = code
 	a.room.nextTokens = map[string]string{}
 	for i, q := range seats {

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ClientMsg, Settings, State } from '../protocol/types.ts'
-import { KickButton } from './KickVotes.tsx'
+import { AddBot, KickButton } from './KickVotes.tsx'
 import { variantName } from '../variants.ts'
 
 interface Props {
@@ -65,6 +65,7 @@ export function Lobby({ state, onSave, onStart, send }: Props) {
           {seated.map((p) => (
             <li key={p.id}>
               {p.name}
+              {p.bot && <span className="tag" title="Plays by itself">🤖 bot</span>}
               {p.id === state.hostId && <span className="tag">host</span>}
               {p.id === state.you && <span className="tag">you</span>}
               {!p.connected && <span className="tag tag-muted">offline</span>}
@@ -72,6 +73,7 @@ export function Lobby({ state, onSave, onStart, send }: Props) {
             </li>
           ))}
         </ul>
+        <AddBot state={state} send={send} />
         {isHost ? (
           <button
             className="btn btn-primary"

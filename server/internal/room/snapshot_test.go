@@ -58,6 +58,9 @@ func randomStep(h *harness, rng *mrand.Rand) {
 		m = protocol.ClientMsg{Type: protocol.MsgSitIn}
 	case 3:
 		m = protocol.ClientMsg{Type: protocol.MsgTakeLoan}
+	case 6:
+		m = protocol.ClientMsg{Type: protocol.MsgAddBot}
+		p = h.r.player(h.r.hostID)
 	case 5:
 		// Come and go, and vote people out.
 		p.Connections = rng.IntN(2)

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import type { Action, ClientMsg, PlayerView, State } from '../protocol/types.ts'
 import { variantName } from '../variants.ts'
 import { ActionBar } from './ActionBar.tsx'
-import { KickButton } from './KickVotes.tsx'
+import { AddBot, KickButton } from './KickVotes.tsx'
 import { FinalStandings } from './FinalStandings.tsx'
 import { RaiseBanner, SeatCallout } from './BetCallout.tsx'
 import { RoundSteps } from './RoundSteps.tsx'
@@ -194,6 +194,7 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
                 Sit out next hand
               </button>
             ))}
+          <AddBot state={state} send={send} />
           {isHost && state.phase === 'playing' && (
             <button
               className="btn btn-small btn-link"
@@ -354,6 +355,11 @@ function Seat({
       )}
       <div className="seat-name">
         {p.name}
+        {p.bot && (
+          <span className="tag" title="A bot: it plays by itself" aria-label="bot">
+            🤖
+          </span>
+        )}
         {p.dealer && <span className="tag tag-dealer" title="Dealer">D</span>}
         {(p.picked ?? 0) > 0 && p.inHand && (
           <span className={`tag${p.mult > 1 ? ' tag-double' : ''}`} title={p.mult > 1 ? 'Pays double for every bet' : undefined}>

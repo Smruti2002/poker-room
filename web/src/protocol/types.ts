@@ -86,6 +86,14 @@ export const MsgVoteKick = "voteKick"; // Target, Yes: start or answer a vote to
  */
 export const MsgCancelKick = "cancelKick"; // Target: whoever started the vote withdraws it
 /**
+ * Client message types.
+ */
+export const MsgAddBot = "addBot"; // host only: seat a computer player
+/**
+ * Client message types.
+ */
+export const MsgRemoveBot = "removeBot"; // host only: Target is a bot to remove
+/**
  * ClientMsg is sent by the browser. The first message on a connection must
  * be join or resume.
  */
@@ -283,6 +291,10 @@ export interface PlayerView {
    * and until a hand they were in has finished.
    */
   kicked?: boolean;
+  /**
+   * Bot is a computer player the host added; it plays by itself.
+   */
+  bot?: boolean;
   /**
    * The fields below describe the current or last hand.
    */

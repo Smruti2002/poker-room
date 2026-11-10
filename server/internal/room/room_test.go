@@ -589,7 +589,6 @@ func FuzzRoom(f *testing.F) {
 		h.r.Join("Dee")
 		players := h.r.players
 		variants := h.r.variantNames
-		base := int64(len(players)) * h.r.settings.StartingStack
 		for i := 0; i+1 < len(script); i += 2 {
 			p := players[int(script[i])%len(players)]
 			op := script[i+1]
@@ -637,6 +636,8 @@ func FuzzRoom(f *testing.F) {
 				switch {
 				case op > 250:
 					m.Type = protocol.MsgEndGame
+				case op > 240:
+					m.Type = protocol.MsgAddBot
 				case op > 200:
 					// Come and go, and vote people out.
 					p.Connections = int(op % 2)
@@ -652,8 +653,10 @@ func FuzzRoom(f *testing.F) {
 				_ = h.r.View(pp.ID)
 			}
 			if h.r.stage != protocol.StageHand {
+				// Everyone seated now, bots added along the way included.
+				base := int64(len(h.r.players)) * h.r.settings.StartingStack
 				var loans int64
-				for _, pp := range players {
+				for _, pp := range h.r.players {
 					loans += int64(pp.Loans) * h.r.settings.LoanAmount
 				}
 				if got := h.totalStacks(); got != base+loans {

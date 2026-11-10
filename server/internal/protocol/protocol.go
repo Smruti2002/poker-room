@@ -24,6 +24,8 @@ const (
 	MsgRematch        = "rematch"    // host only, after the game: a new room with the same players
 	MsgVoteKick       = "voteKick"   // Target, Yes: start or answer a vote to remove a player
 	MsgCancelKick     = "cancelKick" // Target: whoever started the vote withdraws it
+	MsgAddBot         = "addBot"     // host only: seat a computer player
+	MsgRemoveBot      = "removeBot"  // host only: Target is a bot to remove
 )
 
 // ClientMsg is sent by the browser. The first message on a connection must
@@ -175,6 +177,8 @@ type PlayerView struct {
 	// Kicked players were voted out; they stay listed for the leaderboard
 	// and until a hand they were in has finished.
 	Kicked bool `json:"kicked,omitempty"`
+	// Bot is a computer player the host added; it plays by itself.
+	Bot bool `json:"bot,omitempty"`
 	// The fields below describe the current or last hand.
 	InHand bool  `json:"inHand"`
 	Dealer bool  `json:"dealer"`

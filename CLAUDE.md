@@ -25,7 +25,8 @@ Go backend (`server/`) and React + TypeScript frontend (`web/`), deployed as one
 - `protocol`: the JSON messages. **These Go types are the source of truth**; `web/src/protocol/types.ts` is generated from them with `make protocol`, and CI fails if it's stale.
 - `ws`: REST (`/api/rooms`) and the WebSocket (`/ws/{code}`), rate limits, pings.
 - `httpapi`: `/healthz`, static files, cache headers.
-- `sim`: bots that play huge numbers of hands checking invariants.
+- `sim`: random bots that play huge numbers of hands checking invariants.
+- `bot`: the computer players hosts can add. `Decide` gets only a `View` of what that seat may see (never other players' cards). `room/bots.go` seats them and has them act whenever the game waits on one.
 
 **server/cmd**
 - `server`: the server binary.
