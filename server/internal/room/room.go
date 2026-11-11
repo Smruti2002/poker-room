@@ -497,12 +497,26 @@ func (r *Room) act(p *Player, a *protocol.Action) error {
 	return nil
 }
 
+// EarlyLoanBelow is the stack under which a player may borrow before going
+// broke (docs/rules.md §3).
+const EarlyLoanBelow = 500
+
+// inLiveHand reports whether p was dealt into a hand still being played. Their
+// stack is then in the hand, and changes only when it ends.
+func (r *Room) inLiveHand(p *Player) bool {
+	return r.hand != nil && !r.hand.Done && slices.Contains(r.handIDs, p.ID)
+}
+
 func (r *Room) takeLoan(p *Player) error {
 	switch {
 	case r.phase == protocol.PhaseEnded:
 		return ErrGameOver
-	case p.Stack > 0:
-		return errors.New("you can only borrow when you're out of chips")
+	case p.Kicked:
+		return ErrKicked
+	case p.Stack >= EarlyLoanBelow:
+		return fmt.Errorf("you can borrow once you're below %d chips", EarlyLoanBelow)
+	case r.inLiveHand(p):
+		return errors.New("you can borrow when this hand is over")
 	}
 	p.Loans++
 	p.Stack += r.settings.LoanAmount

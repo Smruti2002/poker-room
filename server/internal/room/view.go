@@ -104,6 +104,7 @@ func (r *Room) View(viewer string) protocol.State {
 			}
 		}
 		v.Broke = v.Stack == 0 && (!live || !v.InHand)
+		v.CanBorrow = r.phase == protocol.PhasePlaying && !p.Kicked && p.Stack < EarlyLoanBelow && !r.inLiveHand(p)
 		s.Players = append(s.Players, v)
 
 		s.Leaderboard = append(s.Leaderboard, protocol.Standing{ID: p.ID, Name: p.Name, Profit: r.Profit(p), Kicked: p.Kicked})

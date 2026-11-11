@@ -744,6 +744,15 @@ details[open] > summary {
 .loan p {
   margin-top: 0;
 }
+.loan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.loan-early {
+  align-self: flex-start;
+  min-height: 44px;
+}
 /* Final standings, when the game is over */
 .table-layout-ended {
   grid-template-columns: 1fr;
