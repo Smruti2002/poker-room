@@ -662,6 +662,16 @@ func FuzzRoom(f *testing.F) {
 				if got := h.totalStacks(); got != base+loans {
 					t.Fatalf("chips %d, want %d", got, base+loans)
 				}
+				// Game stats: chips only change hands, so the nets cancel.
+				var net int64
+				for _, pp := range h.r.players {
+					for _, n := range pp.Stats.Net {
+						net += n
+					}
+				}
+				if net != 0 {
+					t.Fatalf("stats nets sum to %d, want 0", net)
+				}
 			} else if err := h.r.hand.CheckInvariants(); err != nil {
 				t.Fatal(err)
 			}

@@ -18,6 +18,11 @@ All chips are virtual. Chip amounts are always whole numbers.
 4. Between hands, players with fewer than 500 chips may take a [loan](#3-loans); broke players are offered one straight away.
 5. If the host goes offline, any player still in the room can **become host**, so the game can still be started, skipped or ended.
 6. The host ends the game whenever they want. The leaderboard ranks players by **profit = stack − starting stack − debt**. 0 means the player broke even, a positive number means they are up, and a negative one means they are down.
+
+   Under the final standings, **Game stats** sum up the game, using only what everyone saw at the table (never anyone's hidden cards):
+   - hands played, and the most played variant;
+   - for each player: hands won (won chips from a pot), the share of hands they folded, showdowns won out of showdowns reached, and chips won or lost in their best and worst variant;
+   - awards: **Biggest pot** (most chips paid out in one hand), **Most hands won**, **Showdown king** (best showdown win rate, at least 3 showdowns), **The rock** (folded most often, at least 5 hands) and **Bank's best customer** (most loans). Ties share an award, and an award nobody qualifies for isn't shown.
 7. Any player can start a **vote to remove** another player (Kick on their seat). It passes once more than half of the connected players, not counting the target, vote yes. Players who have left don't count, so they can't block it. There is no time limit: the vote stays open until it passes, can no longer pass, or whoever started it cancels it. A removed player:
    - gets the default move (check, else fold) whenever a hand they're still in waits on them; their chips already in the pot stay there,
    - is never dealt in again and can't rejoin the room under that name,

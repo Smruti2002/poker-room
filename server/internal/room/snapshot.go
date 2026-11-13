@@ -40,6 +40,7 @@ type Snapshot struct {
 	NextCode     string              `json:"nextCode,omitempty"`
 	NextTokens   map[string]string   `json:"nextTokens,omitempty"`
 	KickVotes    []KickVoteSnapshot  `json:"kickVotes,omitempty"`
+	Stats        gameStats           `json:"stats,omitzero"`
 }
 
 // KickVoteSnapshot is an open vote to remove a player.
@@ -61,6 +62,8 @@ type PlayerSnapshot struct {
 	SittingOut bool   `json:"sittingOut,omitempty"`
 	Kicked     bool   `json:"kicked,omitempty"`
 	Bot        bool   `json:"bot,omitempty"`
+	// Stats are the player's game totals; older snapshots have none.
+	Stats playerStats `json:"stats,omitzero"`
 }
 
 // PastSnapshot is a finished hand kept for the history panel.
@@ -99,8 +102,10 @@ func (r *Room) Snapshot() Snapshot {
 		s.Players = append(s.Players, PlayerSnapshot{
 			ID: p.ID, Name: p.Name, Token: p.Token, Stack: p.Stack,
 			Debt: p.Debt, Loans: p.Loans, SittingOut: p.SittingOut, Kicked: p.Kicked, Bot: p.Bot,
+			Stats: p.Stats.clone(),
 		})
 	}
+	s.Stats = r.stats.clone()
 	for _, v := range r.kickVotes {
 		s.KickVotes = append(s.KickVotes, KickVoteSnapshot{
 			Target: v.target, StartedBy: v.startedBy,
@@ -145,8 +150,10 @@ func Restore(s Snapshot, opts Options) (*Room, error) {
 		r.players = append(r.players, &Player{
 			ID: p.ID, Name: p.Name, Token: p.Token, Stack: p.Stack,
 			Debt: p.Debt, Loans: p.Loans, SittingOut: p.SittingOut, Kicked: p.Kicked, Bot: p.Bot,
+			Stats: p.Stats.clone(),
 		})
 	}
+	r.stats = s.Stats.clone()
 	for _, v := range s.KickVotes {
 		kv := &kickVote{target: v.Target, startedBy: v.StartedBy, yes: map[string]bool{}, no: map[string]bool{}}
 		for _, id := range v.Yes {

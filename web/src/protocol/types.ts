@@ -241,6 +241,64 @@ export interface State {
    * without them.
    */
   waitingOnLoan?: string[];
+  /**
+   * Stats are the whole game's numbers, sent once it's over.
+   */
+  stats?: GameStats;
+}
+/**
+ * GameStats sum up a finished game, from what everyone saw at the table.
+ */
+export interface GameStats {
+  hands: number /* int */;
+  /**
+   * Variants are hands played per variant, most played first.
+   */
+  variants: VariantCount[];
+  biggestPot?: PotStat;
+  /**
+   * Players are everyone dealt at least one hand, in seat order.
+   */
+  players: PlayerStats[];
+}
+/**
+ * VariantCount is how many hands of a variant were played.
+ */
+export interface VariantCount {
+  variant: string;
+  hands: number /* int */;
+}
+/**
+ * PotStat is the hand that paid out the most chips.
+ */
+export interface PotStat {
+  chips: number /* int64 */;
+  hand: number /* int */;
+  variant: string;
+  winners: string[];
+}
+/**
+ * PlayerStats are one player's numbers for the game.
+ */
+export interface PlayerStats {
+  id: string;
+  hands: number /* int */; // dealt in
+  won: number /* int */; // hands where they won chips
+  folded: number /* int */; // hands they folded
+  showdowns: number /* int */; // hands they were still in at a showdown
+  showdownsWon: number /* int */; // ...and won chips
+  biggestWin: number /* int64 */; // most chips won in one hand
+  /**
+   * Net is chips won or lost per variant, by name.
+   */
+  net: VariantNet[];
+}
+/**
+ * VariantNet is a player's chips won or lost playing one variant.
+ */
+export interface VariantNet {
+  variant: string;
+  chips: number /* int64 */;
 }
 /**
  * NextRoom is where the players went after a game ended. Token is this
