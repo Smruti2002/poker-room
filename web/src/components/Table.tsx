@@ -5,6 +5,7 @@ import { ActionBar } from './ActionBar.tsx'
 import { AddBot, KickButton } from './KickVotes.tsx'
 import { LoanOffer } from './LoanOffer.tsx'
 import { FinalStandings } from './FinalStandings.tsx'
+import { GameStats } from './GameStats.tsx'
 import { RaiseBanner, SeatCallout } from './BetCallout.tsx'
 import { RoundSteps } from './RoundSteps.tsx'
 import { HandCards } from './HandCards.tsx'
@@ -51,6 +52,7 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
             </span>
           </header>
           <FinalStandings state={state} send={send} />
+          <GameStats state={state} />
         </main>
       </div>
     )

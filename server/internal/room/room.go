@@ -50,6 +50,7 @@ type Player struct {
 	Kicked      bool // voted out of the room (kick.go)
 	Bot         bool // a computer player (bots.go)
 	Connections int
+	Stats       playerStats // this game's totals (stats.go)
 }
 
 // Room is the state of one poker room.
@@ -88,6 +89,7 @@ type Room struct {
 	chatTimes map[string][]time.Time // recent messages per player, for rate limiting
 	reactions []protocol.Reaction
 	past      []pastHand // the last finished hands, newest last
+	stats     gameStats  // the table's totals (stats.go)
 }
 
 // pastHand is a finished hand kept for the history panel.
@@ -441,6 +443,7 @@ func (r *Room) afterHandChange() {
 			panic(fmt.Sprintf("default move for a kicked player: %v", err))
 		}
 	}
+	r.recordStats()
 	for i, id := range r.handIDs {
 		r.player(id).Stack = r.hand.Players[i].Stack
 	}

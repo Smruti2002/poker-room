@@ -28,6 +28,9 @@ func (r *Room) View(viewer string) protocol.State {
 	}
 	s.Settings.Variants = slices.Clone(r.settings.Variants)
 	s.KickVotes = r.kickVoteViews()
+	if r.phase == protocol.PhaseEnded {
+		s.Stats = r.statsView()
+	}
 	for _, p := range r.waitingOnLoan() {
 		s.WaitingOnLoan = append(s.WaitingOnLoan, p.ID)
 	}

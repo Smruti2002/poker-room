@@ -132,6 +132,51 @@ type State struct {
 	// Next hand waits for: they take a loan or sit out, or the host deals
 	// without them.
 	WaitingOnLoan []string `json:"waitingOnLoan,omitempty"`
+	// Stats are the whole game's numbers, sent once it's over.
+	Stats *GameStats `json:"stats,omitempty"`
+}
+
+// GameStats sum up a finished game, from what everyone saw at the table.
+type GameStats struct {
+	Hands int `json:"hands"`
+	// Variants are hands played per variant, most played first.
+	Variants   []VariantCount `json:"variants"`
+	BiggestPot *PotStat       `json:"biggestPot,omitempty"`
+	// Players are everyone dealt at least one hand, in seat order.
+	Players []PlayerStats `json:"players"`
+}
+
+// VariantCount is how many hands of a variant were played.
+type VariantCount struct {
+	Variant string `json:"variant"`
+	Hands   int    `json:"hands"`
+}
+
+// PotStat is the hand that paid out the most chips.
+type PotStat struct {
+	Chips   int64    `json:"chips"`
+	Hand    int      `json:"hand"`
+	Variant string   `json:"variant"`
+	Winners []string `json:"winners"`
+}
+
+// PlayerStats are one player's numbers for the game.
+type PlayerStats struct {
+	ID           string `json:"id"`
+	Hands        int    `json:"hands"`        // dealt in
+	Won          int    `json:"won"`          // hands where they won chips
+	Folded       int    `json:"folded"`       // hands they folded
+	Showdowns    int    `json:"showdowns"`    // hands they were still in at a showdown
+	ShowdownsWon int    `json:"showdownsWon"` // ...and won chips
+	BiggestWin   int64  `json:"biggestWin"`   // most chips won in one hand
+	// Net is chips won or lost per variant, by name.
+	Net []VariantNet `json:"net"`
+}
+
+// VariantNet is a player's chips won or lost playing one variant.
+type VariantNet struct {
+	Variant string `json:"variant"`
+	Chips   int64  `json:"chips"`
 }
 
 // NextRoom is where the players went after a game ended. Token is this

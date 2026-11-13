@@ -758,6 +758,8 @@ details[open] > summary {
   grid-template-columns: 1fr;
 }
 .final {
+  width: 100%;
+  box-sizing: border-box;
   max-width: 34rem;
   margin: 0.5rem auto 0;
   padding: 1rem;
@@ -843,6 +845,78 @@ details[open] > summary {
 }
 .final-actions p {
   margin: 0;
+}
+/* Game stats, under the final standings */
+.stats {
+  width: 100%;
+  box-sizing: border-box;
+  max-width: 34rem;
+  margin: 0.75rem auto 0;
+  padding: 1rem;
+  background: var(--panel);
+  border-radius: 16px;
+}
+.stats h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  text-align: center;
+}
+.stats-summary {
+  margin: 0.25rem 0 0.75rem;
+  font-size: 0.85rem;
+  text-align: center;
+}
+.stats-awards {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0.5rem;
+}
+.stats-award {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.5rem;
+  align-items: center;
+  padding: 0.6rem 0.7rem;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.05);
+  min-width: 0;
+}
+.stats-award-icon {
+  grid-row: span 3;
+  font-size: 1.5rem;
+}
+.stats-award-title {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.stats-award-who {
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+.stats-award-detail {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.stats-players {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.4rem;
+}
+.stats-player {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0.7rem;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.03);
+  font-size: 0.85rem;
+}
+.stats-player strong {
+  font-size: 1rem;
 }
 @keyframes winner-glow {
   0% {
