@@ -36,7 +36,7 @@ export const MsgAction = "action"; // player to act
 /**
  * Client message types.
  */
-export const MsgTakeLoan = "takeLoan"; // broke player, between hands
+export const MsgTakeLoan = "takeLoan"; // below 500 chips, between hands
 /**
  * Client message types.
  */
@@ -286,6 +286,11 @@ export interface PlayerView {
   connected: boolean;
   sittingOut: boolean;
   broke: boolean; // no chips; may take a loan
+  /**
+   * CanBorrow: the player may take a loan now: they're below the early-loan
+   * line (500 chips) and not in a hand being played.
+   */
+  canBorrow?: boolean;
   /**
    * Kicked players were voted out; they stay listed for the leaderboard
    * and until a hand they were in has finished.

@@ -11,7 +11,7 @@ const (
 	MsgStart          = "start"          // host only
 	MsgChooseVariant  = "chooseVariant"  // dealer only
 	MsgAction         = "action"         // player to act
-	MsgTakeLoan       = "takeLoan"       // broke player, between hands
+	MsgTakeLoan       = "takeLoan"       // below 500 chips, between hands
 	MsgSitOut         = "sitOut"
 	MsgSitIn          = "sitIn"
 	MsgEndGame        = "endGame"    // host only
@@ -174,6 +174,9 @@ type PlayerView struct {
 	Connected  bool   `json:"connected"`
 	SittingOut bool   `json:"sittingOut"`
 	Broke      bool   `json:"broke"` // no chips; may take a loan
+	// CanBorrow: the player may take a loan now: they're below the early-loan
+	// line (500 chips) and not in a hand being played.
+	CanBorrow bool `json:"canBorrow,omitempty"`
 	// Kicked players were voted out; they stay listed for the leaderboard
 	// and until a hand they were in has finished.
 	Kicked bool `json:"kicked,omitempty"`

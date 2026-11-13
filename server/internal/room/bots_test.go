@@ -163,8 +163,19 @@ func TestBotsComeAlongToARematch(t *testing.T) {
 		_ = r.Handle(annID, protocol.ClientMsg{Type: protocol.MsgAddBot})
 		_ = r.Handle(annID, protocol.ClientMsg{Type: protocol.MsgStart})
 		_ = r.Handle(annID, protocol.ClientMsg{Type: protocol.MsgEndGame})
-		for r.phase != protocol.PhaseEnded {
-			_ = r.Handle(annID, protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "fold"}})
+		// Ann folds out of the hand the bot dealt. When it waits on her for
+		// something else (a Show 2 Play 2 reveal, a split, a BB exchange),
+		// she skips herself to take the default move.
+		for range 1000 {
+			if r.phase == protocol.PhaseEnded {
+				break
+			}
+			if r.Handle(annID, protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "fold"}}) != nil {
+				_ = r.Handle(annID, protocol.ClientMsg{Type: protocol.MsgSkip, Target: annID})
+			}
+		}
+		if r.phase != protocol.PhaseEnded {
+			t.Fatalf("game didn't end; stage %q", r.stage)
 		}
 	})
 	ann := NewClient()

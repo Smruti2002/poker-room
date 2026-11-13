@@ -3,6 +3,7 @@ import type { Action, ClientMsg, PlayerView, State } from '../protocol/types.ts'
 import { variantName } from '../variants.ts'
 import { ActionBar } from './ActionBar.tsx'
 import { AddBot, KickButton } from './KickVotes.tsx'
+import { LoanOffer } from './LoanOffer.tsx'
 import { FinalStandings } from './FinalStandings.tsx'
 import { RaiseBanner, SeatCallout } from './BetCallout.tsx'
 import { RoundSteps } from './RoundSteps.tsx'
@@ -167,20 +168,7 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
           </div>
         )}
 
-        {me?.broke && state.phase === 'playing' && (
-          <div className="panel loan">
-            <p>
-              You're out of chips. Borrow {state.settings.loanAmount}
-              {me.loans < state.settings.penalizedLoans
-                ? ` (adds ${state.settings.loanAmount + state.settings.loanPenalty} to your debt, including the ${state.settings.loanPenalty} penalty)`
-                : ' (no penalty)'}
-              ?
-            </p>
-            <button className="btn btn-primary" onClick={() => send({ type: 'takeLoan' })}>
-              Take loan
-            </button>
-          </div>
-        )}
+        {me && <LoanOffer me={me} settings={state.settings} playing={state.phase === 'playing'} send={send} />}
 
         <div className="table-controls">
           {me &&
