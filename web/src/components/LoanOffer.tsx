@@ -52,6 +52,11 @@ export function LoanOffer({ me, settings, playing, send }: Props) {
             Not now
           </button>
         )}
+        {broke && !me.sittingOut && (
+          <button className="btn" onClick={() => send({ type: 'sitOut' })}>
+            Sit out
+          </button>
+        )}
       </div>
     </div>
   )

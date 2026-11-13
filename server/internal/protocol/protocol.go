@@ -19,7 +19,7 @@ const (
 	MsgReact          = "react"      // Emoji: a quick reaction shown over your seat
 	MsgHistory        = "history"    // ask for the recent hand history (sent only to you)
 	MsgNextHand       = "nextHand"   // any player, once a hand is over
-	MsgSkip           = "skip"       // host only: Target gets the default move
+	MsgSkip           = "skip"       // host only: Target gets the default move, or a broke player sits out
 	MsgClaimHost      = "claimHost"  // become host while the host is offline
 	MsgRematch        = "rematch"    // host only, after the game: a new room with the same players
 	MsgVoteKick       = "voteKick"   // Target, Yes: start or answer a vote to remove a player
@@ -128,6 +128,10 @@ type State struct {
 	ClosesAt int64 `json:"closesAt,omitempty"`
 	// KickVotes are the votes in progress, oldest first.
 	KickVotes []KickVote `json:"kickVotes"`
+	// WaitingOnLoan are broke players, online and not sitting out, that
+	// Next hand waits for: they take a loan or sit out, or the host deals
+	// without them.
+	WaitingOnLoan []string `json:"waitingOnLoan,omitempty"`
 }
 
 // NextRoom is where the players went after a game ended. Token is this
