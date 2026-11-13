@@ -380,7 +380,7 @@ describe('ResultBanner', () => {
         { playerId: 'p2', chips: 20, desc: 'Pair of Queens | Pair of Sevens', cards: [['Qc', '9s', '5s', 'Ac', 'Qh'], ['Js', 'Kc', '7c', 'Tc', '7s']] },
       ],
     }
-    render(<ResultBanner state={s} hand={hand} onNext={vi.fn()} />)
+    render(<ResultBanner state={s} hand={hand} onNext={vi.fn()} onSkip={vi.fn()} />)
     const banner = screen.getByLabelText('Hand result')
     expect(banner).toHaveTextContent('You win 20 (split pot)Board 2: Two pair, Kings and Sevens')
     expect(banner).toHaveTextContent('Bob wins 20 (split pot)Board 1: Pair of Queens')

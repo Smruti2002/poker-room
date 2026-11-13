@@ -463,8 +463,27 @@ func (r *Room) startNextHand() error {
 	if r.stage != protocol.StageResult {
 		return errors.New("the hand isn't over yet")
 	}
+	if w := r.waitingOnLoan(); len(w) > 0 {
+		return fmt.Errorf("waiting for %s to take a loan or sit out", w[0].Name)
+	}
 	r.nextHand()
 	return nil
+}
+
+// waitingOnLoan lists, in seat order, broke players the next hand waits for:
+// online, not sitting out, deciding whether to borrow. Offline players
+// don't hold the table up, and the host can deal without anyone (skip).
+func (r *Room) waitingOnLoan() []*Player {
+	if r.stage != protocol.StageResult {
+		return nil
+	}
+	var out []*Player
+	for _, p := range r.players {
+		if p.Stack == 0 && !p.SittingOut && !p.Kicked && !p.Bot && p.Connections > 0 {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func (r *Room) act(p *Player, a *protocol.Action) error {
@@ -517,6 +536,9 @@ func (r *Room) takeLoan(p *Player) error {
 		return fmt.Errorf("you can borrow once you're below %d chips", EarlyLoanBelow)
 	case r.inLiveHand(p):
 		return errors.New("you can borrow when this hand is over")
+	}
+	if p.Stack == 0 {
+		p.SittingOut = false // borrowing when broke means you want to play
 	}
 	p.Loans++
 	p.Stack += r.settings.LoanAmount
@@ -573,6 +595,18 @@ func (r *Room) skip(p *Player, target string) error {
 			return fmt.Errorf("skipping: %w", err)
 		}
 		r.afterHandChange()
+		return nil
+	case protocol.StageResult:
+		// Deal without a broke player who hasn't decided: they sit out, and
+		// a loan sits them back in.
+		q := r.player(target)
+		if q == nil || !slices.Contains(r.waitingOnLoan(), q) {
+			return errors.New("the game isn't waiting for that player")
+		}
+		q.SittingOut = true
+		if len(r.waitingOnLoan()) == 0 {
+			r.nextHand()
+		}
 		return nil
 	}
 	return errors.New("nobody to skip right now")

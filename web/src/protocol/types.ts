@@ -68,7 +68,7 @@ export const MsgNextHand = "nextHand"; // any player, once a hand is over
 /**
  * Client message types.
  */
-export const MsgSkip = "skip"; // host only: Target gets the default move
+export const MsgSkip = "skip"; // host only: Target gets the default move, or a broke player sits out
 /**
  * Client message types.
  */
@@ -235,6 +235,12 @@ export interface State {
    * KickVotes are the votes in progress, oldest first.
    */
   kickVotes: KickVote[];
+  /**
+   * WaitingOnLoan are broke players, online and not sitting out, that
+   * Next hand waits for: they take a loan or sit out, or the host deals
+   * without them.
+   */
+  waitingOnLoan?: string[];
 }
 /**
  * NextRoom is where the players went after a game ended. Token is this

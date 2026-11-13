@@ -89,7 +89,12 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
           </div>
         )}
 
-        {hand && <ResultBanner state={state} hand={hand} onNext={() => send({ type: 'nextHand' })} />}
+        {hand && <ResultBanner
+            state={state}
+            hand={hand}
+            onNext={() => send({ type: 'nextHand' })}
+            onSkip={(target) => send({ type: 'skip', target })}
+          />}
 
         <ul className="seats">
           {state.players.filter((p) => !p.kicked || (p.inHand && hand && !hand.done)).map((p) => (

@@ -2,7 +2,17 @@ import type { HandView, State, WinnerView } from '../protocol/types.ts'
 import { Card } from './Card.tsx'
 
 /** Who won the last hand and with what, shown until the next hand starts. */
-export function ResultBanner({ state, hand, onNext }: { state: State; hand: HandView; onNext: () => void }) {
+export function ResultBanner({
+  state,
+  hand,
+  onNext,
+  onSkip,
+}: {
+  state: State
+  hand: HandView
+  onNext: () => void
+  onSkip: (playerId: string) => void
+}) {
   const winners = hand.winners ?? []
   if (!hand.done || winners.length === 0) return null
   const name = (id: string) => (id === state.you ? 'You' : (state.players.find((p) => p.id === id)?.name ?? '?'))
@@ -43,11 +53,7 @@ export function ResultBanner({ state, hand, onNext }: { state: State; hand: Hand
           </div>
         )
       })}
-      {state.stage === 'result' && (
-        <button className="btn btn-primary result-next" onClick={onNext}>
-          Next hand
-        </button>
-      )}
+      {state.stage === 'result' && <NextHand state={state} onNext={onNext} onSkip={onSkip} />}
     </section>
   )
 }
@@ -63,4 +69,41 @@ function boardsWon(hand: HandView, w: WinnerView): { board: number; desc: string
   return cards
     .map((five, b) => ({ board: b, desc: descs[b] ?? '', cards: five }))
     .filter(({ board }) => hand.boardWinners?.[board]?.includes(w.playerId))
+}
+
+/**
+ * Next hand, held while a broke player decides whether to borrow: everyone
+ * sees who the table is waiting for, and the host can deal without them.
+ */
+function NextHand({ state, onNext, onSkip }: { state: State; onNext: () => void; onSkip: (playerId: string) => void }) {
+  const waiting = (state.waitingOnLoan ?? []).map((id) => ({
+    id,
+    name: state.players.find((p) => p.id === id)?.name ?? '?',
+  }))
+  const isHost = state.you === state.hostId
+  const others = waiting.filter((w) => w.id !== state.you)
+  return (
+    <>
+      {waiting.some((w) => w.id === state.you) && (
+        <p className="waiting-loan">You're out of chips: take a loan or sit out, and the next hand can start.</p>
+      )}
+      {others.length > 0 && (
+        <p className="waiting-loan">
+          {others.map((w) => w.name).join(', ')} {others.length === 1 ? 'is' : 'are'} out of chips. Waiting for{' '}
+          {others.length === 1 ? 'them' : 'each of them'} to take a loan or sit out.
+        </p>
+      )}
+      <div className="result-actions">
+        <button className="btn btn-primary result-next" onClick={onNext} disabled={waiting.length > 0}>
+          Next hand
+        </button>
+        {isHost &&
+          others.map((w) => (
+            <button key={w.id} className="btn result-next" onClick={() => onSkip(w.id)}>
+              Deal without {w.name}
+            </button>
+          ))}
+      </div>
+    </>
+  )
 }

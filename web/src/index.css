@@ -1470,6 +1470,16 @@ details[open] > summary {
 .result-next {
   justify-self: start;
   min-width: 8rem;
+  min-height: 44px;
+}
+.result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.waiting-loan {
+  margin: 0;
+  color: var(--accent);
 }
 
 /* The host has gone offline: anyone can take over. */
