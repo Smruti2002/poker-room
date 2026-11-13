@@ -27,7 +27,7 @@ const table = (over = {}) =>
 describe('Next hand waits for broke players', () => {
   it('tells the table who it waits for and holds Next hand', () => {
     const onNext = vi.fn()
-    render(<ResultBanner state={table({ you: 'p3' })} hand={hand} onNext={onNext} onSkip={vi.fn()} />)
+    render(<ResultBanner state={table({ you: 'p3' })} hand={hand} onNext={onNext} onSkip={vi.fn()} onShowCards={vi.fn()} />)
     expect(screen.getByText(/Bob is out of chips\. Waiting for them to take a loan or sit out/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Next hand' })).toBeDisabled()
     // Only the host can deal without Bob.
@@ -36,20 +36,20 @@ describe('Next hand waits for broke players', () => {
 
   it('the host can deal without them', () => {
     const onSkip = vi.fn()
-    render(<ResultBanner state={table()} hand={hand} onNext={vi.fn()} onSkip={onSkip} />)
+    render(<ResultBanner state={table()} hand={hand} onNext={vi.fn()} onSkip={onSkip} onShowCards={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Deal without Bob' }))
     expect(onSkip).toHaveBeenCalledWith('p2')
   })
 
   it('the broke player is told the table waits for them', () => {
-    render(<ResultBanner state={table({ you: 'p2', hostId: 'p1' })} hand={hand} onNext={vi.fn()} onSkip={vi.fn()} />)
+    render(<ResultBanner state={table({ you: 'p2', hostId: 'p1' })} hand={hand} onNext={vi.fn()} onSkip={vi.fn()} onShowCards={vi.fn()} />)
     expect(screen.getByText(/You're out of chips: take a loan or sit out/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Deal without/ })).toBeNull()
   })
 
   it('Next hand works as usual when nobody is broke', () => {
     const onNext = vi.fn()
-    render(<ResultBanner state={table({ waitingOnLoan: undefined })} hand={hand} onNext={onNext} onSkip={vi.fn()} />)
+    render(<ResultBanner state={table({ waitingOnLoan: undefined })} hand={hand} onNext={onNext} onSkip={vi.fn()} onShowCards={vi.fn()} />)
     expect(screen.queryByText(/out of chips/)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Next hand' }))
     expect(onNext).toHaveBeenCalled()

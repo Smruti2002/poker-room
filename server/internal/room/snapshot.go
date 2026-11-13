@@ -72,6 +72,8 @@ type PastSnapshot struct {
 	Variant string     `json:"variant"`
 	Log     engine.Log `json:"log"`
 	IDs     []string   `json:"ids"`
+	// Showed are players who showed their cards after the hand.
+	Showed []string `json:"showed,omitempty"`
 }
 
 // Snapshot captures the room. Reactions and rate-limit counters are
@@ -117,7 +119,7 @@ func (r *Room) Snapshot() Snapshot {
 		s.Hand = &l
 	}
 	for _, ph := range r.past {
-		s.Past = append(s.Past, PastSnapshot{Number: ph.number, Variant: ph.variant, Log: ph.hand.Log(), IDs: slices.Clone(ph.ids)})
+		s.Past = append(s.Past, PastSnapshot{Number: ph.number, Variant: ph.variant, Log: ph.hand.Log(), IDs: slices.Clone(ph.ids), Showed: slices.Clone(ph.showed)})
 	}
 	return s
 }
@@ -176,7 +178,12 @@ func Restore(s Snapshot, opts Options) (*Room, error) {
 		if err != nil {
 			return nil, fmt.Errorf("room %s: replaying past hand %d: %w", s.Code, ps.Number, err)
 		}
-		r.past = append(r.past, pastHand{number: ps.Number, variant: ps.Variant, hand: h, ids: ps.IDs})
+		r.past = append(r.past, pastHand{number: ps.Number, variant: ps.Variant, hand: h, ids: ps.IDs, showed: ps.Showed})
+	}
+	// A finished hand is also the newest past hand: share it, as the live
+	// room does, so cards shown after it stay shown (showcards.go).
+	if n := len(r.past); n > 0 && r.hand != nil && r.hand.Done && r.past[n-1].number == r.handNo {
+		r.hand = r.past[n-1].hand
 	}
 	return r, nil
 }

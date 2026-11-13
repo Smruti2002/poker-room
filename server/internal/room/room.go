@@ -98,6 +98,7 @@ type pastHand struct {
 	variant string
 	hand    *engine.Hand
 	ids     []string
+	showed  []string // players who showed their cards after it (showcards.go)
 }
 
 // User-facing errors.
@@ -250,6 +251,8 @@ func (r *Room) handle(p *Player, m protocol.ClientMsg) error {
 		return r.react(p, m.Emoji)
 	case protocol.MsgNextHand:
 		return r.startNextHand()
+	case protocol.MsgShowCards:
+		return r.showCards(p)
 	case protocol.MsgSkip:
 		return r.skip(p, m.Target)
 	case protocol.MsgClaimHost:

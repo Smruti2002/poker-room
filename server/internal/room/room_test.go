@@ -625,6 +625,9 @@ func FuzzRoom(f *testing.F) {
 				m = protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "fold"}}
 			case 5:
 				m.Type = protocol.MsgTakeLoan
+				if op%3 == 0 {
+					m.Type = protocol.MsgShowCards
+				}
 			case 6:
 				m.Type = protocol.MsgSitOut
 			case 7:

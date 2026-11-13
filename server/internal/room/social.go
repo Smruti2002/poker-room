@@ -89,7 +89,7 @@ func (r *Room) History(viewer string) []protocol.HistoryHand {
 			Number:  ph.number,
 			Variant: ph.variant,
 			Winners: winnersOf(ph.hand, ph.ids),
-			Log:     ph.hand.NarrateFor(slices.Index(ph.ids, viewer)),
+			Log:     append(ph.hand.NarrateFor(slices.Index(ph.ids, viewer)), r.showLines(&ph)...),
 		}
 		for _, b := range ph.hand.Boards {
 			hh.Boards = append(hh.Boards, cardStrings(b))
