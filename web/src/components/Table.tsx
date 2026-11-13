@@ -96,6 +96,7 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
             hand={hand}
             onNext={() => send({ type: 'nextHand' })}
             onSkip={(target) => send({ type: 'skip', target })}
+            onShowCards={() => send({ type: 'showCards' })}
           />}
 
         <ul className="seats">
@@ -362,6 +363,11 @@ function Seat({
           </span>
         )}
         {p.allocated && <span className="tag tag-locked">locked in</span>}
+        {p.showedCards && (
+          <span className="tag" title="Chose to show their cards after the hand">
+            showed
+          </span>
+        )}
         {p.inHand && !hand?.drawing && (p.draws?.length ?? 0) > 0 && (
           <span className="tag" title={`Cards exchanged: ${p.draws!.join(', ')}`}>
             {p.draws!.at(-1) === 0 ? 'kept all' : `took ${p.draws!.at(-1)}`}

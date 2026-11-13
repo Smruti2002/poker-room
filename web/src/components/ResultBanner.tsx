@@ -7,11 +7,13 @@ export function ResultBanner({
   hand,
   onNext,
   onSkip,
+  onShowCards,
 }: {
   state: State
   hand: HandView
   onNext: () => void
   onSkip: (playerId: string) => void
+  onShowCards: () => void
 }) {
   const winners = hand.winners ?? []
   if (!hand.done || winners.length === 0) return null
@@ -53,7 +55,7 @@ export function ResultBanner({
           </div>
         )
       })}
-      {state.stage === 'result' && <NextHand state={state} onNext={onNext} onSkip={onSkip} />}
+      {state.stage === 'result' && <NextHand state={state} onNext={onNext} onSkip={onSkip} onShowCards={onShowCards} />}
     </section>
   )
 }
@@ -75,7 +77,18 @@ function boardsWon(hand: HandView, w: WinnerView): { board: number; desc: string
  * Next hand, held while a broke player decides whether to borrow: everyone
  * sees who the table is waiting for, and the host can deal without them.
  */
-function NextHand({ state, onNext, onSkip }: { state: State; onNext: () => void; onSkip: (playerId: string) => void }) {
+function NextHand({
+  state,
+  onNext,
+  onSkip,
+  onShowCards,
+}: {
+  state: State
+  onNext: () => void
+  onSkip: (playerId: string) => void
+  onShowCards: () => void
+}) {
+  const me = state.players.find((p) => p.id === state.you)
   const waiting = (state.waitingOnLoan ?? []).map((id) => ({
     id,
     name: state.players.find((p) => p.id === id)?.name ?? '?',
@@ -103,6 +116,11 @@ function NextHand({ state, onNext, onSkip }: { state: State; onNext: () => void;
               Deal without {w.name}
             </button>
           ))}
+        {me?.canShowCards && (
+          <button className="btn result-next" onClick={onShowCards}>
+            Show my cards
+          </button>
+        )}
       </div>
     </>
   )

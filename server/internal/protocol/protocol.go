@@ -19,6 +19,7 @@ const (
 	MsgReact          = "react"      // Emoji: a quick reaction shown over your seat
 	MsgHistory        = "history"    // ask for the recent hand history (sent only to you)
 	MsgNextHand       = "nextHand"   // any player, once a hand is over
+	MsgShowCards      = "showCards"  // after a hand you played, show everyone your cards
 	MsgSkip           = "skip"       // host only: Target gets the default move, or a broke player sits out
 	MsgClaimHost      = "claimHost"  // become host while the host is offline
 	MsgRematch        = "rematch"    // host only, after the game: a new room with the same players
@@ -242,6 +243,10 @@ type PlayerView struct {
 	// the right number of face-down cards.
 	HoleCount int      `json:"holeCount,omitempty"`
 	Hole      []string `json:"hole,omitempty"`
+	// ShowedCards: the player chose to show their cards after the hand.
+	ShowedCards bool `json:"showedCards,omitempty"`
+	// CanShowCards: you may show your cards now (only in your own view).
+	CanShowCards bool `json:"canShowCards,omitempty"`
 	// Shown are hole cards revealed to everyone before betting (Show 2 Play 2).
 	Shown []string `json:"shown,omitempty"`
 	// Allocated is true once the player has locked in their split (Double/

@@ -60,6 +60,7 @@ func (r *Room) View(viewer string) protocol.State {
 	}
 
 	callouts := betCallouts(h)
+	last := r.lastHand()
 	for _, p := range r.players {
 		v := protocol.PlayerView{
 			ID:         p.ID,
@@ -102,7 +103,8 @@ func (r *Room) View(viewer string) protocol.State {
 			if live {
 				v.Stack = hp.Stack
 			}
-			if len(hp.Hole) > 0 && (p.ID == viewer || shown[i]) {
+			v.ShowedCards = last.showedAfter(p.ID)
+			if len(hp.Hole) > 0 && (p.ID == viewer || shown[i] || v.ShowedCards) {
 				v.Hole = cardStrings(hp.Hole)
 			}
 			if shown[i] {
@@ -110,6 +112,7 @@ func (r *Room) View(viewer string) protocol.State {
 			}
 		}
 		v.Broke = v.Stack == 0 && (!live || !v.InHand)
+		v.CanShowCards = p.ID == viewer && r.canShowCards(p)
 		v.CanBorrow = r.phase == protocol.PhasePlaying && !p.Kicked && p.Stack < EarlyLoanBelow && !r.inLiveHand(p)
 		s.Players = append(s.Players, v)
 
@@ -123,6 +126,9 @@ func (r *Room) View(viewer string) protocol.State {
 		// hand has no events until everyone has chosen).
 		if lines := h.NarrateFor(slices.Index(r.handIDs, viewer)); lines != nil {
 			s.Log = lines
+		}
+		if last != nil {
+			s.Log = append(s.Log, r.showLines(last)...)
 		}
 	}
 	if r.stage == protocol.StageChoosing {

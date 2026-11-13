@@ -68,6 +68,10 @@ export const MsgNextHand = "nextHand"; // any player, once a hand is over
 /**
  * Client message types.
  */
+export const MsgShowCards = "showCards"; // after a hand you played, show everyone your cards
+/**
+ * Client message types.
+ */
 export const MsgSkip = "skip"; // host only: Target gets the default move, or a broke player sits out
 /**
  * Client message types.
@@ -379,6 +383,14 @@ export interface PlayerView {
    */
   holeCount?: number /* int */;
   hole?: string[];
+  /**
+   * ShowedCards: the player chose to show their cards after the hand.
+   */
+  showedCards?: boolean;
+  /**
+   * CanShowCards: you may show your cards now (only in your own view).
+   */
+  canShowCards?: boolean;
   /**
    * Shown are hole cards revealed to everyone before betting (Show 2 Play 2).
    */
