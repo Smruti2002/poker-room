@@ -25,6 +25,8 @@ const (
 	EvDrawn     EventKind = "drawn"     // Player gave back Discards and got Cards (BB), private
 	EvDiscard   EventKind = "discard"   // Player threw away Count cards (Discard Hold'em), public
 	EvDiscarded EventKind = "discarded" // Player threw away Cards (Discard Hold'em), private
+	EvRoll      EventKind = "roll"      // Player rolled Count (Peekaboo), public
+	EvPeek      EventKind = "peek"      // Player peeked at board card number Board, Cards (Peekaboo); hidden from players during the game
 	EvWin       EventKind = "win"       // Player won Chips from Pot
 )
 
@@ -61,7 +63,9 @@ func (h *Hand) Narrate() []string { return h.narrate(func(Event) bool { return t
 // cards but nobody else's. Use -1 for a spectator.
 func (h *Hand) NarrateFor(viewer int) []string {
 	return h.narrate(func(e Event) bool {
-		return (e.Kind != EvHole && e.Kind != EvDrawn && e.Kind != EvDiscarded) || e.Player == viewer
+		// The peeked card stays out of everyone's log, the peeker's too: they
+		// get to see it once, on their seat.
+		return e.Kind != EvPeek && ((e.Kind != EvHole && e.Kind != EvDrawn && e.Kind != EvDiscarded) || e.Player == viewer)
 	})
 }
 
@@ -124,6 +128,16 @@ func (h *Hand) narrate(visible func(Event) bool) []string {
 			}
 		case EvDrawn:
 			out = append(out, fmt.Sprintf("%s gives back %s and gets %s", name(e.Player), pretty(e.Discards), pretty(e.Cards)))
+		case EvRoll:
+			line := fmt.Sprintf("%s rolls a %d", name(e.Player), e.Count)
+			if e.Count < NoPeek {
+				line += ": peeks at " + PeekPosition(e.Count)
+			} else {
+				line += ": no peek"
+			}
+			out = append(out, line)
+		case EvPeek:
+			out = append(out, fmt.Sprintf("%s sees %s (%s)", name(e.Player), pretty(e.Cards), PeekPosition(e.Board)))
 		case EvDiscard:
 			out = append(out, fmt.Sprintf("%s discards %d", name(e.Player), e.Count))
 		case EvDiscarded:

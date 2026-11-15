@@ -49,6 +49,8 @@ func Decide(v View, r *rand.Rand) engine.Action {
 		return engine.Action{Type: engine.Draw, Cards: discards(v.Hole)}
 	case l.Discard:
 		return v.Discard()
+	case l.Roll:
+		return engine.Action{Type: engine.Roll}
 	}
 	return bet(v, strength(v), r)
 }

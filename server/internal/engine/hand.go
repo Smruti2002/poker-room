@@ -41,11 +41,16 @@ type Player struct {
 	// out of play for the rest of the hand. Private.
 	Discarded []cards.Card `json:"discarded,omitempty"`
 	discard   []cards.Card // this round's choice, applied once everyone has chosen
-	Folded    bool         `json:"folded"`
-	AllIn     bool         `json:"allIn"`
-	Street    int64        `json:"street"` // units committed on the current street
-	Total     int64        `json:"total"`  // units committed this hand
-	Won       int64        `json:"won"`    // chips won when the hand ends
+	// Die is what the player rolled (Peekaboo), 0 until they roll. Public.
+	Die int `json:"die,omitempty"`
+	// Peek is the board card the player saw: the Die-th one (1-5), or none
+	// for a 6. Private until it's dealt.
+	Peek   cards.Card `json:"-"`
+	Folded bool       `json:"folded"`
+	AllIn  bool       `json:"allIn"`
+	Street int64      `json:"street"` // units committed on the current street
+	Total  int64      `json:"total"`  // units committed this hand
+	Won    int64      `json:"won"`    // chips won when the hand ends
 
 	acted bool  // has acted on the current street
 	faced int64 // the current bet when this player last acted
@@ -81,6 +86,9 @@ type Options struct {
 	// each player's hole cards in player order, then each street's board
 	// cards. Used by tests.
 	Deck []cards.Card
+	// Dice, if set, are each player's die in Peekaboo instead of rolling
+	// them from the seed. Used by tests.
+	Dice []int
 }
 
 // Hand is one hand of poker in progress or finished.
@@ -117,8 +125,12 @@ type Hand struct {
 	// discards done.
 	Discarding   bool
 	DiscardRound int
-	nextLead     int          // who starts the betting round after the exchange
-	muck         []cards.Card // folded cards, shuffled back in at the next exchange
+	// Rolling is true during Peekaboo's roll, after the deal and before the
+	// pre-flop betting: everyone rolls their die, all at once. ToAct is -1.
+	Rolling  bool
+	dice     []int        // each player's die, fixed by the seed when the hand starts
+	nextLead int          // who starts the betting round after the exchange
+	muck     []cards.Card // folded cards, shuffled back in at the next exchange
 	// ToAct is the index of the player to act, or -1.
 	ToAct int
 	// CurrentBet is the street total (units) players must match.
@@ -166,7 +178,7 @@ func NewHand(cfg Config, v Variant, seats []SeatSpec, dealer int, opts Options) 
 		Boards:    make([][]cards.Card, v.Boards()),
 		log: Log{
 			Variant: v.Name(), Config: cfg, Seats: slices.Clone(seats),
-			Dealer: dealer, Seed: opts.Seed, Deck: opts.Deck,
+			Dealer: dealer, Seed: opts.Seed, Deck: opts.Deck, Dice: opts.Dice,
 		},
 	}
 	for i, s := range seats {
@@ -197,6 +209,12 @@ func NewHand(cfg Config, v Variant, seats []SeatSpec, dealer int, opts Options) 
 		h.deck = cards.NewDeckOf(opts.Deck)
 	} else {
 		h.deck = cards.NewShuffledDeck(opts.Seed)
+	}
+
+	if rollsDice(v) {
+		if err := h.setDice(opts); err != nil {
+			return nil, err
+		}
 	}
 
 	// Heads-up, the dealer posts the small blind.
@@ -249,6 +267,12 @@ func (h *Hand) startDeal() error {
 		h.ToAct = h.next(h.Dealer)
 		return nil
 	}
+	if rollsDice(h.Variant) {
+		// Everyone rolls at once before anyone bets (Peekaboo).
+		h.Rolling = true
+		h.ToAct = -1
+		return nil
+	}
 	return h.advance(h.BigBlind)
 }
 
@@ -289,6 +313,12 @@ func (h *Hand) Legal(i int) Legal {
 	if h.Drawing {
 		if slices.Contains(h.DrawPending(), i) {
 			return Legal{Draw: true}
+		}
+		return Legal{}
+	}
+	if h.Rolling {
+		if slices.Contains(h.RollPending(), i) {
+			return Legal{Roll: true}
 		}
 		return Legal{}
 	}
@@ -383,6 +413,9 @@ func (h *Hand) Apply(i int, a Action) error {
 	}
 	if h.Discarding {
 		return h.discardCards(i, a)
+	}
+	if h.Rolling {
+		return h.roll(i, a)
 	}
 	if i != h.ToAct {
 		return ErrNotYourTurn

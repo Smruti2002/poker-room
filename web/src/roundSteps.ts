@@ -18,13 +18,16 @@ export function roundSteps(hand: HandView): RoundStep[] {
   const labels = [
     ...(hand.variant === 'dacoit' ? ['Picking'] : []),
     ...(hand.variant === 'show2' ? ['Showing'] : []),
+    ...(hand.variant === 'peekaboo' ? ['Rolling'] : []),
     ...BETTING,
     ...(hand.variant === 'double' || hand.variant === 'triple' ? ['Splitting'] : []),
     'Showdown',
   ]
   const current = hand.picking
     ? 'Picking'
-    : hand.showing
+    : hand.rolling
+      ? 'Rolling'
+      : hand.showing
       ? 'Showing'
       : hand.allocating
         ? 'Splitting'

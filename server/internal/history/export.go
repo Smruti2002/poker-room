@@ -35,6 +35,8 @@ type Seat struct {
 	Split      [][]string `json:"split,omitempty"`              // Double/Triple Texas
 	Draws      []int      `json:"draws,omitempty"`              // BB: cards exchanged in each exchange
 	Discarded  []string   `json:"discarded,omitempty"`          // Discard Hold'em: cards thrown away, in order
+	Die        int        `json:"die,omitempty"`                // Peekaboo: what they rolled
+	Peeked     string     `json:"peeked,omitempty"`             // Peekaboo: the board card they saw
 	Folded     bool       `json:"folded"`
 	AllIn      bool       `json:"allIn"`
 	Won        int64      `json:"won"`
@@ -84,6 +86,10 @@ func Replay(records []Record) ([]Hand, error) {
 				Name: name(i), Dealer: i == h.Dealer, StartStack: start, EndStack: p.Stack, Net: p.Stack - start,
 				Mult: p.Mult, Picked: p.Picked, Hole: strs(p.Hole), Shown: strs(p.Shown),
 				Folded: p.Folded, AllIn: p.AllIn, Won: p.Won, Draws: p.Draws, Discarded: strs(p.Discarded),
+			}
+			s.Die = p.Die
+			if c, ok := h.PeekCard(i); ok {
+				s.Peeked = c.String()
 			}
 			for _, pair := range p.Split {
 				s.Split = append(s.Split, strs(pair))

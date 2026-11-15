@@ -28,9 +28,10 @@ const (
 	Allocate // Double/Triple Texas: split Cards into pairs, one per board, in board order
 	Draw     // BB: exchange Cards (0-5 of your hole cards) for new ones
 	Discard  // Discard Hold'em: throw away Cards (exactly Variant discards) for good
+	Roll     // Peekaboo: roll your die before the pre-flop betting
 )
 
-var actionNames = map[ActionType]string{Fold: "fold", Check: "check", Call: "call", Bet: "bet", Raise: "raise", Show: "show", Choose: "choose", Allocate: "allocate", Draw: "draw", Discard: "discard"}
+var actionNames = map[ActionType]string{Fold: "fold", Check: "check", Call: "call", Bet: "bet", Raise: "raise", Show: "show", Choose: "choose", Allocate: "allocate", Draw: "draw", Discard: "discard", Roll: "roll"}
 
 func (a ActionType) String() string {
 	if s, ok := actionNames[a]; ok {
@@ -173,7 +174,9 @@ type Legal struct {
 	Draw bool `json:"draw,omitempty"`
 	// Discard is set during a Discard Hold'em discard while this player
 	// still has to choose which DiscardCount cards to throw away.
-	Discard      bool `json:"discard,omitempty"`
+	Discard bool `json:"discard,omitempty"`
+	// Roll is set during Peekaboo's roll while this player still has to roll.
+	Roll         bool `json:"roll,omitempty"`
 	DiscardCount int  `json:"discardCount,omitempty"`
 	Fold         bool `json:"fold"`
 	Check        bool `json:"check"`

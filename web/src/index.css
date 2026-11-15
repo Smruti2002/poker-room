@@ -1603,3 +1603,32 @@ details[open] > summary {
   border-bottom: 1px solid var(--accent);
   font-size: 0.9rem;
 }
+
+/* Peekaboo: the roll, your peek, and who has seen each face-down board card */
+.peek-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+.peek-panel .btn {
+  min-height: 44px;
+}
+.peek-note {
+  margin: 0;
+  font-size: 0.85rem;
+}
+.card-peeked {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-style: dashed;
+}
+.peekers {
+  font-size: 0.6rem;
+  line-height: 1.1;
+  text-align: center;
+  overflow-wrap: anywhere;
+  padding: 0 2px;
+}
