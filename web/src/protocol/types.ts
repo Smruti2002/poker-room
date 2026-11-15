@@ -117,7 +117,7 @@ export interface ClientMsg {
  * Action is a betting action. To is the street total for bet/raise, in units.
  */
 export interface Action {
-  type: string; // fold, check, call, bet, raise, show
+  type: string; // fold, check, call, bet, raise, show, choose, allocate, draw, discard
   to?: number /* int64 */;
   /**
    * Cards are the hole cards to reveal, for show (Show 2 Play 2).
@@ -416,6 +416,11 @@ export interface PlayerView {
   draws?: number /* int */[];
   exchanging?: boolean;
   /**
+   * Discarding is true while the player still has to choose their discard
+   * (Discard Hold'em).
+   */
+  discarding?: boolean;
+  /**
    * LastBet is the player's bet or raise on the current street, until
    * they act again or the street ends.
    */
@@ -453,6 +458,11 @@ export interface HandView {
    */
   drawing?: boolean;
   drawRound?: number /* int */;
+  /**
+   * Discarding is true while everyone still in throws away cards, right
+   * after the flop or turn and before its betting (Discard Hold'em).
+   */
+  discarding?: boolean;
   /**
    * Reveal is how many cards each player shows in this variant.
    */
@@ -518,6 +528,12 @@ export interface Legal {
    * Draw: choose which of your cards (0-5) to exchange (BB).
    */
   draw?: boolean;
+  /**
+   * Discard: choose DiscardCount of your cards to throw away (Discard
+   * Hold'em). It is then the only legal action.
+   */
+  discard?: boolean;
+  discardCount?: number /* int */;
   fold: boolean;
   check: boolean;
   call: boolean;

@@ -12,18 +12,20 @@ import (
 type EventKind string
 
 const (
-	EvBlind    EventKind = "blind"    // Player posted Units/Chips
-	EvHole     EventKind = "hole"     // Player was dealt Cards (private)
-	EvAction   EventKind = "action"   // Player did Action; Units/Chips is their street total
-	EvBoard    EventKind = "board"    // Cards were added to Board
-	EvRefund   EventKind = "refund"   // Player's uncalled Units/Chips came back
-	EvShow     EventKind = "show"     // Player showed Cards at showdown; Desc and Best are the hand
-	EvReveal   EventKind = "reveal"   // Player showed Cards before betting (Show 2 Play 2), to everyone
-	EvChoose   EventKind = "choose"   // Player took Count hole cards, paying Mult chips per unit (Dacoit)
-	EvAllocate EventKind = "allocate" // Player locked in their split; the split itself stays hidden until the showdown
-	EvDraw     EventKind = "draw"     // Player exchanged Count cards (BB), public
-	EvDrawn    EventKind = "drawn"    // Player gave back Discards and got Cards (BB), private
-	EvWin      EventKind = "win"      // Player won Chips from Pot
+	EvBlind     EventKind = "blind"     // Player posted Units/Chips
+	EvHole      EventKind = "hole"      // Player was dealt Cards (private)
+	EvAction    EventKind = "action"    // Player did Action; Units/Chips is their street total
+	EvBoard     EventKind = "board"     // Cards were added to Board
+	EvRefund    EventKind = "refund"    // Player's uncalled Units/Chips came back
+	EvShow      EventKind = "show"      // Player showed Cards at showdown; Desc and Best are the hand
+	EvReveal    EventKind = "reveal"    // Player showed Cards before betting (Show 2 Play 2), to everyone
+	EvChoose    EventKind = "choose"    // Player took Count hole cards, paying Mult chips per unit (Dacoit)
+	EvAllocate  EventKind = "allocate"  // Player locked in their split; the split itself stays hidden until the showdown
+	EvDraw      EventKind = "draw"      // Player exchanged Count cards (BB), public
+	EvDrawn     EventKind = "drawn"     // Player gave back Discards and got Cards (BB), private
+	EvDiscard   EventKind = "discard"   // Player threw away Count cards (Discard Hold'em), public
+	EvDiscarded EventKind = "discarded" // Player threw away Cards (Discard Hold'em), private
+	EvWin       EventKind = "win"       // Player won Chips from Pot
 )
 
 // Event is one thing that happened in a hand, in order. The room layer turns
@@ -58,7 +60,9 @@ func (h *Hand) Narrate() []string { return h.narrate(func(Event) bool { return t
 // NarrateFor renders the events player `viewer` may see: their own hole
 // cards but nobody else's. Use -1 for a spectator.
 func (h *Hand) NarrateFor(viewer int) []string {
-	return h.narrate(func(e Event) bool { return (e.Kind != EvHole && e.Kind != EvDrawn) || e.Player == viewer })
+	return h.narrate(func(e Event) bool {
+		return (e.Kind != EvHole && e.Kind != EvDrawn && e.Kind != EvDiscarded) || e.Player == viewer
+	})
 }
 
 func (h *Hand) narrate(visible func(Event) bool) []string {
@@ -120,6 +124,10 @@ func (h *Hand) narrate(visible func(Event) bool) []string {
 			}
 		case EvDrawn:
 			out = append(out, fmt.Sprintf("%s gives back %s and gets %s", name(e.Player), pretty(e.Discards), pretty(e.Cards)))
+		case EvDiscard:
+			out = append(out, fmt.Sprintf("%s discards %d", name(e.Player), e.Count))
+		case EvDiscarded:
+			out = append(out, fmt.Sprintf("%s throws away %s", name(e.Player), pretty(e.Cards)))
 		case EvReveal:
 			out = append(out, fmt.Sprintf("%s shows %s", name(e.Player), pretty(e.Cards)))
 		case EvShow:

@@ -21,7 +21,8 @@ func view(h *engine.Hand, i int) View {
 	return View{
 		Variant: h.Variant.Name(), Legal: h.Legal(i), Hole: p.Hole, Shown: p.Shown, Boards: h.Boards,
 		Pot: h.PotChips(), Stack: p.Stack, Mult: p.Mult, Live: live, Reveal: h.Variant.Reveal(),
-		Split: func() engine.Action { return h.DefaultSplit(i) },
+		Split:   func() engine.Action { return h.DefaultSplit(i) },
+		Discard: func() engine.Action { return h.DefaultDiscard(i) },
 	}
 }
 
@@ -47,7 +48,7 @@ func TestBotsPlayEveryVariantLegally(t *testing.T) {
 					t.Fatalf("%s hand %d never finished", name, n)
 				}
 				i := h.ToAct
-				if pending := append(h.Pending(), h.DrawPending()...); len(pending) > 0 {
+				if pending := append(append(h.Pending(), h.DrawPending()...), h.DiscardPending()...); len(pending) > 0 {
 					i = pending[0]
 				}
 				a := Decide(view(h, i), r)

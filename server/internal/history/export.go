@@ -34,6 +34,7 @@ type Seat struct {
 	Shown      []string   `json:"shownBeforeBetting,omitempty"` // Show 2 Play 2
 	Split      [][]string `json:"split,omitempty"`              // Double/Triple Texas
 	Draws      []int      `json:"draws,omitempty"`              // BB: cards exchanged in each exchange
+	Discarded  []string   `json:"discarded,omitempty"`          // Discard Hold'em: cards thrown away, in order
 	Folded     bool       `json:"folded"`
 	AllIn      bool       `json:"allIn"`
 	Won        int64      `json:"won"`
@@ -82,7 +83,7 @@ func Replay(records []Record) ([]Hand, error) {
 			s := Seat{
 				Name: name(i), Dealer: i == h.Dealer, StartStack: start, EndStack: p.Stack, Net: p.Stack - start,
 				Mult: p.Mult, Picked: p.Picked, Hole: strs(p.Hole), Shown: strs(p.Shown),
-				Folded: p.Folded, AllIn: p.AllIn, Won: p.Won, Draws: p.Draws,
+				Folded: p.Folded, AllIn: p.AllIn, Won: p.Won, Draws: p.Draws, Discarded: strs(p.Discarded),
 			}
 			for _, pair := range p.Split {
 				s.Split = append(s.Split, strs(pair))

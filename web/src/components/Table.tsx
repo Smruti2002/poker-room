@@ -16,6 +16,7 @@ import { ResultBanner } from './ResultBanner.tsx'
 import { ChoosePicker } from './ChoosePicker.tsx'
 import { ShowPicker } from './ShowPicker.tsx'
 import { DrawPicker } from './DrawPicker.tsx'
+import { DiscardPicker } from './DiscardPicker.tsx'
 import { SplitPicker } from './SplitPicker.tsx'
 import { winningCards } from './winning.ts'
 
@@ -130,7 +131,7 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
           // Pinned to the bottom of the screen so your cards and actions are
           // always in reach on a phone.
           <div className={`dock${hand?.legal ? ' dock-active' : ''}`}>
-            {me.hole && !hand?.legal?.show && !hand?.legal?.allocate && !hand?.legal?.draw && (
+            {me.hole && !hand?.legal?.show && !hand?.legal?.allocate && !hand?.legal?.draw && !hand?.legal?.discard && (
               <div className="dock-cards">
                 <HandCards
                   cards={order.cards}
@@ -149,7 +150,7 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
                 )}
               </div>
             )}
-            {hand?.hint && !hand.legal?.allocate && (
+            {hand?.hint && !hand.legal?.allocate && !hand.legal?.discard && (
               <p className="hint">
                 You have: <strong>{hand.hint}</strong>
               </p>
@@ -162,8 +163,18 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
             {hand?.legal?.draw && me.hole && (
               <DrawPicker key={hand.drawRound ?? 0} hole={order.cards} round={(hand.drawRound ?? 0) + 1} onAct={onAct} />
             )}
+            {hand?.legal?.discard && me.hole && (
+              <DiscardPicker
+                key={hand.street}
+                hole={order.cards}
+                count={hand.legal.discardCount ?? 2}
+                street={hand.street}
+                hint={hand.hint}
+                onAct={onAct}
+              />
+            )}
             {hand?.legal?.allocate && me.hole && <SplitPicker hole={order.cards} boards={hand.boards} onAct={onAct} />}
-            {hand?.legal && !hand.legal.show && !hand.legal.choose && !hand.legal.allocate && !hand.legal.draw && (
+            {hand?.legal && !hand.legal.show && !hand.legal.choose && !hand.legal.allocate && !hand.legal.draw && !hand.legal.discard && (
               <ActionBar
                 key={`${hand.number}-${hand.street}-${hand.currentBet}`}
                 legal={hand.legal}
@@ -256,6 +267,12 @@ function TableHeader({ state, name }: { state: State; name: (id?: string) => str
     status = hand.legal?.draw
       ? `Exchange ${(hand.drawRound ?? 0) + 1}: choose cards to give back`
       : `Waiting for ${waiting.map((p) => p.name).join(', ')} to exchange`
+  } else if (hand?.discarding) {
+    // Everyone discards at once: say who we're still waiting for.
+    const waiting = state.players.filter((p) => p.discarding && p.id !== state.you)
+    status = hand.legal?.discard
+      ? `${hand.street}: choose ${hand.legal.discardCount ?? 2} cards to throw away`
+      : `Waiting for ${waiting.map((p) => p.name).join(', ')} to discard`
   } else if (hand?.allocating) {
     // Everyone splits at once: say who we're still waiting for.
     const waiting = state.players.filter((p) => p.inHand && !p.folded && !p.allocated && p.id !== state.you)
@@ -323,7 +340,8 @@ function Seat({
     state.choosing?.dealerId === p.id ||
     acting ||
     (hand?.allocating && p.inHand && !p.folded && !p.allocated) ||
-    (hand?.drawing && p.exchanging)
+    (hand?.drawing && p.exchanging) ||
+    (hand?.discarding && p.discarding)
   const canSkip = waiting && state.you === state.hostId && p.id !== state.you
   const skip = () => {
     if (window.confirm(`Skip ${p.name}? They'll get the default move: check if possible, otherwise fold (or the default pick or split).`)) {

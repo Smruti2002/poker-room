@@ -26,6 +26,9 @@ type View struct {
 	Live    int            // players still in the hand, itself included
 	Reveal  int            // cards to show (Show 2 Play 2)
 	Split   func() engine.Action
+	// Discard keeps the cards that make the best hand with the board so far
+	// (Discard Hold'em): only its own cards and the board.
+	Discard func() engine.Action
 }
 
 // Decide picks a legal move.
@@ -44,6 +47,8 @@ func Decide(v View, r *rand.Rand) engine.Action {
 		return v.Split()
 	case l.Draw:
 		return engine.Action{Type: engine.Draw, Cards: discards(v.Hole)}
+	case l.Discard:
+		return v.Discard()
 	}
 	return bet(v, strength(v), r)
 }

@@ -88,8 +88,8 @@ func (r *Room) botStep() bool {
 			return false
 		}
 		waiting := []int{h.ToAct}
-		if h.Allocating || h.Drawing {
-			waiting = append(h.Pending(), h.DrawPending()...)
+		if h.Allocating || h.Drawing || h.Discarding {
+			waiting = append(append(h.Pending(), h.DrawPending()...), h.DiscardPending()...)
 		}
 		for _, i := range waiting {
 			if i < 0 {
@@ -127,6 +127,7 @@ func (r *Room) botView(i int) bot.View {
 	return bot.View{
 		Variant: r.variant, Legal: h.Legal(i), Hole: p.Hole, Shown: p.Shown, Boards: h.Boards,
 		Pot: h.PotChips(), Stack: p.Stack, Mult: p.Mult, Live: live, Reveal: h.Variant.Reveal(),
-		Split: func() engine.Action { return h.DefaultSplit(i) },
+		Split:   func() engine.Action { return h.DefaultSplit(i) },
+		Discard: func() engine.Action { return h.DefaultDiscard(i) },
 	}
 }

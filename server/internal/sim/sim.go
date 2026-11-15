@@ -107,6 +107,10 @@ func Run(cfg Config) (Stats, error) {
 				pending := h.Pending()
 				player = pending[r.IntN(len(pending))]
 			}
+			if h.Discarding {
+				pending := h.DiscardPending()
+				player = pending[r.IntN(len(pending))]
+			}
 			if h.Drawing {
 				pending := h.DrawPending()
 				player = pending[r.IntN(len(pending))]
@@ -184,6 +188,15 @@ func (RandomBot) Act(h *engine.Hand, i int, r *rand.Rand) engine.Action {
 		hole := slices.Clone(h.Players[i].Hole)
 		r.Shuffle(len(hole), func(a, b int) { hole[a], hole[b] = hole[b], hole[a] })
 		return engine.Action{Type: engine.Draw, Cards: hole[:r.IntN(len(hole)+1)]}
+	}
+	if l.Discard {
+		// Usually the sensible discard, sometimes a random one.
+		if r.IntN(3) > 0 {
+			return h.DefaultDiscard(i)
+		}
+		hole := slices.Clone(h.Players[i].Hole)
+		r.Shuffle(len(hole), func(a, b int) { hole[a], hole[b] = hole[b], hole[a] })
+		return engine.Action{Type: engine.Discard, Cards: hole[:l.DiscardCount]}
 	}
 	if l.Choose {
 		if l.ChooseMax > 4 && r.IntN(2) == 0 {

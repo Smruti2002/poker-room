@@ -51,6 +51,7 @@ func (h *Hand) CheckInvariants() error {
 			continue
 		}
 		check(p.Hole)
+		check(p.Discarded)
 	}
 	for _, b := range h.Boards {
 		check(b)
@@ -79,6 +80,10 @@ func (h *Hand) CheckInvariants() error {
 		} else if h.Drawing {
 			if h.ToAct != -1 || len(h.DrawPending()) == 0 {
 				fail("exchanging with ToAct %d and %d players pending", h.ToAct, len(h.DrawPending()))
+			}
+		} else if h.Discarding {
+			if h.ToAct != -1 || len(h.DiscardPending()) == 0 {
+				fail("discarding with ToAct %d and %d players pending", h.ToAct, len(h.DiscardPending()))
 			}
 		} else if h.Picking {
 			if h.ToAct < 0 || h.ToAct >= len(h.Players) || h.ToAct == h.Dealer || h.Players[h.ToAct].Picked != 0 {
@@ -111,6 +116,23 @@ func (h *Hand) CheckInvariants() error {
 		}
 		if h.DrawRound > int(h.Street) || h.DrawRound > draws(h.Variant) {
 			fail("%d exchanges done by %v", h.DrawRound, h.Street)
+		}
+	}
+	if n := discardsPerRound(h.Variant); n > 0 {
+		// Before the flop's discard: all six; then two fewer per discard.
+		if h.DiscardRound > 2 || (h.Street == Preflop && h.DiscardRound > 0) {
+			fail("%d discards done by %v", h.DiscardRound, h.Street)
+		}
+		for i, p := range h.Players {
+			if want := h.Variant.HoleCards() - n*h.DiscardRound; !p.Folded && len(p.Hole) != want {
+				fail("player %d holds %d cards after %d discards, want %d", i, len(p.Hole), h.DiscardRound, want)
+			}
+			if len(p.Discarded) > n*h.DiscardRound {
+				fail("player %d discarded %d cards in %d discards", i, len(p.Discarded), h.DiscardRound)
+			}
+		}
+		if h.Done && h.liveCount() > 1 && h.DiscardRound != 2 {
+			fail("showdown after %d discards", h.DiscardRound)
 		}
 	}
 	return errors.Join(errs...)
