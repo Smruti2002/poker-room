@@ -88,8 +88,9 @@ type Room struct {
 	chatID    int
 	chatTimes map[string][]time.Time // recent messages per player, for rate limiting
 	reactions []protocol.Reaction
-	past      []pastHand // the last finished hands, newest last
-	stats     gameStats  // the table's totals (stats.go)
+	past      []pastHand     // the last finished hands, newest last
+	stats     gameStats      // the table's totals (stats.go)
+	peeks     map[string]int // Peekaboo: who has opened or closed their peek this hand (peek.go)
 }
 
 // pastHand is a finished hand kept for the history panel.
@@ -253,6 +254,10 @@ func (r *Room) handle(p *Player, m protocol.ClientMsg) error {
 		return r.startNextHand()
 	case protocol.MsgShowCards:
 		return r.showCards(p)
+	case protocol.MsgPeek:
+		return r.peek(p)
+	case protocol.MsgPeekDone:
+		return r.peekDone(p)
 	case protocol.MsgSkip:
 		return r.skip(p, m.Target)
 	case protocol.MsgClaimHost:
@@ -427,6 +432,7 @@ func (r *Room) deal(variant string) {
 		panic(fmt.Sprintf("room %s: dealing %s: %v", r.Code, variant, err))
 	}
 	r.hand = h
+	r.peeks = nil
 	r.handNo++
 	r.variant = variant
 	r.stage = protocol.StageHand
@@ -500,7 +506,7 @@ func (r *Room) act(p *Player, a *protocol.Action) error {
 		return errors.New("missing action")
 	}
 	idx := slices.Index(r.handIDs, p.ID)
-	if idx < 0 || (idx != r.hand.ToAct && !r.hand.Allocating && !r.hand.Drawing && !r.hand.Discarding) {
+	if idx < 0 || (idx != r.hand.ToAct && !r.hand.Allocating && !r.hand.Drawing && !r.hand.Discarding && !r.hand.Rolling) {
 		return ErrNotYourTurn
 	}
 	var typ engine.ActionType
@@ -641,6 +647,8 @@ func (r *Room) defaultMove(i int) engine.Action {
 		return r.hand.DefaultDraw()
 	case l.Discard:
 		return r.hand.DefaultDiscard(i)
+	case l.Roll:
+		return r.hand.DefaultRoll()
 	case l.Check:
 		return engine.Action{Type: engine.Check}
 	}

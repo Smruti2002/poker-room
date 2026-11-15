@@ -41,6 +41,8 @@ type Snapshot struct {
 	NextTokens   map[string]string   `json:"nextTokens,omitempty"`
 	KickVotes    []KickVoteSnapshot  `json:"kickVotes,omitempty"`
 	Stats        gameStats           `json:"stats,omitzero"`
+	// Peeks are who has opened or used their Peekaboo peek this hand.
+	Peeks map[string]int `json:"peeks,omitempty"`
 }
 
 // KickVoteSnapshot is an open vote to remove a player.
@@ -108,6 +110,7 @@ func (r *Room) Snapshot() Snapshot {
 		})
 	}
 	s.Stats = r.stats.clone()
+	s.Peeks = maps.Clone(r.peeks)
 	for _, v := range r.kickVotes {
 		s.KickVotes = append(s.KickVotes, KickVoteSnapshot{
 			Target: v.target, StartedBy: v.startedBy,
@@ -156,6 +159,7 @@ func Restore(s Snapshot, opts Options) (*Room, error) {
 		})
 	}
 	r.stats = s.Stats.clone()
+	r.peeks = maps.Clone(s.Peeks)
 	for _, v := range s.KickVotes {
 		kv := &kickVote{target: v.Target, startedBy: v.StartedBy, yes: map[string]bool{}, no: map[string]bool{}}
 		for _, id := range v.Yes {

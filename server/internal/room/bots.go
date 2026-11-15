@@ -88,8 +88,8 @@ func (r *Room) botStep() bool {
 			return false
 		}
 		waiting := []int{h.ToAct}
-		if h.Allocating || h.Drawing || h.Discarding {
-			waiting = append(append(h.Pending(), h.DrawPending()...), h.DiscardPending()...)
+		if h.Allocating || h.Drawing || h.Discarding || h.Rolling {
+			waiting = append(append(append(h.Pending(), h.DrawPending()...), h.DiscardPending()...), h.RollPending()...)
 		}
 		for _, i := range waiting {
 			if i < 0 {

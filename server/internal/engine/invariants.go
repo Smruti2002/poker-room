@@ -81,6 +81,10 @@ func (h *Hand) CheckInvariants() error {
 			if h.ToAct != -1 || len(h.DrawPending()) == 0 {
 				fail("exchanging with ToAct %d and %d players pending", h.ToAct, len(h.DrawPending()))
 			}
+		} else if h.Rolling {
+			if h.ToAct != -1 || len(h.RollPending()) == 0 || h.Street != Preflop {
+				fail("rolling with ToAct %d, %d players pending, on %v", h.ToAct, len(h.RollPending()), h.Street)
+			}
 		} else if h.Discarding {
 			if h.ToAct != -1 || len(h.DiscardPending()) == 0 {
 				fail("discarding with ToAct %d and %d players pending", h.ToAct, len(h.DiscardPending()))
@@ -116,6 +120,20 @@ func (h *Hand) CheckInvariants() error {
 		}
 		if h.DrawRound > int(h.Street) || h.DrawRound > draws(h.Variant) {
 			fail("%d exchanges done by %v", h.DrawRound, h.Street)
+		}
+	}
+	if rollsDice(h.Variant) {
+		for i, p := range h.Players {
+			if p.Die < 0 || p.Die > 6 || (p.Die != 0 && p.Die != h.dice[i]) {
+				fail("player %d rolled %d, die is %d", i, p.Die, h.dice[i])
+			}
+			if !h.Rolling && !h.Picking && p.Die == 0 && !p.Folded {
+				fail("player %d is betting without rolling", i)
+			}
+			// What they peeked at is the board card, once it's dealt.
+			if c, ok := h.PeekCard(i); ok && len(h.Boards[0]) >= p.Die && h.Boards[0][p.Die-1] != c {
+				fail("player %d peeked at %v but board card %d is %v", i, c, p.Die, h.Boards[0][p.Die-1])
+			}
 		}
 	}
 	if n := discardsPerRound(h.Variant); n > 0 {

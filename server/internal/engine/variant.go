@@ -202,6 +202,16 @@ func (discardHoldem) Rank(p *Player, boards [][]cards.Card) ([]eval.Hand, error)
 	return []eval.Hand{h}, err
 }
 
+// Peekaboo is Texas Hold'em with a die roll before the pre-flop betting
+// (docs/rules.md §4.10): a 1-5 lets the player peek at that board card
+// before it's dealt; a 6, nothing.
+var Peekaboo = register(peekaboo{})
+
+type peekaboo struct{ holdem }
+
+func (peekaboo) Name() string    { return "peekaboo" }
+func (peekaboo) RollsDice() bool { return true }
+
 // drawer is a variant with card exchanges between its betting rounds.
 type drawer interface{ Draws() int }
 

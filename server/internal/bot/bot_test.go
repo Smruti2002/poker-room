@@ -48,7 +48,8 @@ func TestBotsPlayEveryVariantLegally(t *testing.T) {
 					t.Fatalf("%s hand %d never finished", name, n)
 				}
 				i := h.ToAct
-				if pending := append(append(h.Pending(), h.DrawPending()...), h.DiscardPending()...); len(pending) > 0 {
+				pending := slices.Concat(h.Pending(), h.DrawPending(), h.DiscardPending(), h.RollPending())
+				if len(pending) > 0 {
 					i = pending[0]
 				}
 				a := Decide(view(h, i), r)

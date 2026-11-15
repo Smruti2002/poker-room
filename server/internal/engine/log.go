@@ -15,6 +15,7 @@ type Log struct {
 	Dealer  int            `json:"dealer"`
 	Seed    cards.Seed     `json:"seed"`
 	Deck    []cards.Card   `json:"deck,omitempty"`
+	Dice    []int          `json:"dice,omitempty"` // fixed dice for tests (Peekaboo)
 	Actions []LoggedAction `json:"actions"`
 }
 
@@ -30,7 +31,7 @@ func Replay(l Log) (*Hand, error) {
 	if err != nil {
 		return nil, err
 	}
-	h, err := NewHand(l.Config, v, l.Seats, l.Dealer, Options{Seed: l.Seed, Deck: l.Deck})
+	h, err := NewHand(l.Config, v, l.Seats, l.Dealer, Options{Seed: l.Seed, Deck: l.Deck, Dice: l.Dice})
 	if err != nil {
 		return nil, err
 	}

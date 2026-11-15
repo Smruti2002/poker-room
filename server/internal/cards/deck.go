@@ -92,6 +92,14 @@ func (d *Deck) Shuffle(r *rand.Rand) {
 // Remaining returns the number of undealt cards.
 func (d *Deck) Remaining() int { return len(d.cards) - d.next }
 
+// Peek returns the next n cards without dealing them.
+func (d *Deck) Peek(n int) ([]Card, error) {
+	if n < 0 || n > d.Remaining() {
+		return nil, ErrDeckEmpty
+	}
+	return slices.Clone(d.cards[d.next : d.next+n]), nil
+}
+
 // Deal removes n cards from the top of the deck.
 func (d *Deck) Deal(n int) ([]Card, error) {
 	if n < 0 || n > d.Remaining() {

@@ -72,6 +72,14 @@ export const MsgShowCards = "showCards"; // after a hand you played, show everyo
 /**
  * Client message types.
  */
+export const MsgPeek = "peek"; // Peekaboo: look at the board card your die gives you (once)
+/**
+ * Client message types.
+ */
+export const MsgPeekDone = "peekDone"; // Peekaboo: turn it back over; it can't be reopened
+/**
+ * Client message types.
+ */
 export const MsgSkip = "skip"; // host only: Target gets the default move, or a broke player sits out
 /**
  * Client message types.
@@ -421,6 +429,22 @@ export interface PlayerView {
    */
   discarding?: boolean;
   /**
+   * Die is what the player rolled (Peekaboo): 1-5 peeks at that board
+   * card, 6 sees nothing. Public; 0 before they roll.
+   */
+  die?: number /* int */;
+  /**
+   * Rolling is true while the player still has to roll (Peekaboo).
+   */
+  rolling?: boolean;
+  /**
+   * Your own peek (Peekaboo, only in your view): CanPeek while you may
+   * still look; PeekCard while you're looking; PeekUsed once you've closed it.
+   */
+  canPeek?: boolean;
+  peekCard?: string;
+  peekUsed?: boolean;
+  /**
    * LastBet is the player's bet or raise on the current street, until
    * they act again or the street ends.
    */
@@ -458,6 +482,11 @@ export interface HandView {
    */
   drawing?: boolean;
   drawRound?: number /* int */;
+  /**
+   * Rolling is true while everyone rolls their die, before the pre-flop
+   * betting (Peekaboo).
+   */
+  rolling?: boolean;
   /**
    * Discarding is true while everyone still in throws away cards, right
    * after the flop or turn and before its betting (Discard Hold'em).
@@ -528,6 +557,10 @@ export interface Legal {
    * Draw: choose which of your cards (0-5) to exchange (BB).
    */
   draw?: boolean;
+  /**
+   * Roll: roll your die (Peekaboo). It is then the only legal action.
+   */
+  roll?: boolean;
   /**
    * Discard: choose DiscardCount of your cards to throw away (Discard
    * Hold'em). It is then the only legal action.

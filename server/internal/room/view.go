@@ -90,6 +90,11 @@ func (r *Room) View(viewer string) protocol.State {
 			v.Draws = hp.Draws // how many, not which: public
 			v.Exchanging = slices.Contains(h.DrawPending(), i)
 			v.Discarding = slices.Contains(h.DiscardPending(), i)
+			v.Die = hp.Die
+			v.Rolling = slices.Contains(h.RollPending(), i)
+			if p.ID == viewer {
+				r.peekView(&v, i)
+			}
 			// Others only learn that a split is locked in; the pairs are
 			// shown with the hand at the showdown.
 			v.Allocated = h.Allocating && hp.Split != nil
@@ -153,6 +158,7 @@ func (r *Room) handView(viewer string) *protocol.HandView {
 		Drawing:    h.Drawing,
 		DrawRound:  h.DrawRound,
 		Discarding: h.Discarding,
+		Rolling:    h.Rolling,
 		Reveal:     h.Variant.Reveal(),
 		Pot:        h.PotChips(),
 		CurrentBet: h.CurrentBet,
@@ -192,7 +198,7 @@ func (r *Room) handView(viewer string) *protocol.HandView {
 			Show:   l.Show,
 			Choose: l.Choose, ChooseMax: l.ChooseMax,
 			Allocate: l.Allocate, Draw: l.Draw,
-			Discard: l.Discard, DiscardCount: l.DiscardCount,
+			Discard: l.Discard, DiscardCount: l.DiscardCount, Roll: l.Roll,
 			Fold: l.Fold, Check: l.Check, Call: l.Call, CallUnits: l.CallUnits,
 			Bet: l.Bet, Raise: l.Raise, MinTo: l.MinTo, MaxTo: l.MaxTo,
 		}

@@ -198,6 +198,7 @@ A full house (K K K Q Q) would need 0 hole cards, so it doesn't count. Best: K�
 | Triple Texas | 6n + 15 | **6** |
 | BB | 5n (exchanges reuse returned cards) | 10 (room max) |
 | Discard Hold'em | 6n + 5 | **7** |
+| Peekaboo | 2n + 5 | room max |
 
 ### 4.8 BB (house variant)
 
@@ -235,3 +236,20 @@ Texas Hold'em dealt **six** hole cards, thrown away two at a time until you hold
 - Six cards each means at most **7 players** per hand (§4.7).
 
 *Example.* Ann holds A♠ A♦ 7♣ 3♦ 4♥ 5♥ and the flop is A♣ K♦ 9♠. She throws away 4♥ 5♥ and bets the flop with A♠ A♦ 7♣ 3♦ (three aces). The turn is Q♥: she throws away 7♣ 3♦ and plays the turn and river with A♠ A♦. Bob, who was dealt K♠ K♣ among his six, keeps them and has three kings: Ann's three aces win unless the river helps him.
+
+### 4.10 Peekaboo (house variant)
+
+Texas Hold'em with a peek at the board before the betting.
+
+1. Blinds as usual, then each player is dealt **2 cards**. The five board cards are already decided: they're the next five cards in the deck.
+2. **Roll:** before any betting, everyone taps **Roll the die**, all at the same time.
+   - **1 to 5:** you may peek at that board card before it's dealt: 1, 2 and 3 are the flop cards in order, 4 is the turn, 5 is the river.
+   - **6:** no peek this hand.
+   - Everyone sees every roll ("Ann rolls a 3: peeks at flop card 3"), and the face-down board card is marked "👀 Ann". So the table knows **which** card you saw, but not what it is.
+3. **The peek:** tap **Peek** to turn your card over, and **Close** when you're done. You can look **once**: closed, it can't be reopened. There's no timer, so take as long as you like. It's never shown in the hand log, not even yours.
+4. Then it's normal **Texas Hold'em**: pre-flop, flop, turn and river betting, and the usual showdown.
+
+- **Skipped by the host:** a skipped player's die is rolled for them.
+- The dice are random but fixed when the hand is dealt, like the deck, so a hand replays exactly. The hand history download after the game shows each roll and each peeked card.
+
+*Example.* Ann rolls a 4 and peeks at the turn: K♠. Bob rolls a 6. Cy rolls a 1 and peeks at the first flop card. Before the flop, Ann knows a king is coming; Bob knows Ann has seen the turn but not what it is.

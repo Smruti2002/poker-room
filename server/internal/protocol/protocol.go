@@ -20,6 +20,8 @@ const (
 	MsgHistory        = "history"    // ask for the recent hand history (sent only to you)
 	MsgNextHand       = "nextHand"   // any player, once a hand is over
 	MsgShowCards      = "showCards"  // after a hand you played, show everyone your cards
+	MsgPeek           = "peek"       // Peekaboo: look at the board card your die gives you (once)
+	MsgPeekDone       = "peekDone"   // Peekaboo: turn it back over; it can't be reopened
 	MsgSkip           = "skip"       // host only: Target gets the default move, or a broke player sits out
 	MsgClaimHost      = "claimHost"  // become host while the host is offline
 	MsgRematch        = "rematch"    // host only, after the game: a new room with the same players
@@ -264,6 +266,16 @@ type PlayerView struct {
 	// Discarding is true while the player still has to choose their discard
 	// (Discard Hold'em).
 	Discarding bool `json:"discarding,omitempty"`
+	// Die is what the player rolled (Peekaboo): 1-5 peeks at that board
+	// card, 6 sees nothing. Public; 0 before they roll.
+	Die int `json:"die,omitempty"`
+	// Rolling is true while the player still has to roll (Peekaboo).
+	Rolling bool `json:"rolling,omitempty"`
+	// Your own peek (Peekaboo, only in your view): CanPeek while you may
+	// still look; PeekCard while you're looking; PeekUsed once you've closed it.
+	CanPeek  bool   `json:"canPeek,omitempty"`
+	PeekCard string `json:"peekCard,omitempty"`
+	PeekUsed bool   `json:"peekUsed,omitempty"`
 	// LastBet is the player's bet or raise on the current street, until
 	// they act again or the street ends.
 	LastBet *BetCallout `json:"lastBet,omitempty"`
@@ -289,6 +301,9 @@ type HandView struct {
 	// cards to exchange, all at once. DrawRound counts the exchanges done.
 	Drawing   bool `json:"drawing,omitempty"`
 	DrawRound int  `json:"drawRound,omitempty"`
+	// Rolling is true while everyone rolls their die, before the pre-flop
+	// betting (Peekaboo).
+	Rolling bool `json:"rolling,omitempty"`
 	// Discarding is true while everyone still in throws away cards, right
 	// after the flop or turn and before its betting (Discard Hold'em).
 	Discarding bool `json:"discarding,omitempty"`
@@ -336,6 +351,8 @@ type Legal struct {
 	Allocate bool `json:"allocate,omitempty"`
 	// Draw: choose which of your cards (0-5) to exchange (BB).
 	Draw bool `json:"draw,omitempty"`
+	// Roll: roll your die (Peekaboo). It is then the only legal action.
+	Roll bool `json:"roll,omitempty"`
 	// Discard: choose DiscardCount of your cards to throw away (Discard
 	// Hold'em). It is then the only legal action.
 	Discard      bool  `json:"discard,omitempty"`

@@ -78,8 +78,8 @@ func (h *harness) tryAdvance() error {
 	case protocol.StageChoosing:
 		return skip(h.r.dealerID)
 	case protocol.StageHand:
-		if h.r.hand.Allocating || h.r.hand.Drawing || h.r.hand.Discarding {
-			for _, i := range append(append(h.r.hand.Pending(), h.r.hand.DrawPending()...), h.r.hand.DiscardPending()...) {
+		if h.r.hand.Allocating || h.r.hand.Drawing || h.r.hand.Discarding || h.r.hand.Rolling {
+			for _, i := range append(append(append(h.r.hand.Pending(), h.r.hand.DrawPending()...), h.r.hand.DiscardPending()...), h.r.hand.RollPending()...) {
 				if err := skip(h.r.handIDs[i]); err != nil {
 					return err
 				}
@@ -113,6 +113,12 @@ func (h *harness) playPassively() {
 		if h.r.hand.Drawing {
 			for _, i := range h.r.hand.DrawPending() {
 				h.must(h.r.player(h.r.handIDs[i]), protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "draw"}})
+			}
+			continue
+		}
+		if h.r.hand.Rolling {
+			for _, i := range h.r.hand.RollPending() {
+				h.must(h.r.player(h.r.handIDs[i]), protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "roll"}})
 			}
 			continue
 		}
@@ -618,6 +624,9 @@ func FuzzRoom(f *testing.F) {
 						m.Action = &protocol.Action{Type: "draw", Cards: hole[:int(op)%(len(hole)+1)]}
 					}
 				}
+				if h.r.hand != nil && h.r.hand.Rolling {
+					m.Action = &protocol.Action{Type: "roll"}
+				}
 				if h.r.hand != nil && h.r.hand.Discarding {
 					if idx := slices.Index(h.r.handIDs, p.ID); idx >= 0 {
 						hole := cardStrings(h.r.hand.Players[idx].Hole)
@@ -639,8 +648,13 @@ func FuzzRoom(f *testing.F) {
 				m = protocol.ClientMsg{Type: protocol.MsgAction, Action: &protocol.Action{Type: "fold"}}
 			case 5:
 				m.Type = protocol.MsgTakeLoan
-				if op%3 == 0 {
+				switch op % 6 {
+				case 0:
 					m.Type = protocol.MsgShowCards
+				case 3:
+					m.Type = protocol.MsgPeek
+				case 4:
+					m.Type = protocol.MsgPeekDone
 				}
 			case 6:
 				m.Type = protocol.MsgSitOut

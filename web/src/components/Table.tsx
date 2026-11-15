@@ -17,6 +17,7 @@ import { ChoosePicker } from './ChoosePicker.tsx'
 import { ShowPicker } from './ShowPicker.tsx'
 import { DrawPicker } from './DrawPicker.tsx'
 import { DiscardPicker } from './DiscardPicker.tsx'
+import { PeekPanel, RollPicker, peekersAt } from './Peekaboo.tsx'
 import { SplitPicker } from './SplitPicker.tsx'
 import { winningCards } from './winning.ts'
 
@@ -81,9 +82,19 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
                 {board.map((c) => (
                   <Card key={c} code={c} highlight={highlightOf(c, winning)} />
                 ))}
-                {Array.from({ length: 5 - board.length }, (_, i) => (
-                  <span className="card card-empty" key={`e${i}`} />
-                ))}
+                {Array.from({ length: 5 - board.length }, (_, i) => {
+                  // Peekaboo: name who has seen this face-down card.
+                  const who = hand.variant === 'peekaboo' ? peekersAt(state.players, board.length + i + 1, state.you) : []
+                  return (
+                    <span
+                      className={`card card-empty${who.length ? ' card-peeked' : ''}`}
+                      key={`e${i}`}
+                      aria-label={who.length ? `Seen by ${who.join(', ')}` : undefined}
+                    >
+                      {who.length > 0 && <span className="peekers">👀 {who.join(' ')}</span>}
+                    </span>
+                  )
+                })}
               </div>
             ))}
             <div className="pot" key={hand.pot}>
@@ -163,6 +174,8 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
             {hand?.legal?.draw && me.hole && (
               <DrawPicker key={hand.drawRound ?? 0} hole={order.cards} round={(hand.drawRound ?? 0) + 1} onAct={onAct} />
             )}
+            {hand?.legal?.roll && <RollPicker onAct={onAct} />}
+            {hand?.variant === 'peekaboo' && !me.folded && <PeekPanel me={me} send={send} />}
             {hand?.legal?.discard && me.hole && (
               <DiscardPicker
                 key={hand.street}
@@ -174,7 +187,7 @@ export function Table({ state, clockOffset, onAct, send }: Props) {
               />
             )}
             {hand?.legal?.allocate && me.hole && <SplitPicker hole={order.cards} boards={hand.boards} onAct={onAct} />}
-            {hand?.legal && !hand.legal.show && !hand.legal.choose && !hand.legal.allocate && !hand.legal.draw && !hand.legal.discard && (
+            {hand?.legal && !hand.legal.show && !hand.legal.choose && !hand.legal.allocate && !hand.legal.draw && !hand.legal.discard && !hand.legal.roll && (
               <ActionBar
                 key={`${hand.number}-${hand.street}-${hand.currentBet}`}
                 legal={hand.legal}
@@ -267,6 +280,10 @@ function TableHeader({ state, name }: { state: State; name: (id?: string) => str
     status = hand.legal?.draw
       ? `Exchange ${(hand.drawRound ?? 0) + 1}: choose cards to give back`
       : `Waiting for ${waiting.map((p) => p.name).join(', ')} to exchange`
+  } else if (hand?.rolling) {
+    // Everyone rolls at once: say who we're still waiting for.
+    const waiting = state.players.filter((p) => p.rolling && p.id !== state.you)
+    status = hand.legal?.roll ? 'Roll your die' : `Waiting for ${waiting.map((p) => p.name).join(', ')} to roll`
   } else if (hand?.discarding) {
     // Everyone discards at once: say who we're still waiting for.
     const waiting = state.players.filter((p) => p.discarding && p.id !== state.you)
@@ -341,7 +358,8 @@ function Seat({
     acting ||
     (hand?.allocating && p.inHand && !p.folded && !p.allocated) ||
     (hand?.drawing && p.exchanging) ||
-    (hand?.discarding && p.discarding)
+    (hand?.discarding && p.discarding) ||
+    (hand?.rolling && p.rolling)
   const canSkip = waiting && state.you === state.hostId && p.id !== state.you
   const skip = () => {
     if (window.confirm(`Skip ${p.name}? They'll get the default move: check if possible, otherwise fold (or the default pick or split).`)) {
@@ -381,6 +399,11 @@ function Seat({
           </span>
         )}
         {p.allocated && <span className="tag tag-locked">locked in</span>}
+        {p.inHand && (p.die ?? 0) > 0 && hand?.variant === 'peekaboo' && (
+          <span className="tag" title={p.die === 6 ? 'Rolled a 6: no peek' : `Peeked at board card ${p.die}`}>
+            🎲 {p.die}
+          </span>
+        )}
         {p.showedCards && (
           <span className="tag" title="Chose to show their cards after the hand">
             showed
