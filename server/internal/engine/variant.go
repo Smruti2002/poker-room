@@ -182,6 +182,26 @@ func (bb) Rank(p *Player, _ [][]cards.Card) ([]eval.Hand, error) {
 	return []eval.Hand{h}, err
 }
 
+// DiscardHoldem is Texas Hold'em dealt six hole cards (docs/rules.md §4.9):
+// everyone still in throws two away right after the flop is dealt and two
+// more after the turn, before each street's betting, so they reach the
+// river with two. The showdown is Hold'em's best five of hole and board.
+var DiscardHoldem = register(discardHoldem{})
+
+type discardHoldem struct{}
+
+func (discardHoldem) Name() string          { return "discard" }
+func (discardHoldem) HoleCards() int        { return 6 }
+func (discardHoldem) Boards() int           { return 1 }
+func (discardHoldem) Reveal() int           { return 0 }
+func (discardHoldem) Choices() []Choice     { return nil }
+func (discardHoldem) DiscardsPerRound() int { return 2 }
+
+func (discardHoldem) Rank(p *Player, boards [][]cards.Card) ([]eval.Hand, error) {
+	h, err := eval.Holdem(p.Hole, boards[0])
+	return []eval.Hand{h}, err
+}
+
 // drawer is a variant with card exchanges between its betting rounds.
 type drawer interface{ Draws() int }
 

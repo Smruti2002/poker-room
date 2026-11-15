@@ -6,6 +6,7 @@ export const VARIANT_NAMES: Record<string, string> = {
   triple: 'Triple Texas',
   show2: 'Show 2 Play 2',
   bb: 'BB',
+  discard: "Discard Hold'em",
 }
 
 export function variantName(id: string): string {

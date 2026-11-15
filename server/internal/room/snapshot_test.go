@@ -93,6 +93,9 @@ func (h *harness) tryAdvanceWithMoves(rng *mrand.Rand) error {
 	if hand.Drawing {
 		i = hand.DrawPending()[0]
 	}
+	if hand.Discarding {
+		i = hand.DiscardPending()[0]
+	}
 	l := hand.Legal(i)
 	var a *protocol.Action
 	switch {
@@ -101,6 +104,10 @@ func (h *harness) tryAdvanceWithMoves(rng *mrand.Rand) error {
 		a = &protocol.Action{Type: "draw", Cards: hole[:rng.IntN(len(hole)+1)]}
 	case l.Allocate:
 		a = &protocol.Action{Type: "allocate", Cards: cardStrings(hand.DefaultSplit(i).Cards)}
+	case l.Discard:
+		hole := cardStrings(hand.Players[i].Hole)
+		rng.Shuffle(len(hole), func(a, b int) { hole[a], hole[b] = hole[b], hole[a] })
+		a = &protocol.Action{Type: "discard", Cards: hole[:l.DiscardCount]}
 	case l.Choose:
 		a = &protocol.Action{Type: "choose", Count: []int{4, l.ChooseMax}[rng.IntN(2)]}
 	case l.Show:

@@ -14,6 +14,7 @@ const BETTING = ['Pre-flop', 'Flop', 'Turn', 'River']
  */
 export function roundSteps(hand: HandView): RoundStep[] {
   if (hand.variant === 'bb') return drawSteps(hand)
+  if (hand.variant === 'discard') return discardSteps(hand)
   const labels = [
     ...(hand.variant === 'dacoit' ? ['Picking'] : []),
     ...(hand.variant === 'show2' ? ['Showing'] : []),
@@ -45,6 +46,19 @@ function drawSteps(hand: HandView): RoundStep[] {
   const labels = ['Bet 1', 'Exchange 1', 'Bet 2', 'Exchange 2', 'Bet 3', 'Exchange 3', 'Bet 4', 'Showdown']
   const bet = Math.max(0, BETTING.indexOf(hand.street)) // 0-3
   const at = hand.street === 'Showdown' ? labels.length - 1 : hand.drawing ? 2 * (hand.drawRound ?? 0) + 1 : 2 * bet
+  return labels.map((label, i) => ({
+    label,
+    state: i < at || (hand.done && i === at && label !== 'Showdown') ? 'done' : i === at ? 'current' : 'todo',
+  }))
+}
+
+// Discard Hold'em: a discard opens the flop and the turn, before their
+// betting.
+function discardSteps(hand: HandView): RoundStep[] {
+  const labels = ['Pre-flop', 'Discard 1', 'Flop', 'Discard 2', 'Turn', 'River', 'Showdown']
+  const streetAt: Record<string, number> = { 'Pre-flop': 0, Flop: 2, Turn: 4, River: 5, Showdown: 6 }
+  let at = streetAt[hand.street] ?? 0
+  if (hand.discarding) at -= 1 // the discard just before this street's betting
   return labels.map((label, i) => ({
     label,
     state: i < at || (hand.done && i === at && label !== 'Showdown') ? 'done' : i === at ? 'current' : 'todo',

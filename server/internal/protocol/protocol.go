@@ -46,7 +46,7 @@ type ClientMsg struct {
 
 // Action is a betting action. To is the street total for bet/raise, in units.
 type Action struct {
-	Type string `json:"type"` // fold, check, call, bet, raise, show
+	Type string `json:"type"` // fold, check, call, bet, raise, show, choose, allocate, draw, discard
 	To   int64  `json:"to,omitempty"`
 	// Cards are the hole cards to reveal, for show (Show 2 Play 2).
 	Cards []string `json:"cards,omitempty"`
@@ -261,6 +261,9 @@ type PlayerView struct {
 	// far; Exchanging is true while they're still choosing this exchange.
 	Draws      []int `json:"draws,omitempty"`
 	Exchanging bool  `json:"exchanging,omitempty"`
+	// Discarding is true while the player still has to choose their discard
+	// (Discard Hold'em).
+	Discarding bool `json:"discarding,omitempty"`
 	// LastBet is the player's bet or raise on the current street, until
 	// they act again or the street ends.
 	LastBet *BetCallout `json:"lastBet,omitempty"`
@@ -286,6 +289,9 @@ type HandView struct {
 	// cards to exchange, all at once. DrawRound counts the exchanges done.
 	Drawing   bool `json:"drawing,omitempty"`
 	DrawRound int  `json:"drawRound,omitempty"`
+	// Discarding is true while everyone still in throws away cards, right
+	// after the flop or turn and before its betting (Discard Hold'em).
+	Discarding bool `json:"discarding,omitempty"`
 	// Reveal is how many cards each player shows in this variant.
 	Reveal     int        `json:"reveal,omitempty"`
 	Boards     [][]string `json:"boards"`
@@ -329,15 +335,19 @@ type Legal struct {
 	// Allocate: split your cards, two per board, in board order.
 	Allocate bool `json:"allocate,omitempty"`
 	// Draw: choose which of your cards (0-5) to exchange (BB).
-	Draw      bool  `json:"draw,omitempty"`
-	Fold      bool  `json:"fold"`
-	Check     bool  `json:"check"`
-	Call      bool  `json:"call"`
-	CallUnits int64 `json:"callUnits"`
-	Bet       bool  `json:"bet"`
-	Raise     bool  `json:"raise"`
-	MinTo     int64 `json:"minTo"`
-	MaxTo     int64 `json:"maxTo"`
+	Draw bool `json:"draw,omitempty"`
+	// Discard: choose DiscardCount of your cards to throw away (Discard
+	// Hold'em). It is then the only legal action.
+	Discard      bool  `json:"discard,omitempty"`
+	DiscardCount int   `json:"discardCount,omitempty"`
+	Fold         bool  `json:"fold"`
+	Check        bool  `json:"check"`
+	Call         bool  `json:"call"`
+	CallUnits    int64 `json:"callUnits"`
+	Bet          bool  `json:"bet"`
+	Raise        bool  `json:"raise"`
+	MinTo        int64 `json:"minTo"`
+	MaxTo        int64 `json:"maxTo"`
 }
 
 // ChoosingView is shown while the dealer picks the variant.

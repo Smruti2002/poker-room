@@ -197,6 +197,7 @@ A full house (K K K Q Q) would need 0 hole cards, so it doesn't count. Best: K�
 | Double Texas | 4n + 10 | 10 |
 | Triple Texas | 6n + 15 | **6** |
 | BB | 5n (exchanges reuse returned cards) | 10 (room max) |
+| Discard Hold'em | 6n + 5 | **7** |
 
 ### 4.8 BB (house variant)
 
@@ -215,3 +216,22 @@ Five-card draw with three exchanges. There is **no board**.
 **Skipped by the host:** during an exchange, a skipped player keeps all their cards.
 
 *Example.* Ann deals, Bob is small blind, Cy big blind. Everyone calls Bet 1. In Exchange 1 Ann gives back 2♣, Bob gives back 9♥ and Cy keeps all five. Then Bob gets one new card, Ann gets one, and the table sees "Ann exchanges 1", "Bob exchanges 1", "Cy keeps their cards". Nobody raised in Bet 1, so Cy (the big blind) starts Bet 2.
+
+### 4.9 Discard Hold'em (house variant)
+
+Texas Hold'em dealt **six** hole cards, thrown away two at a time until you hold two.
+
+1. Blinds as usual, then each player is dealt **6 cards**, face down.
+2. **Pre-flop** betting with all six, as in Hold'em.
+3. **Flop:** the three flop cards are dealt. Before any betting, everyone still in **throws away exactly 2 cards**, all at the same time. Then the flop betting round, with **4 cards**.
+4. **Turn:** the turn card is dealt. Everyone still in throws away **2 more**, then the turn betting round, with **2 cards**.
+5. **River** and its betting round, with no discard.
+6. **Showdown:** normal Hold'em: the best five of your 2 hole cards and the 5 board cards, using any number of each.
+
+- Thrown-away cards are **out of play** for the rest of the hand. They aren't reused or shown.
+- **That** a player discarded is public ("Ann discards 2"). **Which** cards stays private, except in the hand history download after the game.
+- **All-in** players still discard, and so does everyone while the board runs out after an all-in.
+- **Skipped by the host:** a skipped player keeps the cards that make their best hand with the board so far, and the rest are thrown away.
+- Six cards each means at most **7 players** per hand (§4.7).
+
+*Example.* Ann holds A♠ A♦ 7♣ 3♦ 4♥ 5♥ and the flop is A♣ K♦ 9♠. She throws away 4♥ 5♥ and bets the flop with A♠ A♦ 7♣ 3♦ (three aces). The turn is Q♥: she throws away 7♣ 3♦ and plays the turn and river with A♠ A♦. Bob, who was dealt K♠ K♣ among his six, keeps them and has three kings: Ann's three aces win unless the river helps him.

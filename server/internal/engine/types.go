@@ -27,9 +27,10 @@ const (
 	Choose   // Dacoit: take Count hole cards before the deal
 	Allocate // Double/Triple Texas: split Cards into pairs, one per board, in board order
 	Draw     // BB: exchange Cards (0-5 of your hole cards) for new ones
+	Discard  // Discard Hold'em: throw away Cards (exactly Variant discards) for good
 )
 
-var actionNames = map[ActionType]string{Fold: "fold", Check: "check", Call: "call", Bet: "bet", Raise: "raise", Show: "show", Choose: "choose", Allocate: "allocate", Draw: "draw"}
+var actionNames = map[ActionType]string{Fold: "fold", Check: "check", Call: "call", Bet: "bet", Raise: "raise", Show: "show", Choose: "choose", Allocate: "allocate", Draw: "draw", Discard: "discard"}
 
 func (a ActionType) String() string {
 	if s, ok := actionNames[a]; ok {
@@ -169,10 +170,14 @@ type Legal struct {
 	Allocate bool `json:"allocate,omitempty"`
 	// Draw is set during a BB exchange while this player still has to say
 	// which cards (if any) they exchange.
-	Draw  bool `json:"draw,omitempty"`
-	Fold  bool `json:"fold"`
-	Check bool `json:"check"`
-	Call  bool `json:"call"`
+	Draw bool `json:"draw,omitempty"`
+	// Discard is set during a Discard Hold'em discard while this player
+	// still has to choose which DiscardCount cards to throw away.
+	Discard      bool `json:"discard,omitempty"`
+	DiscardCount int  `json:"discardCount,omitempty"`
+	Fold         bool `json:"fold"`
+	Check        bool `json:"check"`
+	Call         bool `json:"call"`
 	// CallUnits is what calling adds; less than the amount owed when it puts
 	// the player all-in.
 	CallUnits int64 `json:"callUnits,omitempty"`

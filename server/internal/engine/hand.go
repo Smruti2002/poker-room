@@ -37,11 +37,15 @@ type Player struct {
 	drew       bool         // chose this exchange
 	discards   []cards.Card // this exchange's discards, dealt for once everyone has chosen
 	allInDraws int          // exchanges taken while all-in (docs/rules.md §4.8)
-	Folded     bool         `json:"folded"`
-	AllIn      bool         `json:"allIn"`
-	Street     int64        `json:"street"` // units committed on the current street
-	Total      int64        `json:"total"`  // units committed this hand
-	Won        int64        `json:"won"`    // chips won when the hand ends
+	// Discarded are the cards the player threw away (Discard Hold'em),
+	// out of play for the rest of the hand. Private.
+	Discarded []cards.Card `json:"discarded,omitempty"`
+	discard   []cards.Card // this round's choice, applied once everyone has chosen
+	Folded    bool         `json:"folded"`
+	AllIn     bool         `json:"allIn"`
+	Street    int64        `json:"street"` // units committed on the current street
+	Total     int64        `json:"total"`  // units committed this hand
+	Won       int64        `json:"won"`    // chips won when the hand ends
 
 	acted bool  // has acted on the current street
 	faced int64 // the current bet when this player last acted
@@ -107,8 +111,14 @@ type Hand struct {
 	// exchanges done.
 	Drawing   bool
 	DrawRound int
-	nextLead  int          // who starts the betting round after the exchange
-	muck      []cards.Card // folded cards, shuffled back in at the next exchange
+	// Discarding is true during a Discard Hold'em discard, right after the
+	// flop or turn is dealt: everyone still in throws away cards, all at
+	// once, before the betting. ToAct is -1. DiscardRound counts the
+	// discards done.
+	Discarding   bool
+	DiscardRound int
+	nextLead     int          // who starts the betting round after the exchange
+	muck         []cards.Card // folded cards, shuffled back in at the next exchange
 	// ToAct is the index of the player to act, or -1.
 	ToAct int
 	// CurrentBet is the street total (units) players must match.
@@ -282,6 +292,12 @@ func (h *Hand) Legal(i int) Legal {
 		}
 		return Legal{}
 	}
+	if h.Discarding {
+		if slices.Contains(h.DiscardPending(), i) {
+			return Legal{Discard: true, DiscardCount: discardsPerRound(h.Variant)}
+		}
+		return Legal{}
+	}
 	if h.Done || i != h.ToAct {
 		return Legal{}
 	}
@@ -364,6 +380,9 @@ func (h *Hand) Apply(i int, a Action) error {
 	}
 	if h.Drawing {
 		return h.draw(i, a)
+	}
+	if h.Discarding {
+		return h.discardCards(i, a)
 	}
 	if i != h.ToAct {
 		return ErrNotYourTurn
@@ -695,7 +714,15 @@ func (h *Hand) nextStreet(lead int) error {
 		h.Boards[b] = append(h.Boards[b], c...)
 		h.emit(Event{Kind: EvBoard, Player: -1, Board: b, Cards: c})
 	}
+	if h.discardsDue() {
+		return h.startDiscard(lead)
+	}
+	return h.startBetting(lead)
+}
 
+// startBetting starts a street's betting with lead, or moves straight on
+// when fewer than two players can still bet.
+func (h *Hand) startBetting(lead int) error {
 	able := 0
 	for _, p := range h.Players {
 		if p.canAct() {
