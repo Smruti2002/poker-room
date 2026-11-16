@@ -12,7 +12,7 @@ async function player(browser: Browser, link: string | null, name: string): Prom
 test('Peekaboo: everyone rolls, peeks once, then plays Hold\'em @phone', async ({ browser }) => {
   const ann = await player(browser, null, 'Ann')
   const bob = await player(browser, ann.url(), 'Bob')
-  for (const label of ["Texas Hold'em", 'Omaha', 'Show 2 Play 2', 'Dacoit', 'Double Texas', 'Triple Texas', 'BB', "Discard Hold'em"]) {
+  for (const label of ["Texas Hold'em", 'Omaha', 'Show 2 Play 2', 'Dacoit', 'Double Texas', 'Triple Texas', 'BB', "Discard Hold'em", 'Penultimate Texas']) {
     const box = ann.getByRole('checkbox', { name: label, exact: true })
     if (await box.isChecked()) await box.click()
   }

@@ -864,10 +864,7 @@ func (h *Hand) finish() error {
 func (h *Hand) potWinners(eligible []int) []int {
 	points := make(map[int]int, len(eligible))
 	for b := range max(len(h.Boards), 1) { // a board-less hand (BB) is scored once
-		var best eval.HandRank
-		for _, i := range eligible {
-			best = max(best, h.ranks[i][b].Rank)
-		}
+		best := h.winningRank(eligible, b)
 		for _, i := range eligible {
 			if h.ranks[i][b].Rank == best {
 				points[i]++
@@ -885,6 +882,22 @@ func (h *Hand) potWinners(eligible []int) []int {
 		}
 	}
 	return winners
+}
+
+// winningRank is the hand rank that wins on board b among players: the
+// best, or in Penultimate Texas the second-best different rank (the best
+// again when everyone ties).
+func (h *Hand) winningRank(players []int, b int) eval.HandRank {
+	var ranks []eval.HandRank
+	for _, i := range players {
+		ranks = append(ranks, h.ranks[i][b].Rank)
+	}
+	slices.Sort(ranks)
+	ranks = slices.Compact(ranks) // distinct, weakest first
+	if secondBestWins(h.Variant) && len(ranks) > 1 {
+		return ranks[len(ranks)-2]
+	}
+	return ranks[len(ranks)-1]
 }
 
 func (h *Hand) handDesc(i int) string {
@@ -926,10 +939,7 @@ func (h *Hand) BoardWinners() [][]int {
 	}
 	out := make([][]int, len(h.Boards))
 	for b := range h.Boards {
-		var best eval.HandRank
-		for _, i := range live {
-			best = max(best, h.ranks[i][b].Rank)
-		}
+		best := h.winningRank(live, b)
 		for _, i := range live {
 			if h.ranks[i][b].Rank == best {
 				out[b] = append(out[b], i)

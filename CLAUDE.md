@@ -1,6 +1,6 @@
 # Poker Room: notes for Claude
 
-Play-money multiplayer poker for friends: a host creates a room and shares a link; each hand's dealer picks the variant (Texas Hold'em, Omaha, Dacoit, Double Texas, Triple Texas, Show 2 Play 2, BB, Discard Hold'em, Peekaboo). The full rules, with worked examples, are in [docs/rules.md](docs/rules.md); that file is the source of truth for game behaviour.
+Play-money multiplayer poker for friends: a host creates a room and shares a link; each hand's dealer picks the variant (Texas Hold'em, Omaha, Dacoit, Double Texas, Triple Texas, Show 2 Play 2, BB, Discard Hold'em, Peekaboo, Penultimate Texas). The full rules, with worked examples, are in [docs/rules.md](docs/rules.md); that file is the source of truth for game behaviour.
 
 Go backend (`server/`) and React + TypeScript frontend (`web/`), deployed as one small Fly.io machine. Setup and commands are in [README.md](README.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 
