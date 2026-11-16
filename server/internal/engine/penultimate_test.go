@@ -123,7 +123,7 @@ func TestPenultimateFoldedPlayersDontCount(t *testing.T) {
 	// aces, Bob kings, Cy queens, Dee fives.
 	seats := []SeatSpec{{Stack: 1000}, {Stack: 1000}, {Stack: 1000}, {Stack: 1000}}
 	h, err := NewHand(Config{SmallBlind: 10, BigBlind: 20, Order: OrderLastRaiser}, Penultimate, seats, 0,
-		Options{Seed: cards.SeedFromUint64(4), Deck: cards.MustParseList("Ah Ad  Kh Kd  Qh Qd  5h 5d  "+board)})
+		Options{Seed: cards.SeedFromUint64(4), Deck: cards.MustParseList("Ah Ad  Kh Kd  Qh Qd  5h 5d  " + board)})
 	if err != nil {
 		t.Fatal(err)
 	}
