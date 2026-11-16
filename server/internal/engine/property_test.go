@@ -14,7 +14,7 @@ import (
 // genHand draws a random table: 2-10 players, stacks from tiny to deep,
 // some players paying double, random blinds, structure and dealer.
 func genHand(t *rapid.T) *Hand {
-	v := rapid.SampledFrom([]Variant{Holdem, Omaha, ShowTwo, Dacoit, DoubleTexas, TripleTexas, BB, DiscardHoldem, Peekaboo}).Draw(t, "variant")
+	v := rapid.SampledFrom([]Variant{Holdem, Omaha, ShowTwo, Dacoit, DoubleTexas, TripleTexas, BB, DiscardHoldem, Peekaboo, Penultimate}).Draw(t, "variant")
 	maxPlayers := MaxPlayers
 	for cardsNeeded(v, maxPlayers) > cards.NumCards {
 		maxPlayers--

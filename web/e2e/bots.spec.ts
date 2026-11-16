@@ -8,7 +8,7 @@ test('play alone against bots: they act by themselves @phone', async ({ browser 
   await ann.getByRole('button', { name: '🤖 Add bot' }).click()
   await ann.getByRole('button', { name: '🤖 Add bot' }).click()
   await expect(ann.locator('.lobby-players li')).toHaveText([/^Ann/, /^Bot 1.*bot/, /^Bot 2.*bot/])
-  for (const label of ['Omaha', 'Show 2 Play 2', 'Dacoit', 'Double Texas', 'Triple Texas', 'BB', "Discard Hold'em", 'Peekaboo']) {
+  for (const label of ['Omaha', 'Show 2 Play 2', 'Dacoit', 'Double Texas', 'Triple Texas', 'BB', "Discard Hold'em", 'Peekaboo', 'Penultimate Texas']) {
     const box = ann.getByRole('checkbox', { name: label, exact: true })
     if (await box.isChecked()) await box.click()
   }

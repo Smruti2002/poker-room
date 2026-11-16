@@ -212,6 +212,25 @@ type peekaboo struct{ holdem }
 func (peekaboo) Name() string    { return "peekaboo" }
 func (peekaboo) RollsDice() bool { return true }
 
+// Penultimate is Texas Hold'em where the second-best hand wins
+// (docs/rules.md §4.11): in each pot, the best hand strength among its
+// players loses and the next-best different strength wins. When everyone
+// ties, they split.
+var Penultimate = register(penultimate{})
+
+type penultimate struct{ holdem }
+
+func (penultimate) Name() string         { return "penultimate" }
+func (penultimate) SecondBestWins() bool { return true }
+
+// secondBest is a variant where the second-best hand wins.
+type secondBest interface{ SecondBestWins() bool }
+
+func secondBestWins(v Variant) bool {
+	s, ok := v.(secondBest)
+	return ok && s.SecondBestWins()
+}
+
 // drawer is a variant with card exchanges between its betting rounds.
 type drawer interface{ Draws() int }
 

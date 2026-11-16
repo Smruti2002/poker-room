@@ -199,6 +199,7 @@ A full house (K K K Q Q) would need 0 hole cards, so it doesn't count. Best: Kâ™
 | BB | 5n (exchanges reuse returned cards) | 10 (room max) |
 | Discard Hold'em | 6n + 5 | **7** |
 | Peekaboo | 2n + 5 | room max |
+| Penultimate Texas | 2n + 5 | room max |
 
 ### 4.8 BB (house variant)
 
@@ -253,3 +254,17 @@ Texas Hold'em with a peek at the board before the betting.
 - The dice are random but fixed when the hand is dealt, like the deck, so a hand replays exactly. The hand history download after the game shows each roll and each peeked card.
 
 *Example.* Ann rolls a 4 and peeks at the turn: Kâ™ . Bob rolls a 6. Cy rolls a 1 and peeks at the first flop card. Before the flop, Ann knows a king is coming; Bob knows Ann has seen the turn but not what it is.
+
+### 4.11 Penultimate Texas (house variant)
+
+Texas Hold'em in every way except the showdown: **the second-best hand wins**.
+
+- Deal, betting rounds and board are exactly Hold'em's, and so is each player's best five-card hand.
+- **Each pot** is judged among the players still in it. The best hand strength among them **loses**, and the players holding the **next-best different strength** win. They split if several have it.
+  - **Tied best:** if two players tie for the best hand, both lose, and the next hand down wins.
+  - **Everyone ties:** there's no second-best hand, so they all split.
+  - **Heads-up** (two players in a pot), the **weaker** hand wins.
+  - A side pot with a single player goes back to them.
+- Everyone else folding still wins the pot, as usual.
+
+*Example.* Ann has a pair of kings, Bob a pair of aces, Cy a pair of fives. Bob's aces are best, so Ann's kings win. Now say Bob was all-in early for 100 and Ann and Cy kept betting. The **main pot** (all three) still goes to Ann's kings, but the **side pot** (only Ann and Cy) goes to Cy: heads-up, the weaker hand wins.

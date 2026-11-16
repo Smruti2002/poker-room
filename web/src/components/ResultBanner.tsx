@@ -22,6 +22,9 @@ export function ResultBanner({
 
   return (
     <section className="result" role="status" aria-live="polite" aria-label="Hand result">
+      {hand.variant === 'penultimate' && winners.some((w) => w.desc) && (
+        <p className="result-note muted">Penultimate Texas: the second-best hand wins.</p>
+      )}
       {winners.map((w) => {
         const wins = boardsWon(hand, w)
         return (

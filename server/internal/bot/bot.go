@@ -5,6 +5,7 @@
 package bot
 
 import (
+	"math"
 	"math/rand/v2"
 	"slices"
 
@@ -100,6 +101,11 @@ func strength(v View) float64 {
 	s := madeHand(v)
 	if s < 0 {
 		s = startingHand(v.Hole)
+	}
+	if v.Variant == "penultimate" {
+		// The second-best hand wins: a middling hand is what you want, and
+		// a monster is as bad as nothing.
+		s = max(0, 1-2*math.Abs(s-0.5))
 	}
 	return max(0, s-0.03*float64(max(v.Live-2, 0)))
 }
