@@ -115,3 +115,38 @@ func TestPenultimateFoldWin(t *testing.T) {
 		t.Fatalf("won %v", w)
 	}
 }
+
+// Folded players never win, and don't count when ranking: the second best
+// is among the players still in.
+func TestPenultimateFoldedPlayersDontCount(t *testing.T) {
+	// Seat 0 deals; 1 small blind; 2 big blind; 3 acts first. Hands: Ann
+	// aces, Bob kings, Cy queens, Dee fives.
+	seats := []SeatSpec{{Stack: 1000}, {Stack: 1000}, {Stack: 1000}, {Stack: 1000}}
+	h, err := NewHand(Config{SmallBlind: 10, BigBlind: 20, Order: OrderLastRaiser}, Penultimate, seats, 0,
+		Options{Seed: cards.SeedFromUint64(4), Deck: cards.MustParseList("Ah Ad  Kh Kd  Qh Qd  5h 5d  "+board)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Bob (kings, the would-be second best of all four) folds before the
+	// flop; the others call it down.
+	for !h.Done {
+		a := Action{Type: Check}
+		switch {
+		case h.ToAct == 1 && h.Legal(1).Fold:
+			a.Type = Fold
+		case h.Legal(h.ToAct).Call:
+			a.Type = Call
+		}
+		if err := h.Apply(h.ToAct, a); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := h.CheckInvariants(); err != nil {
+		t.Fatal(err)
+	}
+	// Among Ann (aces), Cy (queens) and Dee (fives), queens are second best.
+	w := won(h)
+	if w[1] != 0 || w[2] == 0 || w[0] != 0 || w[3] != 0 {
+		t.Fatalf("won %v: want only Cy (queens), never folded Bob", w)
+	}
+}

@@ -265,6 +265,7 @@ Texas Hold'em in every way except the showdown: **the second-best hand wins**.
   - **Everyone ties:** there's no second-best hand, so they all split.
   - **Heads-up** (two players in a pot), the **weaker** hand wins.
   - A side pot with a single player goes back to them.
+- **Folded players never win and don't count:** the second-best hand is picked only among the players still in at the showdown, so folding a strong hand doesn't change who comes second.
 - Everyone else folding still wins the pot, as usual.
 
 *Example.* Ann has a pair of kings, Bob a pair of aces, Cy a pair of fives. Bob's aces are best, so Ann's kings win. Now say Bob was all-in early for 100 and Ann and Cy kept betting. The **main pot** (all three) still goes to Ann's kings, but the **side pot** (only Ann and Cy) goes to Cy: heads-up, the weaker hand wins.
